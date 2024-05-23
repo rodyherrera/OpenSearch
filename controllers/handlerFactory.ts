@@ -104,13 +104,13 @@ class HandlerFactory{
     */
     getAll = (): RequestHandler => catchAsync(async (req: Request, res: Response) => {
         const populate = this.getPopulateFromRequest(req.query);
-        const operations = (await new APIFeatures({
+        const operations = new APIFeatures({
             requestQueryString: req.query,
             model: this.model,
             fields: this.fields,
             populate
-        }));
-        operations.filter().sort().limitFields().search().paginate();
+        }).filter().sort().limitFields().search();
+        await operations.paginate();
         const { records, skippedResults, totalResults, page, limit, totalPages } = await operations.perform();
         res.status(200).json({
             status: 'success',

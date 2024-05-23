@@ -189,7 +189,7 @@ class APIFeatures{
         const skip = (page - 1) * limit;
         this.buffer.skip = skip;
         this.buffer.limit = limit;
-        const recordsCount = await this.model.countDocuments();
+        const recordsCount = await this.model.countDocuments(this.buffer.find);
         this.buffer.totalResults = recordsCount;
         this.buffer.page = page;
         this.buffer.skippedResults = skip;
