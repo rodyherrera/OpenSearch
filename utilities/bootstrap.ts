@@ -16,7 +16,7 @@ export const configureApp = async ({ app, routes, suffix, middlewares }: Configu
     try{
         const routePromises = routes.map(async (route) => {
             const path = suffix + formatRoute(route);
-            const router = await import(`./routes/${route}`);
+            const router = await import(`@routes/${route}.ts`);
             if(router.default){
                 app.use(path, router.default);
             }else{

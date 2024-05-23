@@ -8,9 +8,11 @@
       "forceConsistentCasingInFileNames": true,
       "outDir": "./dist",
       "paths": {
-        "@utilities/*": ["./utilities/*"],
-        "@routes/*": ["./routes/*"],
-        "@config/*": ["./config/*"],
+          "@models/*": ["./models/*"],
+          "@utilities/*": ["./utilities/*"],
+          "@routes/*": ["./routes/*"],
+          "@config/*": ["./config/*"],
+          "@controllers/*": ["./controllers/*"]
       }
   },
   "include": ["."],

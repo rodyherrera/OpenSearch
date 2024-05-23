@@ -40,11 +40,14 @@ export const searchWebsite = async (searchTerm: string): Promise<WebsiteDocument
     try{
         const results = await Website.find(query, { score: { $meta: 'textScore' } })
             .sort({ score: { $meta: 'textScore' } })
-            .limit(5)
-            .select('title description url');
+            .limit(10)
+            .select('title description url metaData')
+            .lean();
         return results;
     }catch(error){
         console.error('Open Search -> at @models/website.ts - searchWebsite:', error);
         return [];
     }
 };
+
+export default Website;
