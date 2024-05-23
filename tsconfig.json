@@ -12,7 +12,8 @@
           "@utilities/*": ["./utilities/*"],
           "@routes/*": ["./routes/*"],
           "@config/*": ["./config/*"],
-          "@controllers/*": ["./controllers/*"]
+          "@controllers/*": ["./controllers/*"],
+          "@cli/*": ["./cli/*"]
       }
   },
   "include": ["."],
