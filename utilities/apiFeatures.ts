@@ -1,4 +1,5 @@
 import { Document, Model, PopulateOptions } from 'mongoose';
+import { filterObject } from '@utilities/runtime';
 import RuntimeError from '@utilities/runtimeError';
 
 interface RequestQueryString{
@@ -12,7 +13,7 @@ interface RequestQueryString{
 };
 
 interface Buffer{
-    find: any[];
+    find: object;
     sort: any;
     select: string;
     skip: number;
@@ -26,6 +27,7 @@ interface Buffer{
 interface Options{
     requestQueryString: RequestQueryString,
     model: Model<Document>;
+    fields: string[],
     populate?: string | PopulateOptions | (string | PopulateOptions)[] | null;
 };
 
@@ -33,14 +35,16 @@ class APIFeatures{
     private model: Model<Document>;
     private requestQueryString: RequestQueryString;
     private populate: string | PopulateOptions | (string | PopulateOptions)[] | null;
+    private fields: string[];
     private buffer: Buffer;
 
-    constructor({ requestQueryString, model, populate = null }: Options){
+    constructor({ requestQueryString, model, fields = [], populate = null }: Options){
         this.model = model;
         this.requestQueryString = requestQueryString;
+        this.fields = fields;
         this.populate = populate;
         this.buffer = {
-            find: [],
+            find: {},
             sort: {},
             select: '',
             skip: 0,
@@ -74,11 +78,11 @@ class APIFeatures{
     };
 
     search(): APIFeatures{
-        if(this.requestQueryString.search){
-            const escapedTerm = this.requestQueryString.search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            const regex = new RegExp(escapedTerm, 'i');
-            const query = { suggest: { $regex: regex } };
-            this.buffer.find.push(query);
+        if(this.requestQueryString.q){
+            const escapedTerm = this.requestQueryString.q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const query = { $text: { $search: escapedTerm } };
+            this.buffer.sort = { score: { $meta: 'textScore' } };
+            this.buffer.find = { ...this.buffer.find, ...query };
         }
         return this;
     };
@@ -86,8 +90,8 @@ class APIFeatures{
     filter(): APIFeatures{
         const query = { ...this.requestQueryString };
         ['page', 'sort', 'limit', 'fields', 'populate'].forEach((element) => delete query[element]);
-        const filter = JSON.parse(JSON.stringify(query).replace(/\b(gte|gt|lte|lt)\b/g, match => `$${match}`));
-        this.buffer.find.push(filter);
+        const filter = filterObject(query, ...this.fields);
+        this.buffer.find = { ...this.buffer.find, ...filter };
         return this;
     };
 

@@ -20,22 +20,4 @@ suggestSchema.index({ suggest: 'text' });
 
 const Suggest: Model<SuggestDocument> = mongoose.model<SuggestDocument>('Suggest', suggestSchema);
 
-export const searchSuggest = async (searchTerm: string): Promise<string[]> => {
-    const escapedTerm = searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const regex = new RegExp(escapedTerm, 'i');
-    const query = { suggest: { $regex: regex } };
-    try{
-        const results = await Suggest
-            .find(query)
-            .limit(10)
-            .select('suggest -_id')
-            .lean()
-            .then((results) => results.map(({ suggest }) => suggest));
-        return results;
-    }catch(error){
-        console.log('Open Search -> at @models/suggest.ts - searchSuggest:', error);
-        return [];
-    }
-};
-
 export default Suggest;
