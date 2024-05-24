@@ -7,8 +7,8 @@ import Suggest from '@models/suggest';
 // parameter, which indicates which improvisation method the 
 // emitted event corresponds to.
 class SuggestEngineImprovement extends EventEmitter{
-    async websitesKeywordBasedImprovement(batchSize: number = 1000): Promise<any>{
-        const method = 'websitesKeywordBased';
+    async keywordBasedImprovement(batchSize: number = 1000): Promise<any>{
+        const method = 'keywordBased';
         this.emit('improvementStart', { method });
         let skip = 0;
         // An iteration will be carried out until all records are processed.
@@ -19,6 +19,7 @@ class SuggestEngineImprovement extends EventEmitter{
             // is already in the database.
             const uniqueKeywords = await getUniqueKeywords([
                 { $sort: { createdAt: -1 } },
+                { $skip: skip },
                 { $limit: batchSize }
             ]);
             if(uniqueKeywords.length === 0) break;
@@ -26,7 +27,7 @@ class SuggestEngineImprovement extends EventEmitter{
                 insertOne: { document: { suggest: keyword } }
             }));
             await Suggest.bulkWrite(bulksOps, { ordered: false });
-            this.emit('batchProcessed', { data: uniqueKeywords });
+            this.emit('batchProcessed', { data: bulksOps });
             skip += batchSize;
         }
         this.emit('improvementEnd', { method });
