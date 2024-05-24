@@ -6,6 +6,7 @@
       "esModuleInterop": true,
       "skipLibCheck": true,
       "forceConsistentCasingInFileNames": true,
+      "resolveJsonModule": true,
       "outDir": "./dist",
       "paths": {
           "@models/*": ["./models/*"],
@@ -13,7 +14,8 @@
           "@routes/*": ["./routes/*"],
           "@config/*": ["./config/*"],
           "@controllers/*": ["./controllers/*"],
-          "@cli/*": ["./cli/*"]
+          "@cli/*": ["./cli/*"],
+          "@data/*": ["./data/*"]
       }
   },
   "include": ["."],

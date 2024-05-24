@@ -1,4 +1,6 @@
 import mongoose, { Document, Model } from 'mongoose';
+import axios from 'axios';
+import cheerio from 'cheerio';
 
 interface WebsiteDocument extends Document{
     url: string;
@@ -35,6 +37,19 @@ websiteSchema.index({ url: 'text', title: 'text', description: 'text' });
 interface UniqueKeywords{
     createdAt: Date,
     keyword: string
+};
+
+export const getWebsiteContent = async (url: string): Promise<string> => {
+    try{
+        const response = await axios.get(url);
+        if(response.status !== 200) return '';
+        const html = response.data;
+        const $ = cheerio.load(html);
+        const siteContent = $('body').text();
+        return siteContent;
+    }catch(error){
+        return '';
+    }
 };
 
 export const getUniqueKeywords = async (aggregateOpts: object[]): Promise<UniqueKeywords[]> => {
