@@ -103,9 +103,7 @@ class WebsiteEngineImprovement extends EventEmitter{
                 const { url, title, description, metaData } = result.value;
                 acc.push({
                     filter: { url: url },
-                    update: {
-                        $setOnInsert: { description, title, metaData }
-                    },
+                    update: { $setOnInsert: { description, title, metaData, url } },
                     upsert: true
                 });
             }
