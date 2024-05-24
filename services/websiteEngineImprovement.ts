@@ -136,7 +136,7 @@ class WebsiteEngineImprovement extends EventEmitter{
             }
             const bulksOps = (await Promise.all(promises)).flat();
             await Website.bulkWrite(bulksOps, { ordered: false });
-            this.emit('batchProcessed', { data: bulksOps });
+            this.emit('batchProcessed', { data: bulksOps, method });
             skip += batchSize;
         }
         this.emit('improvementEnd', { method });

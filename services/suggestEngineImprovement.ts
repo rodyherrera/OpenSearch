@@ -35,7 +35,7 @@ class SuggestEngineImprovement extends EventEmitter{
                 }
             }));
             await Suggest.bulkWrite(bulksOps, { ordered: false });
-            this.emit('batchProcessed', { data: bulksOps });
+            this.emit('batchProcessed', { data: bulksOps, method });
             skip += batchSize;
         }
         this.emit('improvementEnd', { method });
@@ -65,7 +65,7 @@ class SuggestEngineImprovement extends EventEmitter{
                 }
             }));
             await Suggest.bulkWrite(bulksOps, { ordered: false });
-            this.emit('batchProcessed', { data: bulksOps });
+            this.emit('batchProcessed', { data: bulksOps, method });
             skip += batchSize;
         }
         this.emit('improvementEnd', { method });
