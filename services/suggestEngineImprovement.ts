@@ -3,12 +3,14 @@ import { getUniqueKeywords } from '@models/website';
 import Website, { getWebsiteContent } from '@models/website';
 import Suggest, { suggestionsFromContent } from '@models/suggest';
 
+//double spaces delete
+
 // Each improvement method will emit events related to the lifecycle 
 // of its operation. Each event sends an object with the 'method'
 // parameter, which indicates which improvisation method the 
 // emitted event corresponds to.
 class SuggestEngineImprovement extends EventEmitter{
-    async contentBasedImprovement(batchSize: number = 1000): Promise<any>{
+    async contentBasedImprovement(batchSize: number = 5): Promise<any>{
         const method = 'contentBased';
         this.emit('improvementStart', { method });
         let skip = 0;

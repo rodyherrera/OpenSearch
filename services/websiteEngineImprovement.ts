@@ -87,31 +87,35 @@ class WebsiteEngineImprovement extends EventEmitter{
     };
 
     async processSuggest(suggest: string): Promise<BulkWriteDocument[]>{
-        const webSearch = (await CDrakeSE({
-            Query: suggest,
-            Method: 'Search'
-        })).Results;
-        const links = webSearch.map(({ Link }: { Link: string }) => Link);
-        this.emit('toScrapeLinks', { links });
-        const promises = [];
-        for(const link of links){
-            promises.push(this.scrapeSite(link));
-        }
-        const response = await Promise.allSettled(promises);
-        const results = response.reduce((acc: any, result) => {
-            if(result.status === 'fulfilled' && result.value !== null){
-                const { url, title, description, metaData } = result.value;
-                acc.push({
-                    updateOne: {
-                        filter: { url: url },
-                        update: { $setOnInsert: { description, title, metaData, url } },
-                        upsert: true
-                    }
-                });
+        try{
+            const webSearch = (await CDrakeSE({
+                Query: suggest,
+                Method: 'Search'
+            })).Results;
+            const links = webSearch.map(({ Link }: { Link: string }) => Link);
+            this.emit('toScrapeLinks', { links });
+            const promises = [];
+            for(const link of links){
+                promises.push(this.scrapeSite(link));
             }
-            return acc;
-        }, [] as any[]);
-        return results;
+            const response = await Promise.allSettled(promises);
+            const results = response.reduce((acc: any, result) => {
+                if(result.status === 'fulfilled' && result.value !== null){
+                    const { url, title, description, metaData } = result.value;
+                    acc.push({
+                        updateOne: {
+                            filter: { url: url },
+                            update: { $setOnInsert: { description, title, metaData, url } },
+                            upsert: true
+                        }
+                    });
+                }
+                return acc;
+            }, [] as any[]);
+            return results;
+        }catch(error){
+            return [];
+        }
     };
 
     async suggestsBasedImprovement(batchSize: number = 5): Promise<any>{
