@@ -10,7 +10,22 @@ import CDrakeSE from 'cdrake-se';
 interface ScrapedLinkData{
     title?: string;
     description?: string;
-    meta: { [key: string]: any };
+    url: string;
+    metaData: { [key: string]: any };
+};
+
+interface BulkWriteDocument{
+    updateOne: {
+        filter: { url: string },
+        update: {
+            $setOnInsert: {
+                description: string,
+                title: string,
+                metaData: { [key: string]: any }
+            }
+        },
+        upsert: boolean
+    }
 };
 
 const AXIOS_OPTS = {
@@ -37,12 +52,13 @@ class WebsiteEngineImprovement extends EventEmitter{
         }
     };
 
-    async extractData(html: string): Promise<ScrapedLinkData>{
+    async extractData(html: string, url: string): Promise<ScrapedLinkData>{
         const $ = cheerio.load(html);
         const data: ScrapedLinkData = { 
             title: $('head > title').text().trim(),
             description: $('meta[name="description"]').attr('content')?.trim(),
-            meta: {} 
+            metaData: {},
+            url
         };
         $('meta').each((_, element) => {
             const name = $(element).attr('name');
@@ -50,9 +66,9 @@ class WebsiteEngineImprovement extends EventEmitter{
             const content = $(element).attr('content');
             if(!content) return;
             if(name){
-                data.meta[name] = content;
+                data.metaData[name] = content;
             }else if(property){
-                data.meta[property] = content;
+                data.metaData[property] = content;
             }
         });
         return data;
@@ -61,13 +77,41 @@ class WebsiteEngineImprovement extends EventEmitter{
     async scrapeSite(link: string): Promise<ScrapedLinkData | null>{
         try{
             const html = await this.fetchHTML(link);
-            const data: ScrapedLinkData = await this.extractData(html);
-            if(!data.title || !data.meta?.description) return null;
+            const data: ScrapedLinkData = await this.extractData(html, link);
+            if(!data.title || !data.metaData?.description) return null;
             return data;
         }catch(error){
             this.emit('error');
             return null;
         }
+    };
+
+    async processSuggest(suggest: string): Promise<BulkWriteDocument[]>{
+        const webSearch = (await CDrakeSE({
+            Query: suggest,
+            Method: 'Search'
+        })).Results;
+        const links = webSearch.map(({ Link }: { Link: string }) => Link);
+        this.emit('toScrapeLinks', { links });
+        const promises = [];
+        for(const link of links){
+            promises.push(this.scrapeSite(link));
+        }
+        const response = await Promise.allSettled(promises);
+        const results = response.reduce((acc: any, result) => {
+            if(result.status === 'fulfilled' && result.value !== null){
+                const { url, title, description, metaData } = result.value;
+                acc.push({
+                    filter: { url: url },
+                    update: {
+                        $setOnInsert: { description, title, metaData }
+                    },
+                    upsert: true
+                });
+            }
+            return acc;
+        }, [] as any[]);
+        return results;
     };
 
     async suggestsBasedImprovement(batchSize: number = 5): Promise<any>{
@@ -82,30 +126,12 @@ class WebsiteEngineImprovement extends EventEmitter{
                 { $project: { _id: 0, suggest: 1 } }
             ]);
             if(suggestions.length === 0) break;
-            const bulksOps = [];
+            const promises = [];
             for(const { suggest } of suggestions){
-                const webSearch = (await CDrakeSE({
-                    Query: suggest,
-                    Method: 'Search'
-                })).Results;
-                const links = webSearch.map(({ Link }: { Link: string }) => Link);
-                this.emit('toScrapeLinks', { links });
-                const promises = [];
-                for(const link of links){
-                    promises.push(this.scrapeSite(link));
-                }
-                const response = await Promise.allSettled(promises);
-                const results = response.reduce((acc: any, result) => {
-                    if(result.status === 'fulfilled' && result.value !== null){
-                        acc.push({
-                            insertOne: { document: result.value }
-                        });
-                    }
-                    return acc;
-                }, [] as any[]);
-                bulksOps.push(...results);
+                promises.push(this.processSuggest(suggest));
             }
-            await Website.bulkWrite(bulksOps);
+            const bulksOps = (await Promise.all(promises)).flat();
+            await Website.bulkWrite(bulksOps, { ordered: false });
             this.emit('batchProcessed', { data: bulksOps });
             skip += batchSize;
         }

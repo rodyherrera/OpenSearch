@@ -24,7 +24,11 @@ class SuggestEngineImprovement extends EventEmitter{
             ]);
             if(uniqueKeywords.length === 0) break;
             const bulksOps = uniqueKeywords.map(({ keyword }) => ({
-                insertOne: { document: { suggest: keyword } }
+                updateOne: {
+                    filter: { suggest: keyword },
+                    update: { $setOnInsert: { suggest: keyword } },
+                    upsert: true
+                }
             }));
             await Suggest.bulkWrite(bulksOps, { ordered: false });
             this.emit('batchProcessed', { data: bulksOps });

@@ -5,3 +5,6 @@ out
 *.log*
 .env
 test.ts
+
+data/opensearch@suggest.json
+data/opensearch@website.json
