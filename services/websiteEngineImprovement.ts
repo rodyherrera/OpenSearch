@@ -118,6 +118,59 @@ class WebsiteEngineImprovement extends EventEmitter{
         }
     };
 
+    async extractHyperlinksFromURL(url: string): Promise<string[]>{
+        const urls = [];
+        try{
+            const html = await this.fetchHTML(url);
+            const regex = /href\s*=\s*['"]([^'"]+)['"]/gi;
+            let match;
+            while((match = regex.exec(html)) !== null){
+                const url = match[1];
+                if((url.startsWith('http://') || url.startsWith('https://'))){
+                    urls.push(url);
+                }
+            }
+            return urls;
+        }catch(error){
+            return urls;
+        }
+    };
+
+    async hyperlinkBasedImprovement(batchSize: number = 1): Promise<any>{
+        const method = 'hyperlinkBased';
+        this.emit('improvementStart', { method });
+        let skip = 0;
+        while(true){
+            const websites = await Website.aggregate([
+                { $sort: { createdAt: -1 } },
+                { $skip: skip },
+                { $limit: batchSize },
+                { $project: { _id: 0, url: 1 } }
+            ]);
+            if(websites.length === 0) return;
+            const promises = websites.map(({ url }) => this.extractHyperlinksFromURL(url));
+            const extractedUrls = (await Promise.all(promises)).flat();
+            const scrapedWebsitesPromises = extractedUrls.map((url) => this.scrapeSite(url));
+            const scrapedWebsites = await Promise.allSettled(scrapedWebsitesPromises);
+            const bulksOps = scrapedWebsites.reduce((acc: any, result) => {
+                if(result.status === 'fulfilled' && result.value !== null){
+                    const { url, title, description, metaData } = result.value;
+                    acc.push({
+                        updateOne: {
+                            filter: { url: url },
+                            update: { $setOnInsert: { description, title, metaData, url } },
+                            upsert: true
+                        }
+                    });
+                }
+                return acc;
+            }, [] as any[]);
+            await Website.bulkWrite(bulksOps, { ordered: false });
+            this.emit('batchProcessed', { data: bulksOps, method });
+            skip += batchSize;
+        }
+    };
+
     async suggestsBasedImprovement(batchSize: number = 5): Promise<any>{
         const method = 'suggestsBased';
         this.emit('improvementStart', { method });
@@ -130,10 +183,7 @@ class WebsiteEngineImprovement extends EventEmitter{
                 { $project: { _id: 0, suggest: 1 } }
             ]);
             if(suggestions.length === 0) break;
-            const promises = [];
-            for(const { suggest } of suggestions){
-                promises.push(this.processSuggest(suggest));
-            }
+            const promises = suggestions.map(({ suggest }) => this.processSuggest(suggest));
             const bulksOps = (await Promise.all(promises)).flat();
             await Website.bulkWrite(bulksOps, { ordered: false });
             this.emit('batchProcessed', { data: bulksOps, method });
