@@ -1,18 +1,10 @@
-import { EventEmitter } from 'events';
 import Suggests from '@models/suggest';
-import axios from 'axios';
-import cheerio from 'cheerio';
 import Website from '@models/website';
+import BaseImprovement from './baseImprovement';
+import WebScraper from './webScraper';
 
 // @ts-ignore
 import CDrakeSE from 'cdrake-se'; 
-
-interface ScrapedLinkData{
-    title?: string;
-    description?: string;
-    url: string;
-    metaData: { [key: string]: any };
-};
 
 interface BulkWriteDocument{
     updateOne: {
@@ -21,6 +13,7 @@ interface BulkWriteDocument{
             $setOnInsert: {
                 description: string,
                 title: string,
+                url: string,
                 metaData: { [key: string]: any }
             }
         },
@@ -28,62 +21,12 @@ interface BulkWriteDocument{
     }
 };
 
-const AXIOS_OPTS = {
-    headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Accept-Encoding': 'gzip, deflate, br',
-        'Connection': 'keep-alive'
-    }
-};
+class WebsiteEngineImprovement extends BaseImprovement{
+    private webScraper: WebScraper;
 
-// Each improvement method will emit events related to the lifecycle 
-// of its operation. Each event sends an object with the 'method'
-// parameter, which indicates which improvisation method the 
-// emitted event corresponds to.
-class WebsiteEngineImprovement extends EventEmitter{
-    async fetchHTML(link: string): Promise<string>{
-        try{
-            const response = await axios.get(link, AXIOS_OPTS);
-            return response.data;
-        }catch(error){
-            this.emit('error', error);
-            return '';
-        }
-    };
-
-    async extractData(html: string, url: string): Promise<ScrapedLinkData>{
-        const $ = cheerio.load(html);
-        const data: ScrapedLinkData = { 
-            title: $('head > title').text().trim(),
-            description: $('meta[name="description"]').attr('content')?.trim(),
-            metaData: {},
-            url
-        };
-        $('meta').each((_, element) => {
-            const name = $(element).attr('name');
-            const property = $(element).attr('property');
-            const content = $(element).attr('content');
-            if(!content) return;
-            if(name){
-                data.metaData[name] = content;
-            }else if(property){
-                data.metaData[property] = content;
-            }
-        });
-        return data;
-    };
-
-    async scrapeSite(link: string): Promise<ScrapedLinkData | null>{
-        try{
-            const html = await this.fetchHTML(link);
-            const data: ScrapedLinkData = await this.extractData(html, link);
-            if(!data.title || !data.metaData?.description) return null;
-            return data;
-        }catch(error){
-            this.emit('error');
-            return null;
-        }
+    constructor(){
+        super();
+        this.webScraper = new WebScraper();
     };
 
     async processSuggest(suggest: string): Promise<BulkWriteDocument[]>{
@@ -96,19 +39,12 @@ class WebsiteEngineImprovement extends EventEmitter{
             this.emit('toScrapeLinks', { links });
             const promises = [];
             for(const link of links){
-                promises.push(this.scrapeSite(link));
+                promises.push(this.webScraper.scrapeSite(link));
             }
             const response = await Promise.allSettled(promises);
             const results = response.reduce((acc: any, result) => {
                 if(result.status === 'fulfilled' && result.value !== null){
-                    const { url, title, description, metaData } = result.value;
-                    acc.push({
-                        updateOne: {
-                            filter: { url: url },
-                            update: { $setOnInsert: { description, title, metaData, url } },
-                            upsert: true
-                        }
-                    });
+                    acc.push(result.value);
                 }
                 return acc;
             }, [] as any[]);
@@ -118,78 +54,46 @@ class WebsiteEngineImprovement extends EventEmitter{
         }
     };
 
-    async extractHyperlinksFromURL(url: string): Promise<string[]>{
-        const urls = [];
-        try{
-            const html = await this.fetchHTML(url);
-            const regex = /href\s*=\s*['"]([^'"]+)['"]/gi;
-            let match;
-            while((match = regex.exec(html)) !== null){
-                const url = match[1];
-                if((url.startsWith('http://') || url.startsWith('https://'))){
-                    urls.push(url);
-                }
-            }
-            return urls;
-        }catch(error){
-            return urls;
-        }
-    };
-
-    async hyperlinkBasedImprovement(batchSize: number = 1): Promise<any>{
+    async hyperlinkBasedImprovement(batchSize: number = 1): Promise<void>{
         const method = 'hyperlinkBased';
-        this.emit('improvementStart', { method });
-        let skip = 0;
-        while(true){
-            const websites = await Website.aggregate([
-                { $sort: { createdAt: -1 } },
-                { $skip: skip },
-                { $limit: batchSize },
-                { $project: { _id: 0, url: 1 } }
-            ]);
-            if(websites.length === 0) return;
-            const promises = websites.map(({ url }) => this.extractHyperlinksFromURL(url));
-            const extractedUrls = (await Promise.all(promises)).flat();
-            const scrapedWebsitesPromises = extractedUrls.map((url) => this.scrapeSite(url));
-            const scrapedWebsites = await Promise.allSettled(scrapedWebsitesPromises);
-            const bulksOps = scrapedWebsites.reduce((acc: any, result) => {
-                if(result.status === 'fulfilled' && result.value !== null){
-                    const { url, title, description, metaData } = result.value;
-                    acc.push({
-                        updateOne: {
-                            filter: { url: url },
-                            update: { $setOnInsert: { description, title, metaData, url } },
-                            upsert: true
-                        }
-                    });
-                }
-                return acc;
-            }, [] as any[]);
-            await Website.bulkWrite(bulksOps, { ordered: false });
-            this.emit('batchProcessed', { data: bulksOps, method });
-            skip += batchSize;
-        }
+        const getDataFunc = async (skip: number) => {
+            const websites = await this.getWebsitesFromDatabase(skip, batchSize);
+            const extractedUrls = await this.webScraper.getExtractedUrls(websites);
+            const scrapedWebsites = await this.webScraper.getScrapedWebsites(extractedUrls);
+            return scrapedWebsites;
+        };
+        await this.processImprovement(method, batchSize, getDataFunc);
     };
 
-    async suggestsBasedImprovement(batchSize: number = 5): Promise<any>{
+    async suggestsBasedImprovement(batchSize: number = 1): Promise<void>{
         const method = 'suggestsBased';
-        this.emit('improvementStart', { method });
-        let skip = 0;
-        while(true){
+        const getDataFunc = async (skip: number) => {
             const suggestions = await Suggests.aggregate([
-                { $sort: { createdAt: -1 } },
+                { $sort: { createdAt: 1 } },
                 { $skip: skip },
                 { $limit: batchSize },
                 { $project: { _id: 0, suggest: 1 } }
             ]);
-            if(suggestions.length === 0) break;
-            const promises = suggestions.map(({ suggest }) => this.processSuggest(suggest));
-            const bulksOps = (await Promise.all(promises)).flat();
-            await Website.bulkWrite(bulksOps, { ordered: false });
-            this.emit('batchProcessed', { data: bulksOps, method });
-            skip += batchSize;
-        }
-        this.emit('improvementEnd', { method });
+            const websitesPromises = suggestions.map(({ suggest }) => this.processSuggest(suggest));
+            const websites = await Promise.all(websitesPromises);
+            return websites.flat();
+        };
+        await this.processImprovement(method, batchSize, getDataFunc);
+    };
+
+    getBulkOps(item: any): BulkWriteDocument{
+        const { url, title, description, metaData } = item;
+        return {
+            updateOne: {
+                filter: { url },
+                update: { $setOnInsert:  { description, title, metaData, url } },
+                upsert: true
+            }
+        };
+    };
+
+    async performBulkWrite(bulkOps: BulkWriteDocument[]): Promise<void>{
+        await Website.bulkWrite(bulkOps, { ordered: false });
     };
 };
 
