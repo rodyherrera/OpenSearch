@@ -9,7 +9,11 @@ class HtmlDataExtractor{
     
     extractTitle(): string{
         return this.$('head > title').text().trim();
-    }
+    };
+
+    extractWebsiteContent(): string{
+        return this.$('body').text();
+    };
 
     extractDescription(): string | undefined{
         return this.$('meta[name="description"]').attr('content')?.trim();

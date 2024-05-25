@@ -1,6 +1,7 @@
 import BaseImprovement from '@services/baseImprovement';
-import { getUniqueKeywords, getWebsiteContent } from '@models/website';
+import { getUniqueKeywords } from '@utilities/websites';
 import { suggestionsFromContent } from '@utilities/suggestions';
+import WebScraper from '@services/webScraper';
 import Suggest from '@models/suggest';
 
 class SuggestEngineImprovement extends BaseImprovement{
@@ -8,7 +9,8 @@ class SuggestEngineImprovement extends BaseImprovement{
         const method = 'contentBased';
         const getDataFunc = async (skip: number) => {
             const websites = await this.getWebsitesFromDatabase(skip, batchSize);
-            const contentsPromise = websites.map(({ url }) => getWebsiteContent(url));
+            const webScraper = new WebScraper();
+            const contentsPromise = websites.map(({ url }) => webScraper.getWebsiteContent(url));
             const contents = await Promise.all(contentsPromise);
             const keywordsPromise = contents.map((content) => suggestionsFromContent(content, 5));
             const keywords = await Promise.all(keywordsPromise);

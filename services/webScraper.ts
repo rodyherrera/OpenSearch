@@ -15,6 +15,12 @@ class WebScraper{
         };
     };
 
+    async getWebsiteContent(url: string): Promise<string>{
+        const html = await this.fetchHTML(url);
+        const dataExtractor = new HtmlDataExtractor(html);
+        return dataExtractor.extractWebsiteContent();
+    };
+
     async extractData(html: string, url: string): Promise<ScrapedLinkData>{
         const dataExtractor = new HtmlDataExtractor(html);
         const data: ScrapedLinkData = {
