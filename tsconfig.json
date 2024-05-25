@@ -15,7 +15,8 @@
           "@config/*": ["./config/*"],
           "@controllers/*": ["./controllers/*"],
           "@cli/*": ["./cli/*"],
-          "@data/*": ["./data/*"]
+          "@data/*": ["./data/*"],
+          "@services/*": ["./services/*"]
       }
   },
   "include": ["."],
