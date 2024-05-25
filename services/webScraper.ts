@@ -18,6 +18,10 @@ const AXIOS_OPTS = {
 };
 
 class WebScraper{
+    private static validateScrapedData(data: ScrapedLinkData): boolean{
+        return !!data.title && !!data.metaData?.description;
+    };
+
     async fetchHTML(link: string): Promise<string>{
         try{
             const response = await axios.get(link, AXIOS_OPTS);
@@ -42,8 +46,7 @@ class WebScraper{
         try{
             const html = await this.fetchHTML(link);
             const data: ScrapedLinkData = await this.extractData(html, link);
-            if(!data.title || !data.metaData?.description) return null;
-            return data;
+            return WebScraper.validateScrapedData(data) ? data : null;
         }catch(error){
             return null;
         }
