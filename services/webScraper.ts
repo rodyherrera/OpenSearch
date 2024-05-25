@@ -1,5 +1,5 @@
 import axios from 'axios';
-import cheerio from 'cheerio';
+import HtmlDataExtractor from '@services/htmlDataExtractor';
 
 interface ScrapedLinkData{
     title?: string;
@@ -28,24 +28,13 @@ class WebScraper{
     };
 
     async extractData(html: string, url: string): Promise<ScrapedLinkData>{
-        const $ = cheerio.load(html);
-        const data: ScrapedLinkData = { 
-            title: $('head > title').text().trim(),
-            description: $('meta[name="description"]').attr('content')?.trim(),
-            metaData: {},
+        const dataExtractor = new HtmlDataExtractor(html);
+        const data: ScrapedLinkData = {
+            title: dataExtractor.extractTitle(),
+            description: dataExtractor.extractDescription(),
+            metaData: dataExtractor.extractMetaData(),
             url
         };
-        $('meta').each((_, element) => {
-            const name = $(element).attr('name');
-            const property = $(element).attr('property');
-            const content = $(element).attr('content');
-            if(!content) return;
-            if(name){
-                data.metaData[name] = content;
-            }else if(property){
-                data.metaData[property] = content;
-            }
-        });
         return data;
     };
 
@@ -61,20 +50,12 @@ class WebScraper{
     };
 
     async extractHyperlinksFromURL(url: string): Promise<string[]>{
-        const urls = [];
         try{
             const html = await this.fetchHTML(url);
-            const regex = /href\s*=\s*['"]([^'"]+)['"]/gi;
-            let match;
-            while((match = regex.exec(html)) !== null){
-                const url = match[1];
-                if((url.startsWith('http://') || url.startsWith('https://'))){
-                    urls.push(url);
-                }
-            }
-            return urls;
+            const dataExtractor = new HtmlDataExtractor(html);
+            return dataExtractor.extractLinks();
         }catch(error){
-            return urls;
+            return [];
         }
     };
 
