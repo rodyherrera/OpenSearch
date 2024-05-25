@@ -1,6 +1,7 @@
 import BaseImprovement from '@services/baseImprovement';
 import { getUniqueKeywords, getWebsiteContent } from '@models/website';
-import Suggest, { suggestionsFromContent } from '@models/suggest';
+import { suggestionsFromContent } from '@utilities/suggestions';
+import Suggest from '@models/suggest';
 
 class SuggestEngineImprovement extends BaseImprovement{
     async contentBasedImprovement(batchSize: number = 5): Promise<void>{
