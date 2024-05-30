@@ -11,9 +11,8 @@ const suggestFile = 'data/opensearch@suggests.json';
 const websiteFile = 'data/opensearch@websites.json';
 const migrationFile = 'data/opensearch@documents.tar.xz';
 
-
 const downloadProgressBar = new cliProgress.SingleBar({
-    format: 'opensearch@records.zip |{bar}| {percentage}% | Restantes: {remainingSizeMB} MiB',
+    format: 'opensearch@documents.tar.xz |{bar}| {percentage}% | Restantes: {remainingSizeMB} MiB',
     clearOnComplete: true,
     stopOnComplete: true
 });
