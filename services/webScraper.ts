@@ -61,6 +61,7 @@ class WebScraper{
     async getScrapedWebsites(extractedUrls: string[]): Promise<ScrapedLinkData[]>{
         const scrapedWebsitesPromises = extractedUrls.map((url) => this.scrapeSite(url));
         const scrapedWebsites = await Promise.allSettled(scrapedWebsitesPromises);
+        console.log(scrapedWebsites);
         return scrapedWebsites.reduce((acc: ScrapedLinkData[], result) => {
             if(result.status === 'fulfilled' && result.value !== null){
                 acc.push(result.value);
