@@ -5,6 +5,7 @@ interface WebsiteDocument extends Document{
     title?: string;
     description?: string,
     metaData?: Object;
+    keywords?: string;
 };
 
 const websiteSchema = new mongoose.Schema<WebsiteDocument>({
@@ -22,6 +23,10 @@ const websiteSchema = new mongoose.Schema<WebsiteDocument>({
         type: String,
         trim: true
     },
+    keywords: {
+        type: String,
+        trim: true
+    },
     metaData: {
         type: Object
     }
@@ -31,7 +36,7 @@ const websiteSchema = new mongoose.Schema<WebsiteDocument>({
 
 websiteSchema.index({ url: 1, createdAt: 1, updatedAt: 1 });
 websiteSchema.index({ createdAt: -1, updatedAt: -1 });
-websiteSchema.index({ url: 'text', title: 'text', description: 'text' });
+websiteSchema.index({ url: 'text', title: 'text', description: 'text', keywords: 'text' });
 
 const Website: Model<WebsiteDocument> = mongoose.model<WebsiteDocument>('Website', websiteSchema);
 
