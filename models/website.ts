@@ -29,7 +29,8 @@ const websiteSchema = new mongoose.Schema<WebsiteDocument>({
     timestamps: true
 });
 
-websiteSchema.index({ url: 1 });
+websiteSchema.index({ url: 1, createdAt: 1, updatedAt: 1 });
+websiteSchema.index({ createdAt: -1, updatedAt: -1 });
 websiteSchema.index({ url: 'text', title: 'text', description: 'text' });
 
 const Website: Model<WebsiteDocument> = mongoose.model<WebsiteDocument>('Website', websiteSchema);

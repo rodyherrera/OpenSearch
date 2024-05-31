@@ -40,19 +40,22 @@ class WebsiteEngineImprovement extends BaseImprovement{
 
     async hyperlinkBasedImprovement(batchSize: number = 1): Promise<void>{
         const method = 'hyperlinkBased';
-        const getDataFunc = async (skip: number) => {
-            const websites = await this.getWebsitesFromDatabase(skip, batchSize);
+        const getDataFunc = (createdAt: number) => async (skip: number) => {
+            const websites = await this.getWebsitesFromDatabase(skip, batchSize, createdAt);
             const extractedUrls = await this.webScraper.getExtractedUrls(websites);
             return await this.webScraper.getScrapedWebsites(extractedUrls);
         };
-        await this.processImprovement(method, batchSize, getDataFunc);
+        await Promise.all([
+            this.processImprovement(method, batchSize, getDataFunc(1)),
+            this.processImprovement(method, batchSize, getDataFunc(-1))
+        ]);
     };
 
     async suggestsBasedImprovement(batchSize: number = 1): Promise<void>{
         const method = 'suggestsBased';
-        const getDataFunc = async (skip: number) => {
+        const getDataFunc = (createdAt: number) => async (skip: number) => {
             const suggestions = await Suggests.aggregate([
-                { $sort: { createdAt: 1 } },
+                { $sort: { createdAt } },
                 { $skip: skip },
                 { $limit: batchSize },
                 { $project: { _id: 0, suggest: 1 } },
@@ -60,7 +63,10 @@ class WebsiteEngineImprovement extends BaseImprovement{
             const websitesPromises = suggestions.map(({ suggest }) => this.processSuggest(suggest));
             return (await Promise.all(websitesPromises)).flat();
         };
-        await this.processImprovement(method, batchSize, getDataFunc);
+        await Promise.all([
+            this.processImprovement(method, batchSize, getDataFunc(-1)),
+            this.processImprovement(method, batchSize, getDataFunc(1))
+        ]);
     };
 
     getBulkOps(item: any): BulkWriteDocument{

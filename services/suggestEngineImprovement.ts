@@ -14,26 +14,34 @@ class SuggestEngineImprovement extends BaseImprovement {
 
     async contentBasedImprovement(batchSize: number = 5): Promise<void>{
         const method = 'contentBased';
-        await this.processImprovement(method, batchSize, async (skip: number) => {
-            const websites = await this.getWebsitesFromDatabase(skip, batchSize);
+        const getDataFunc = (createdAt: number) => async (skip: number) => {
+            const websites = await this.getWebsitesFromDatabase(skip, batchSize, createdAt);
             const contentsPromise = websites.map(({ url }) => this.webScraper.getWebsiteContent(url));
             const contents = await Promise.all(contentsPromise);
             const keywordsPromise = contents.map((content) => suggestionsFromContent(content, 5));
             const keywords = await Promise.all(keywordsPromise);
             return Array.from(new Set(keywords.flat()));
-        });
+        };
+        await Promise.all([
+            this.processImprovement(method, batchSize, getDataFunc(1)),
+            this.processImprovement(method, batchSize, getDataFunc(-1))
+        ]);
     };
 
-    async keywordBasedImprovement(batchSize: number = 1000): Promise<void>{
+    async keywordBasedImprovement(batchSize: number = 1): Promise<void>{
         const method = 'keywordBased';
-        await this.processImprovement(method, batchSize, async (skip: number) =>{
+        const getDataFunc = (createdAt: number) => async (skip: number) => {
             const uniqueKeywords = await getUniqueKeywords([
-                { $sort: { createdAt: -1 } },
+                { $sort: { createdAt } },
                 { $skip: skip },
                 { $limit: batchSize }
             ]);
             return uniqueKeywords.map(({ keyword }) => keyword);
-        });
+        };
+        await Promise.all([
+            this.processImprovement(method, batchSize, getDataFunc(1)),
+            this.processImprovement(method, batchSize, getDataFunc(-1))
+        ]);
     };
 
     async performBulkWrite(bulkOps: any[]): Promise<void>{

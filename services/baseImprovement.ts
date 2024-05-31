@@ -34,13 +34,13 @@ class BaseImprovement extends EventEmitter{
             skip += batchSize;
         }
 
-        this.emit('improvementEnd');
+        this.emit('improvementEnd', { method });
     };
 
     // Shared function in suggestEngineImprovement.ts & websiteEngineImprovement.ts
-    async getWebsitesFromDatabase(skip: number, limit: number): Promise<{ url: string }[]>{
+    async getWebsitesFromDatabase(skip: number, limit: number, createdAt: number): Promise<{ url: string }[]>{
         return await Website.aggregate([
-            { $sort: { createdAt: 1 } },
+            { $sort: { createdAt } },
             { $skip: skip },
             { $limit: limit },
             { $project: { _id: 0, url: 1 } }
