@@ -1,10 +1,10 @@
 import Suggests from '@models/suggest';
 import Website from '@models/website';
-import BaseImprovement from './baseImprovement';
-import WebScraper from './webScraper';
+import BaseImprovement from '@services/baseImprovement';
+import WebScraper from '@services/webScraper';
 
 // @ts-ignore
-import CDrakeSE from 'cdrake-se'; 
+import CDrakeSE from 'cdrake-se';
 
 class WebsiteEngineImprovement extends BaseImprovement{
     private webScraper: WebScraper;
@@ -22,9 +22,9 @@ class WebsiteEngineImprovement extends BaseImprovement{
 
     private async getLinksFromSuggest(suggest: string): Promise<string[]>{
         try{
-            const webSearch = (await CDrakeSE({ Query: suggest, Method: 'Search' })).Results;
+            const { Results: webSearch } = await CDrakeSE({ Query: suggest, Method: 'Search' });
             return webSearch.map(({ Link }: { Link: string }) => Link);
-        }catch(error){
+        }catch (error){
             return [];
         }
     };
@@ -38,18 +38,17 @@ class WebsiteEngineImprovement extends BaseImprovement{
         }, [] as any[]);
     };
 
-    async hyperlinkBasedImprovement(batchSize: number = 1): Promise<void> {
+    async hyperlinkBasedImprovement(batchSize: number = 1): Promise<void>{
         const method = 'hyperlinkBased';
         const getDataFunc = async (skip: number) => {
             const websites = await this.getWebsitesFromDatabase(skip, batchSize);
             const extractedUrls = await this.webScraper.getExtractedUrls(websites);
-            const scrapedWebsites = await this.webScraper.getScrapedWebsites(extractedUrls);
-            return scrapedWebsites;
+            return await this.webScraper.getScrapedWebsites(extractedUrls);
         };
         await this.processImprovement(method, batchSize, getDataFunc);
     };
 
-    async suggestsBasedImprovement(batchSize: number = 1): Promise<void> {
+    async suggestsBasedImprovement(batchSize: number = 1): Promise<void>{
         const method = 'suggestsBased';
         const getDataFunc = async (skip: number) => {
             const suggestions = await Suggests.aggregate([
@@ -59,16 +58,15 @@ class WebsiteEngineImprovement extends BaseImprovement{
                 { $project: { _id: 0, suggest: 1 } },
             ]);
             const websitesPromises = suggestions.map(({ suggest }) => this.processSuggest(suggest));
-            const websites = await Promise.all(websitesPromises);
-            return websites.flat();
+            return (await Promise.all(websitesPromises)).flat();
         };
         await this.processImprovement(method, batchSize, getDataFunc);
     };
 
-    getBulkOps(item: any): BulkWriteDocument {
+    getBulkOps(item: any): BulkWriteDocument{
         const { url, title, description, metaData } = item;
         return {
-          updateOne: {
+            updateOne: {
                 filter: { url },
                 update: { $setOnInsert: { description, title, metaData, url } },
                 upsert: true,
@@ -76,24 +74,24 @@ class WebsiteEngineImprovement extends BaseImprovement{
         };
     };
 
-    async performBulkWrite(bulkOps: BulkWriteDocument[]): Promise<void>{
-        await Website.bulkWrite(bulkOps, { ordered: false });
+    performBulkWrite(bulkOps: any[]): void{
+        Website.bulkWrite(bulkOps, { ordered: false });
     };
 };
 
-interface BulkWriteDocument{
+interface BulkWriteDocument {
     updateOne: {
-        filter: { url: string },
+        filter: { url: string };
         update: {
             $setOnInsert: {
-                description: string,
-                title: string,
-                url: string,
-                metaData: { [key: string]: any }
-            }
-        },
-        upsert: boolean
-    }
-};
+                description: string;
+                title: string;
+                url: string;
+                metaData: { [key: string]: any };
+            };
+        };
+        upsert: boolean;
+    };
+}
 
 export default WebsiteEngineImprovement;

@@ -51,7 +51,7 @@ class BaseImprovement extends EventEmitter{
         throw new Error('@services/baseImprovement.ts - getBulkOps - not implemented.');
     };
 
-    async performBulkWrite(bulkOps: any[]): Promise<void>{
+    performBulkWrite(bulkOps: any[]): void{
         throw new Error('@services/baseImprovement.ts - performBulkWrite - not implemented.');
     };
 };
