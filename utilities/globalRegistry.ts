@@ -2,12 +2,21 @@ import Downloader from 'nodejs-file-downloader';
 import fs from 'fs';
 import path from 'path';
 
+/**
+ * Ensures that the given directory exists, creating it if necessary.
+ * @param {string} directory - The path to the directory.
+*/
 const ensureDirectoryExists = (directory: string): void => {
     if(!fs.existsSync(directory)){
         fs.mkdirSync(directory, { recursive: true });
     }
 };
 
+/**
+ * Downloads documents from the registry.
+ * @param {function} onProgress - A callback function for progress updates.
+ * @returns {Promise<void>} A promise that resolves when the download is complete.
+*/
 export const downloadDocumentsFromRegistry = async (
     onProgress: (percentage: string, chunk: object, remainingSize: number) => void
 ): Promise<void> => {
