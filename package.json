@@ -26,6 +26,7 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.4.0",
     "nodejs-file-downloader": "^4.12.2",
+    "p-queue": "^8.0.1",
     "yauzl-promise": "^4.0.0"
   },
   "devDependencies": {

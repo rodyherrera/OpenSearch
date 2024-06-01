@@ -1,10 +1,18 @@
 import { EventEmitter } from 'events';
 import Website from '@models/website';
+import PQueue from 'p-queue';
 
 /**
  * A base class for improvements.
 */
 class BaseImprovement extends EventEmitter{
+    private queue: PQueue;
+
+    constructor(){
+        super();
+        this.queue = new PQueue({ concurrency: 4 });
+    };
+
     /**
      * Processes an improvement.
      * @param {string} method - The method to use for the improvement.
@@ -21,16 +29,19 @@ class BaseImprovement extends EventEmitter{
         let skip = 0;
         let shouldContinue = true;
         while(shouldContinue){
-            const data = await getDataFunc(skip);
-            if(data.length === 0){
-                shouldContinue = false;
-                break;
-            }
-            const bulkOps = data.map(this.getBulkOps);
-            await this.performBulkWrite(bulkOps);
-            this.emit('batchProcessed', { data: bulkOps, method });
+            await this.queue.add(async () => {
+                const data = await getDataFunc(skip);
+                if(data.length === 0){
+                    shouldContinue = false;
+                    return;
+                }
+                const bulkOps = data.map(this.getBulkOps);
+                await this.performBulkWrite(bulkOps);
+                this.emit('batchProcessed', { data: bulkOps, method });
+            });
             skip += batchSize;
         }
+        await this.queue.onIdle();
         this.emit('improvementEnd');
     };
 
