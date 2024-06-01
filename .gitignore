@@ -10,7 +10,7 @@ data/opensearch@suggests.json
 data/opensearch@websites.json
 data/opensearch@documents.tar.xz
 
-assets.ts
-images.ts
+dassets.ts
+dimages.ts
 normal.ts
 hyperlink.ts
