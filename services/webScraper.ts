@@ -1,11 +1,24 @@
 import axios from 'axios';
 import HtmlDataExtractor from '@services/htmlDataExtractor';
 
+/**
+ * Web Scraper Class
+*/
 class WebScraper{
+    /**
+     * Validates the scraped data.
+     * @param {ScrapedLinkData} data - The scraped data.
+     * @returns {boolean} Whether the data is valid.
+    */
     private static validateScrapedData(data: ScrapedLinkData): boolean{
         return !!data.title && !!data.metaData?.description;
     };
 
+    /**
+     * Fetches the HTML content of a webpage.
+     * @param {string} link - The URL of the webpage.
+     * @returns {Promise<string>} A promise that resolves to the HTML content.
+    */
     async fetchHTML(link: string): Promise<string>{
         try{
             const response = await axios.get(link, AXIOS_OPTS);
@@ -15,12 +28,23 @@ class WebScraper{
         };
     };
 
+    /**
+     * Extracts the content of a website.
+     * @param {string} url - The URL of the website.
+     * @returns {Promise<string>} A promise that resolves to the website content.
+    */
     async getWebsiteContent(url: string): Promise<string>{
         const html = await this.fetchHTML(url);
         const dataExtractor = new HtmlDataExtractor(html);
         return dataExtractor.extractWebsiteContent();
     };
 
+    /**
+     * Extracts data from a webpage.
+     * @param {string} html - The HTML content of the webpage.
+     * @param {string} url - The URL of the webpage.
+     * @returns {Promise<ScrapedLinkData>} A promise that resolves to the extracted data.
+    */
     async extractData(html: string, url: string): Promise<ScrapedLinkData>{
         const dataExtractor = new HtmlDataExtractor(html);
         const data: ScrapedLinkData = {
@@ -32,6 +56,11 @@ class WebScraper{
         return data;
     };
 
+    /**
+     * Scrapes a website and extracts data.
+     * @param {string} link - The URL of the website.
+     * @returns {Promise<ScrapedLinkData | null>} A promise that resolves to the scraped data or null.
+    */
     async scrapeSite(link: string): Promise<ScrapedLinkData | null>{
         try{
             const html = await this.fetchHTML(link);
@@ -42,6 +71,11 @@ class WebScraper{
         }
     };
 
+    /**
+     * Extracts hyperlinks from a webpage.
+     * @param {string} url - The URL of the webpage.
+     * @returns {Promise<string[]>} A promise that resolves to an array of hyperlinks.
+    */
     async extractHyperlinksFromURL(url: string): Promise<string[]>{
         try{
             const html = await this.fetchHTML(url);
@@ -52,12 +86,22 @@ class WebScraper{
         }
     };
 
+    /**
+     * Extracts URLs from an array of websites.
+     * @param {{ url: string }[]} websites - An array of websites.
+     * @returns {Promise<string[]>} A promise that resolves to an array of extracted URLs.
+    */
     async getExtractedUrls(websites: { url: string }[]): Promise<string[]>{
         const promises = websites.map(({ url }) => this.extractHyperlinksFromURL(url));
         const extractedUrlsArray = await Promise.all(promises);
         return extractedUrlsArray.flat();
     };
 
+    /**
+     * Scrapes an array of websites and extracts data.
+     * @param {string[]} extractedUrls - An array of URLs to scrape.
+     * @returns {Promise<ScrapedLinkData[]>} A promise that resolves to an array of scraped data.
+    */
     async getScrapedWebsites(extractedUrls: string[]): Promise<ScrapedLinkData[]>{
         const scrapedWebsitesPromises = extractedUrls.map((url) => this.scrapeSite(url));
         const scrapedWebsites = await Promise.allSettled(scrapedWebsitesPromises);
@@ -70,6 +114,10 @@ class WebScraper{
     };
 };
 
+/**
+ * Defines the shape of the scraped data.
+ * @interface
+*/
 interface ScrapedLinkData{
     title?: string;
     description?: string;
