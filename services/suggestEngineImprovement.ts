@@ -1,25 +1,26 @@
 import BaseImprovement from '@services/baseImprovement';
-import { getUniqueKeywords } from '@utilities/websites';
-import { suggestionsFromContent } from '@utilities/suggestions';
 import WebScraper from '@services/webScraper';
 import Suggest from '@models/suggest';
+import PQueue from 'p-queue';
+import { getUniqueKeywords } from '@utilities/websites';
+import { suggestionsFromContent } from '@utilities/suggestions';
 
-class SuggestEngineImprovement extends BaseImprovement {
+class SuggestEngineImprovement extends BaseImprovement{
     private webScraper: WebScraper;
+    private suggestQueue: PQueue;
 
     constructor(){
         super();
         this.webScraper = new WebScraper();
+        this.suggestQueue = new PQueue({ concurrency: 5 });
     };
 
     async contentBasedImprovement(batchSize: number = 5): Promise<void>{
         const method = 'contentBased';
         const getDataFunc = (createdAt: 1 | -1) => async (skip: number) => {
             const websites = await this.getWebsitesFromDatabase(skip, batchSize, createdAt);
-            const contentsPromise = websites.map(({ url }) => this.webScraper.getWebsiteContent(url));
-            const contents = await Promise.all(contentsPromise);
-            const keywordsPromise = contents.map((content) => suggestionsFromContent(content, 5));
-            const keywords = await Promise.all(keywordsPromise);
+            const contents = await this.suggestQueue.addAll(websites.map(({ url }) => () => this.webScraper.getWebsiteContent(url)));
+            const keywords = await this.suggestQueue.addAll(contents.map((content) => () => suggestionsFromContent(content, 5)));
             return Array.from(new Set(keywords.flat()));
         };
         await Promise.all([
