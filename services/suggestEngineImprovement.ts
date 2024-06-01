@@ -14,7 +14,7 @@ class SuggestEngineImprovement extends BaseImprovement {
 
     async contentBasedImprovement(batchSize: number = 5): Promise<void>{
         const method = 'contentBased';
-        const getDataFunc = (createdAt: number) => async (skip: number) => {
+        const getDataFunc = (createdAt: 1 | -1) => async (skip: number) => {
             const websites = await this.getWebsitesFromDatabase(skip, batchSize, createdAt);
             const contentsPromise = websites.map(({ url }) => this.webScraper.getWebsiteContent(url));
             const contents = await Promise.all(contentsPromise);

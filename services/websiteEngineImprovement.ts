@@ -31,16 +31,13 @@ class WebsiteEngineImprovement extends BaseImprovement{
 
     private async scrapeLinksAndExtractData(links: string[]): Promise<BulkWriteDocument[]>{
         const promises = links.map((link) => this.webScraper.scrapeSite(link));
-        const response = await Promise.allSettled(promises);
-        return response.reduce((acc: any, result) => {
-            if(result.status === 'fulfilled' && result.value !== null) acc.push(result.value);
-            return acc;
-        }, [] as any[]);
+        const results = await Promise.all(promises.map((p) => p.catch((error) => error)));
+        return results.filter((result) => result !== null);
     };
 
     async hyperlinkBasedImprovement(batchSize: number = 1): Promise<void>{
         const method = 'hyperlinkBased';
-        const getDataFunc = (createdAt: number) => async (skip: number) => {
+        const getDataFunc = (createdAt: -1 | 1) => async (skip: number) => {
             const websites = await this.getWebsitesFromDatabase(skip, batchSize, createdAt);
             const extractedUrls = await this.webScraper.getExtractedUrls(websites);
             return await this.webScraper.getScrapedWebsites(extractedUrls);
@@ -53,7 +50,7 @@ class WebsiteEngineImprovement extends BaseImprovement{
 
     async suggestsBasedImprovement(batchSize: number = 1): Promise<void>{
         const method = 'suggestsBased';
-        const getDataFunc = (createdAt: number) => async (skip: number) => {
+        const getDataFunc = (createdAt: -1 | 1) => async (skip: number) => {
             const suggestions = await Suggests.aggregate([
                 { $sort: { createdAt } },
                 { $skip: skip },

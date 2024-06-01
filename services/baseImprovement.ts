@@ -7,38 +7,25 @@ class BaseImprovement extends EventEmitter{
         batchSize: number,
         getDataFunc: (skip: number) => Promise<any[]>,
     ): Promise<void>{
-        const promises = [];
-        let shouldContinue = true;
         this.emit('improvementStart', { method });
-
-        const handleImprovement = async (skip: number) => {
+        let skip = 0;
+        let shouldContinue = true;
+        while(shouldContinue){
             const data = await getDataFunc(skip);
             if(data.length === 0){
                 shouldContinue = false;
+                break;
             }
             const bulkOps = data.map(this.getBulkOps);
             await this.performBulkWrite(bulkOps);
             this.emit('batchProcessed', { data: bulkOps, method });
-        };
-
-        let skip = 0;
-        let i = batchSize / 2;
-        while(shouldContinue){
-            if(i >= batchSize){
-                i = batchSize / 2;
-                await Promise.all(promises);
-            }else{
-                i++;
-            }
-            promises.push(handleImprovement(skip));
             skip += batchSize;
         }
-
-        this.emit('improvementEnd', { method });
+        this.emit('improvementEnd');
     };
 
     // Shared function in suggestEngineImprovement.ts & websiteEngineImprovement.ts
-    async getWebsitesFromDatabase(skip: number, limit: number, createdAt: number): Promise<{ url: string }[]>{
+    async getWebsitesFromDatabase(skip: number, limit: number, createdAt: -1 | 1): Promise<{ url: string }[]>{
         return await Website.aggregate([
             { $sort: { createdAt } },
             { $skip: skip },

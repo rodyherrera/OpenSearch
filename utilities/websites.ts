@@ -8,7 +8,7 @@ interface UniqueKeywords{
 // TODO: unwrap "keywords" from metaData and create 'text' index!!!!!!!
 export const getUniqueKeywords = async (aggregateOpts: object[]): Promise<UniqueKeywords[]> => {
     const uniqueKeywords = await Website.aggregate([
-        { $match: { keywords: { $exists: true, $ne: null } } },
+        { $match: { keywords: { $type: 'string' } } },
         {
             $project: {
                 keyword: {
@@ -18,7 +18,7 @@ export const getUniqueKeywords = async (aggregateOpts: object[]): Promise<Unique
             }
         },
         { $group: { _id: '$keyword', createdAt: { $first: '$createdAt' } } },
-        { $project: { keyword: '$_id', createdAt: 1, _id: 0 } },
+        { $project: { _id: 0, keyword: '$_id', createdAt: 1 } },
         ...(aggregateOpts as any[])
     ]);
     return uniqueKeywords;
