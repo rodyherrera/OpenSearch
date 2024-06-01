@@ -1,6 +1,7 @@
-import express, { Request, Response } from 'express';
+import express from 'express';
 import helmet from 'helmet';
 import bodyParser from 'body-parser';
+import compression from 'compression';
 
 import { configureApp } from '@utilities/bootstrap';
 
@@ -15,6 +16,7 @@ configureApp({
     ],
     middlewares: [
         helmet(),
+        compression(),
         bodyParser.json(),
         bodyParser.urlencoded({ extended: true })
     ]

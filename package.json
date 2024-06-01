@@ -17,6 +17,7 @@
     "cdrake-se": "^1.1.2",
     "cheerio": "^1.0.0-rc.12",
     "cli-progress": "^3.12.0",
+    "compression": "^1.7.4",
     "cors": "^2.8.5",
     "decompress": "^4.2.1",
     "decompress-tarxz": "^3.0.0",
@@ -26,7 +27,8 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.4.0",
     "nodejs-file-downloader": "^4.12.2",
-    "p-queue": "^8.0.1"
+    "p-queue": "^8.0.1",
+    "redis": "^4.6.14"
   },
   "devDependencies": {
     "@types/body-parser": "^1.19.5",
