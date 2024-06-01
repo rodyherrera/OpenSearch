@@ -26,8 +26,7 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.4.0",
     "nodejs-file-downloader": "^4.12.2",
-    "p-queue": "^8.0.1",
-    "yauzl-promise": "^4.0.0"
+    "p-queue": "^8.0.1"
   },
   "devDependencies": {
     "@types/body-parser": "^1.19.5",
@@ -35,8 +34,6 @@
     "@types/express": "^4.17.21",
     "@types/mongoose": "^5.11.97",
     "@types/node": "^20.12.12",
-    "@types/yauzl-promise": "^4.0.1",
-    "bun-types": "latest",
     "ts-node": "^10.9.2",
     "tsx": "^4.10.5",
     "typescript": "^5.4.5"
