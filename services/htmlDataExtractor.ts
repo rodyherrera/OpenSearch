@@ -41,6 +41,39 @@ class HtmlDataExtractor{
         return this.$('meta[name="description"]').attr('content')?.trim();
     };
 
+    extractAssets(): ScrapedAsset[]{
+        const assets: ScrapedAsset[] = [];
+        this.$('script').each((_: any, element: any) => {
+            const src = this.$(element).attr('src') || '';
+            const normalizedSrc = normalizeUrl(src, this.baseUrl);
+            if(!src || !normalizedSrc) return;
+            assets.push({ type: 'script', url: normalizedSrc, parentUrl: this.baseUrl });
+        });
+        this.$('link[rel="stylesheet"]').each((_: any, element: any) => {
+            const src = this.$(element).attr('href');
+            const normalizedSrc = normalizeUrl(src, this.baseUrl);
+            if(!src || !normalizedSrc) return;
+            assets.push({ type: 'stylesheet', url: normalizedSrc, parentUrl: this.baseUrl });
+        });
+        this.$('link[rel="preload"]').each((_: any, element: any) => {
+            const src = this.$(element).attr('href');
+            const as = this.$(element).attr('as');
+            const normalizedSrc = normalizeUrl(src, this.baseUrl);
+            if(!src || !normalizedSrc || as !== 'font') return;
+            assets.push({ type: 'font', url: normalizedSrc, parentUrl: this.baseUrl });
+        });
+        this.$('a').each((_: any, element: any) => {
+            const src = this.$(element).attr('href');
+            const normalizedSrc = normalizeUrl(src, this.baseUrl);
+            if(!src || !normalizedSrc) return;
+            const maybeExtension = src.match(/\.(pdf|doc|docx|xlsx|xls|ppt|pptx)$/i);
+            if(!maybeExtension || !maybeExtension[0]) return;
+            const extension = maybeExtension[0] as AssetTypes;
+            assets.push({ type: extension, url: normalizedSrc, parentUrl: this.baseUrl });
+        });
+        return assets;
+    };
+
     extractImages(): ScrapedImage[]{
         const images: ScrapedImage[] = [];
         this.$('img').each((_: any, element: any) => {
@@ -102,6 +135,14 @@ class HtmlDataExtractor{
         });
         return links;
     }
+};
+
+type AssetTypes = 'pdf' | 'docx' | 'xls' | 'xlsx' | 'ppt' | 'pptx' | 'script' | 'stylesheet' | 'font';
+
+export interface ScrapedAsset{
+    type: AssetTypes,
+    parentUrl: string,
+    url: string
 };
 
 export interface ScrapedImage{

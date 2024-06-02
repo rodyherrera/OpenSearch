@@ -19,16 +19,6 @@ const assetSchema = new mongoose.Schema({
             'xlsx',
             'ppt',
             'pptx',
-            'gif',
-            'bmp',
-            'mp4',
-            'avi',
-            'mov',
-            'wmv',
-            'flv',
-            'jpg',
-            'jpeg',
-            'png',
             'script', 
             'stylesheet', 
             'font'
@@ -43,4 +33,4 @@ assetSchema.index({ url: 'text', parentUrl: 'text', type: 'text' });
 
 const Asset = mongoose.model('Asset', assetSchema);
 
-module.exports = Asset;
+export default Asset;
