@@ -91,7 +91,7 @@ class WebScraper{
     }
 
     async extractImagesFromURL(url: string): Promise<ScrapedImage[]> {
-        return this.extractDataFromURL(url, extractor => Promise.resolve(extractor.extractImages()));
+        return this.extractDataFromURL(url, extractor => Promise.resolve(extractor.exctractAllImages()));
     }
 
     async extractAssetsFromURL(url: string): Promise<ScrapedAsset[]> {

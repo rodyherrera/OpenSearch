@@ -109,6 +109,11 @@ class HtmlDataExtractor{
             const height = this.$(element).attr('height');
             images.push({ src: normalizedSrc, width, height, alt });
         });
+        return images;
+    };
+
+    extractPictures(): ScrapedImage[]{
+        const images: ScrapedImage[] = [];
         this.$('picture source').each(async (_: any, element: any) => {
             const src = this.$(element).attr('srcset') || '';
             const normalizedSrc = normalizeUrl(src.split(' ')[0], this.baseUrl);
@@ -116,6 +121,11 @@ class HtmlDataExtractor{
             const alt = this.$(element).attr('alt') || '';
             images.push({ src: normalizedSrc, alt });
         });
+        return images;
+    };
+
+    extractMetaTagsImages(): ScrapedImage[]{
+        const images: ScrapedImage[] = [];
         this.$('meta[property="og:image"], meta[name="twitter:image"]').each(async (_: any, element: any) => {
             const src = this.$(element).attr('content') || '';
             const normalizedSrc = normalizeUrl(src, this.baseUrl);
@@ -123,6 +133,14 @@ class HtmlDataExtractor{
             images.push({ src: normalizedSrc, alt: '' });
         });
         return images;
+    };
+
+    exctractAllImages(): ScrapedImage[]{
+        return [
+            ...this.extractPictures(),
+            ...this.extractMetaTagsImages(),
+            ...this.extractImages()
+        ];
     };
 
     /**
