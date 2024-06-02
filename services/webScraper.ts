@@ -71,30 +71,29 @@ class WebScraper{
         }
     };
 
+    private async createHtmlDataExtractorInstanceFromURL(url: string): Promise<HtmlDataExtractor>{
+        try{
+            const html = await this.fetchHTML(url);
+            const dataExtractor = new HtmlDataExtractor(html);
+            return dataExtractor;
+        }catch(error){
+            return new HtmlDataExtractor('');
+        }
+    };
+
     /**
      * Extracts hyperlinks from a webpage.
      * @param {string} url - The URL of the webpage.
      * @returns {Promise<string[]>} A promise that resolves to an array of hyperlinks.
     */
     async extractHyperlinksFromURL(url: string): Promise<string[]>{
-        try{
-            const html = await this.fetchHTML(url);
-            const dataExtractor = new HtmlDataExtractor(html);
-            return dataExtractor.extractLinks();
-        }catch(error){
-            return [];
-        }
+        const dataExtractor = await this.createHtmlDataExtractorInstanceFromURL(url);
+        return dataExtractor.extractLinks();
     };
 
-    // REFACTOR THIS SAME LOGIC WITH extractHyperlinksFromURL();
     async extractImagesFromURL(url: string): Promise<ScrapedImage[]>{
-        try{
-            const html = await this.fetchHTML(url);
-            const dataExtractor = new HtmlDataExtractor(html, url);
-            return dataExtractor.extractImages();
-        }catch(error){
-            return [];
-        }
+        const dataExtractor = await this.createHtmlDataExtractorInstanceFromURL(url);
+        return dataExtractor.extractImages();
     };
 
     async getExtractedImages(websites: { url: string }[]): Promise<ScrapedImage[]>{
