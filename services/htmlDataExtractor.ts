@@ -41,7 +41,18 @@ class HtmlDataExtractor{
         return this.$('meta[name="description"]').attr('content')?.trim();
     };
 
-    extractAssets(): ScrapedAsset[]{
+    extractStylesheetURLs(): ScrapedAsset[]{
+        const assets: ScrapedAsset[] = [];
+        this.$('link[rel="stylesheet"]').each((_: any, element: any) => {
+            const src = this.$(element).attr('href');
+            const normalizedSrc = normalizeUrl(src, this.baseUrl);
+            if(!src || !normalizedSrc) return;
+            assets.push({ type: 'stylesheet', url: normalizedSrc, parentUrl: this.baseUrl });
+        });
+        return assets;
+    };
+
+    extractScriptsURLs(): ScrapedAsset[]{
         const assets: ScrapedAsset[] = [];
         this.$('script').each((_: any, element: any) => {
             const src = this.$(element).attr('src') || '';
@@ -49,12 +60,11 @@ class HtmlDataExtractor{
             if(!src || !normalizedSrc) return;
             assets.push({ type: 'script', url: normalizedSrc, parentUrl: this.baseUrl });
         });
-        this.$('link[rel="stylesheet"]').each((_: any, element: any) => {
-            const src = this.$(element).attr('href');
-            const normalizedSrc = normalizeUrl(src, this.baseUrl);
-            if(!src || !normalizedSrc) return;
-            assets.push({ type: 'stylesheet', url: normalizedSrc, parentUrl: this.baseUrl });
-        });
+        return assets;
+    };
+
+    extractFontURLs(): ScrapedAsset[]{
+        const assets: ScrapedAsset[] = [];
         this.$('link[rel="preload"]').each((_: any, element: any) => {
             const src = this.$(element).attr('href');
             const as = this.$(element).attr('as');
@@ -62,6 +72,11 @@ class HtmlDataExtractor{
             if(!src || !normalizedSrc || as !== 'font') return;
             assets.push({ type: 'font', url: normalizedSrc, parentUrl: this.baseUrl });
         });
+        return assets;
+    };
+
+    extractFileURLs(): ScrapedAsset[]{
+        const assets: ScrapedAsset[] = [];
         this.$('a').each((_: any, element: any) => {
             const src = this.$(element).attr('href');
             const normalizedSrc = normalizeUrl(src, this.baseUrl);
@@ -72,6 +87,15 @@ class HtmlDataExtractor{
             assets.push({ type: extension, url: normalizedSrc, parentUrl: this.baseUrl });
         });
         return assets;
+    };
+
+    extractAssets(): ScrapedAsset[]{
+        return [
+            ...this.extractFileURLs(),
+            ...this.extractFontURLs(),
+            ...this.extractScriptsURLs(),
+            ...this.extractStylesheetURLs()
+        ];
     };
 
     extractImages(): ScrapedImage[]{
