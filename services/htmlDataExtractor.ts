@@ -2,7 +2,7 @@ import { load } from 'cheerio';
 import { normalizeUrl } from '@utilities/runtime';
 
 /**
- * HTML Data Extractor Class.
+ * Class for extracting data from an HTML document.
 */
 class HtmlDataExtractor{
     private $: any;
@@ -11,6 +11,7 @@ class HtmlDataExtractor{
     /**
      * Creates an instance of HtmlDataExtractor.
      * @param {string} html - The HTML string to be loaded.
+     * @param {string} [baseUrl=''] - The base URL for normalizing relative URLs.
     */
     constructor(html: string, baseUrl = ''){
         this.$ = load(html);
@@ -41,6 +42,10 @@ class HtmlDataExtractor{
         return this.$('meta[name="description"]').attr('content')?.trim();
     };
 
+    /**
+     * Extracts the URLs of stylesheets from the HTML document.
+     * @returns {ScrapedAsset[]} - An array of ScrapedAsset objects representing the stylesheets.
+    */
     extractStylesheetURLs(): ScrapedAsset[]{
         const assets: ScrapedAsset[] = [];
         this.$('link[rel="stylesheet"]').each((_: any, element: any) => {
@@ -52,6 +57,10 @@ class HtmlDataExtractor{
         return assets;
     };
 
+    /**
+     * Extracts the URLs of scripts from the HTML document.
+     * @returns {ScrapedAsset[]} - An array of ScrapedAsset objects representing the scripts.
+    */
     extractScriptsURLs(): ScrapedAsset[]{
         const assets: ScrapedAsset[] = [];
         this.$('script').each((_: any, element: any) => {
@@ -63,6 +72,10 @@ class HtmlDataExtractor{
         return assets;
     };
 
+    /**
+     * Extracts the URLs of fonts from the HTML document.
+     * @returns {ScrapedAsset[]} - An array of ScrapedAsset objects representing the fonts.
+    */
     extractFontURLs(): ScrapedAsset[]{
         const assets: ScrapedAsset[] = [];
         this.$('link[rel="preload"]').each((_: any, element: any) => {
@@ -75,6 +88,10 @@ class HtmlDataExtractor{
         return assets;
     };
 
+    /**
+     * Extracts the URLs of files from the HTML document.
+     * @returns {ScrapedAsset[]} - An array of ScrapedAsset objects representing the files.
+    */
     extractFileURLs(): ScrapedAsset[]{
         const assets: ScrapedAsset[] = [];
         this.$('a').each((_: any, element: any) => {
@@ -89,6 +106,10 @@ class HtmlDataExtractor{
         return assets;
     };
 
+    /**
+     * Extracts all assets from the HTML document.
+     * @returns {ScrapedAsset[]} - An array of all ScrapedAsset objects.
+    */
     extractAssets(): ScrapedAsset[]{
         return [
             ...this.extractFileURLs(),
@@ -98,6 +119,10 @@ class HtmlDataExtractor{
         ];
     };
 
+    /**
+     * Extracts images from the HTML document.
+     * @returns {ScrapedImage[]} - An array of ScrapedImage objects representing the images.
+    */
     extractImages(): ScrapedImage[]{
         const images: ScrapedImage[] = [];
         this.$('img').each((_: any, element: any) => {
@@ -112,6 +137,10 @@ class HtmlDataExtractor{
         return images;
     };
 
+    /**
+     * Extracts pictures from the HTML document.
+     * @returns {ScrapedImage[]} - An array of ScrapedImage objects representing the pictures.
+    */
     extractPictures(): ScrapedImage[]{
         const images: ScrapedImage[] = [];
         this.$('picture source').each(async (_: any, element: any) => {
@@ -124,6 +153,10 @@ class HtmlDataExtractor{
         return images;
     };
 
+    /**
+     * Extracts images from meta tags in the HTML document.
+     * @returns {ScrapedImage[]} - An array of ScrapedImage objects representing the images from meta tags.
+    */
     extractMetaTagsImages(): ScrapedImage[]{
         const images: ScrapedImage[] = [];
         this.$('meta[property="og:image"], meta[name="twitter:image"]').each(async (_: any, element: any) => {
@@ -135,6 +168,10 @@ class HtmlDataExtractor{
         return images;
     };
 
+    /**
+     * Extracts all images from the HTML document.
+     * @returns {ScrapedImage[]} - An array of all ScrapedImage objects.
+    */
     exctractAllImages(): ScrapedImage[]{
         return [
             ...this.extractPictures(),
@@ -179,14 +216,32 @@ class HtmlDataExtractor{
     }
 };
 
+/**
+ * Possible types of assets.
+*/
 type AssetTypes = 'pdf' | 'docx' | 'xls' | 'xlsx' | 'ppt' | 'pptx' | 'script' | 'stylesheet' | 'font';
 
+/**
+ * Interface for representing a scraped asset.
+ * @interface
+ * @property {AssetTypes} type - The type of the asset.
+ * @property {string} parentUrl - The URL of the parent document.
+ * @property {string} url - The URL of the asset.
+*/
 export interface ScrapedAsset{
     type: AssetTypes,
     parentUrl: string,
     url: string
 };
 
+/**
+ * Interface for representing a scraped image.
+ * @interface
+ * @property {string} alt - The alternative text of the image (if available else '').
+ * @property {string} src - The URL of the image.
+ * @property {number | undefined} width - The width of the image (if available).
+ * @property {number | undefined} height - The height of the image (if available).
+*/
 export interface ScrapedImage{
     alt: string;
     src: string;
