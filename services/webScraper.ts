@@ -71,6 +71,12 @@ class WebScraper{
         }
     };
 
+    /**
+     * Creates an instance of HtmlDataExtractor from a URL.
+     * @param {string} url - The URL from which to extract HTML data.
+     * @returns {Promise<HtmlDataExtractor>} - A promise that resolves to an HtmlDataExtractor instance.
+     * @private
+    */
     private async createHtmlDataExtractorInstanceFromURL(url: string): Promise<HtmlDataExtractor>{
         try{
             const html = await this.fetchHTML(url);
@@ -81,40 +87,86 @@ class WebScraper{
         }
     };
 
+    /**
+     * Extracts data from a URL using a provided extraction method.
+     * @template T
+     * @param {string} url - The URL from which to extract data.
+     * @param {(extractor: HtmlDataExtractor) => Promise<T>} extractMethod - The method to extract data from the HtmlDataExtractor.
+     * @returns {Promise<T>} - A promise that resolves to the extracted data.
+     * @private
+    */
     private async extractDataFromURL<T>(url: string, extractMethod: (extractor: HtmlDataExtractor) => Promise<T>): Promise<T> {
-    const dataExtractor = await this.createHtmlDataExtractorInstanceFromURL(url);
-    return extractMethod(dataExtractor);
-    }
+        const dataExtractor = await this.createHtmlDataExtractorInstanceFromURL(url);
+        return extractMethod(dataExtractor);
+    };
 
+    /**
+     * Extracts hyperlinks from a URL.
+     * @param {string} url - The URL from which to extract hyperlinks.
+     * @returns {Promise<string[]>} - A promise that resolves to an array of extracted hyperlinks.
+    */
     async extractHyperlinksFromURL(url: string): Promise<string[]> {
         return this.extractDataFromURL(url, extractor => Promise.resolve(extractor.extractLinks()));
-    }
+    };
 
+    /**
+     * Extracts images from a URL.
+     * @param {string} url - The URL from which to extract images.
+     * @returns {Promise<ScrapedImage[]>} - A promise that resolves to an array of extracted images.
+    */
     async extractImagesFromURL(url: string): Promise<ScrapedImage[]> {
         return this.extractDataFromURL(url, extractor => Promise.resolve(extractor.exctractAllImages()));
-    }
+    };
 
+    /**
+     * Extracts assets from a URL.
+     * @param {string} url - The URL from which to extract assets.
+     * @returns {Promise<ScrapedAsset[]>} - A promise that resolves to an array of extracted assets.
+    */
     async extractAssetsFromURL(url: string): Promise<ScrapedAsset[]> {
         return this.extractDataFromURL(url, extractor => Promise.resolve(extractor.extractAssets()));
-    }
+    };
 
+    /**
+     * Gets extracted data from multiple websites.
+     * @template T
+     * @param {{ url: string }[]} websites - An array of websites.
+     * @param {(url: string) => Promise<T[]>} extractMethod - The method to extract data from each URL.
+     * @returns {Promise<T[]>} - A promise that resolves to an array of extracted data from all websites.
+     * @private
+    */
     private async getExtractedDataFromWebsites<T>(websites: { url: string }[], extractMethod: (url: string) => Promise<T[]>): Promise<T[]>{
         const promises = websites.map(({ url }) => extractMethod(url));
         const extractedDataArray = await Promise.all(promises);
         return extractedDataArray.flat();
-    }
+    };
 
+    /**
+     * Gets extracted images from multiple websites.
+     * @param {{ url: string }[]} websites - An array of websites.
+     * @returns {Promise<ScrapedImage[]>} - A promise that resolves to an array of extracted images from all websites.
+    */
     async getExtractedImages(websites: { url: string }[]): Promise<ScrapedImage[]>{
         return this.getExtractedDataFromWebsites(websites, url => this.extractImagesFromURL(url));
-    }
+    };
 
+    /**
+     * Gets extracted assets from multiple websites.
+     * @param {{ url: string }[]} websites - An array of websites.
+     * @returns {Promise<ScrapedAsset[]>} - A promise that resolves to an array of extracted assets from all websites.
+    */
     async getExtractedAssets(websites: { url: string }[]): Promise<ScrapedAsset[]>{
         return this.getExtractedDataFromWebsites(websites, url => this.extractAssetsFromURL(url));
-    }
+    };
 
+    /**
+     * Gets extracted URLs from multiple websites.
+     * @param {{ url: string }[]} websites - An array of websites.
+     * @returns {Promise<string[]>} - A promise that resolves to an array of extracted URLs from all websites.
+    */
     async getExtractedUrls(websites: { url: string }[]): Promise<string[]>{
         return this.getExtractedDataFromWebsites(websites, url => this.extractHyperlinksFromURL(url));
-    }
+    };
 
     /**
      * Scrapes an array of websites and extracts data.
