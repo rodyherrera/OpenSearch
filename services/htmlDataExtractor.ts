@@ -98,7 +98,7 @@ class HtmlDataExtractor{
             const src = this.$(element).attr('href');
             const normalizedSrc = normalizeUrl(src, this.baseUrl);
             if(!src || !normalizedSrc) return;
-            const maybeExtension = src.match(/\(pdf|doc|docx|xlsx|xls|ppt|pptx)$/i);
+            const maybeExtension = src.match(/\.(pdf|doc|docx|xlsx|xls|ppt|pptx)$/i);
             if(!maybeExtension || !maybeExtension[0]) return;
             const extension = maybeExtension[0] as AssetTypes;
             assets.push({ type: extension, url: normalizedSrc, parentUrl: this.baseUrl });
