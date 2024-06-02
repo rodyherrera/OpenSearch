@@ -73,7 +73,7 @@ class WebsiteEngineImprovement extends BaseImprovement{
                 filter: { url },
                 update: { $setOnInsert: { description, title, metaData, url } },
                 upsert: true,
-            },
+            }
         };
     };
 
@@ -87,6 +87,7 @@ interface BulkWriteDocument {
         filter: { url: string };
         update: {
             $setOnInsert: {
+                // TOOD: define in another place
                 description: string;
                 title: string;
                 url: string;

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import HtmlDataExtractor from '@services/htmlDataExtractor';
+import HtmlDataExtractor, { ScrapedImage } from '@services/htmlDataExtractor';
 
 /**
  * Web Scraper Class
@@ -84,6 +84,23 @@ class WebScraper{
         }catch(error){
             return [];
         }
+    };
+
+    // REFACTOR THIS SAME LOGIC WITH extractHyperlinksFromURL();
+    async extractImagesFromURL(url: string): Promise<ScrapedImage[]>{
+        try{
+            const html = await this.fetchHTML(url);
+            const dataExtractor = new HtmlDataExtractor(html, url);
+            return dataExtractor.extractImages();
+        }catch(error){
+            return [];
+        }
+    };
+
+    async getExtractedImages(websites: { url: string }[]): Promise<ScrapedImage[]>{
+        const promises = websites.map(({ url }) => this.extractImagesFromURL(url));
+        const extractedImagesArray = await Promise.all(promises);
+        return extractedImagesArray.flat();
     };
 
     /**

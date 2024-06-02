@@ -1,17 +1,20 @@
 import { load } from 'cheerio';
+import { normalizeUrl } from '@utilities/runtime';
 
 /**
  * HTML Data Extractor Class.
 */
 class HtmlDataExtractor{
     private $: any;
+    private baseUrl: string;
 
     /**
      * Creates an instance of HtmlDataExtractor.
      * @param {string} html - The HTML string to be loaded.
     */
-    constructor(html: string){
+    constructor(html: string, baseUrl = ''){
         this.$ = load(html);
+        this.baseUrl = baseUrl;
     };
     
     /**
@@ -36,6 +39,33 @@ class HtmlDataExtractor{
     */
     extractDescription(): string | undefined{
         return this.$('meta[name="description"]').attr('content')?.trim();
+    };
+
+    extractImages(): ScrapedImage[]{
+        const images: ScrapedImage[] = [];
+        this.$('img').each((_: any, element: any) => {
+            const src = this.$(element).attr('src') || '';
+            const normalizedSrc = normalizeUrl(src, this.baseUrl);
+            if(!normalizedSrc) return;
+            const alt = this.$(element).attr('alt') || '';
+            const width = this.$(element).attr('width');
+            const height = this.$(element).attr('height');
+            images.push({ src: normalizedSrc, width, height, alt });
+        });
+        this.$('picture source').each(async (_: any, element: any) => {
+            const src = this.$(element).attr('srcset') || '';
+            const normalizedSrc = normalizeUrl(src.split(' ')[0], this.baseUrl);
+            if(!src || !normalizedSrc) return;
+            const alt = this.$(element).attr('alt') || '';
+            images.push({ src: normalizedSrc, alt });
+        });
+        this.$('meta[property="og:image"], meta[name="twitter:image"]').each(async (_: any, element: any) => {
+            const src = this.$(element).attr('content') || '';
+            const normalizedSrc = normalizeUrl(src, this.baseUrl);
+            if(!src || !normalizedSrc) return;
+            images.push({ src: normalizedSrc, alt: '' });
+        });
+        return images;
     };
 
     /**
@@ -72,6 +102,13 @@ class HtmlDataExtractor{
         });
         return links;
     }
+};
+
+export interface ScrapedImage{
+    alt: string;
+    src: string;
+    width?: number;
+    height?: number;
 };
 
 export default HtmlDataExtractor;
