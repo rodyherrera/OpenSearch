@@ -1,5 +1,6 @@
 // @ts-ignore
 import CDrakeSE from 'cdrake-se';
+import _ from 'lodash';
 
 /**
  * Generates n-grams from the given content.
@@ -9,12 +10,7 @@ import CDrakeSE from 'cdrake-se';
 */
 const generateNgrams = (content: string, maxLength: number): string[] => {
     const tokens = content.toLowerCase().split(/\s+/).filter((token) => token.length <= maxLength);
-    const ngrams: string[] = [];
-    for (let i = 0; i <= tokens.length - 4; i++){
-        const ngram = tokens.slice(i, i + 4).join(' ');
-        ngrams.push(ngram);
-    }
-    return ngrams;
+    return _.flatMap(tokens, (v, i) => tokens.slice(i, i + 4).join(' '));
 };
 
 /**
@@ -23,11 +19,7 @@ const generateNgrams = (content: string, maxLength: number): string[] => {
  * @returns {{ [ngram: string]: number }} An object with n-gram frequencies.
 */
 const calculateFrequencies = (ngrams: string[]): { [ngram: string]: number } => {
-    const frequencies: { [ngram: string]: number } = {};
-    for(const ngram of ngrams){
-        frequencies[ngram] = frequencies[ngram] ? frequencies[ngram] + 1 : 1;
-    }
-    return frequencies;
+    return _.countBy(ngrams);
 };
 
 /**
@@ -37,10 +29,12 @@ const calculateFrequencies = (ngrams: string[]): { [ngram: string]: number } => 
  * @returns {string[]} An array of sorted n-grams.
 */
 const getSortedNgrams = (frequencies: { [ngram: string]: number }, maxSuggestions: number): string[] => {
-    return Object.entries(frequencies)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, maxSuggestions)
-        .map(([ ngram ]) => ngram);
+    return _.chain(frequencies)
+        .toPairs()
+        .orderBy(['1'], ['desc'])
+        .take(maxSuggestions)
+        .map(([ ngram ]) => ngram)
+        .value();
 }
 
 /**
@@ -49,13 +43,10 @@ const getSortedNgrams = (frequencies: { [ngram: string]: number }, maxSuggestion
  * @returns {Promise<string[]>} A promise resolving to an array of suggestions.
 */
 const fetchSuggestions = async (ngrams: string[]): Promise<string[]> => {
-    const suggestionsPromises = ngrams.map((ngram) => CDrakeSE({ Query: ngram, Method: 'Suggest' }));
+    const suggestionsPromises = _.map(ngrams, (ngram) => CDrakeSE({ Query: ngram, Method: 'Suggest' }));
     const suggestionsResults = await Promise.allSettled(suggestionsPromises);
-    const successfulResults = suggestionsResults.filter((result) => result.status === 'fulfilled') as PromiseFulfilledResult<any>[];
-    const suggestions = successfulResults
-        .map((result) => result.value)
-        .map(({ Results }: { Results: string }) => Results)
-        .flat();
+    const successfulResults = _.filter(suggestionsResults, { status: 'fulfilled' }) as PromiseFulfilledResult<any>[];
+    const suggestions = _.flatMap(successfulResults, 'value.Results');
     return suggestions;
 };
 

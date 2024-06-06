@@ -1,6 +1,7 @@
 import { EventEmitter } from 'events';
 import Website from '@models/website';
 import PQueue from 'p-queue';
+import _ from 'lodash';
 
 /**
  * A base class for improvements.
@@ -31,11 +32,11 @@ class BaseImprovement extends EventEmitter{
         while(shouldContinue){
             await this.queue.add(async () => {
                 const data = await getDataFunc(skip);
-                if(data.length === 0){
+                if(_.isEmpty(data)){
                     shouldContinue = false;
                     return;
                 }
-                const bulkOps = data.map(this.getBulkOps);
+                const bulkOps = _.map(data, this.getBulkOps);
                 await this.performBulkWrite(bulkOps);
                 this.emit('batchProcessed', { data: bulkOps, method });
             });

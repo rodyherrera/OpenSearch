@@ -1,6 +1,7 @@
 import { Document, Model, PopulateOptions } from 'mongoose';
 import { filterObject } from '@utilities/runtime';
 import RuntimeError from '@utilities/runtimeError';
+import _ from 'lodash';
 
 /**
  * Interface for the request query string.
@@ -134,7 +135,7 @@ class APIFeatures{
     */
     search(): APIFeatures{
         if(this.requestQueryString.q){
-            const escapedTerm = this.requestQueryString.q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const escapedTerm = _.escapeRegExp(this.requestQueryString.q);
             const query = { $text: { $search: escapedTerm } };
             this.buffer.sort = { score: { $meta: 'textScore' } };
             this.buffer.find = { ...this.buffer.find, ...query };
@@ -147,8 +148,7 @@ class APIFeatures{
      * @returns {APIFeatures} The current instance of APIFeatures.
     */
     filter(): APIFeatures{
-        const query = { ...this.requestQueryString };
-        ['page', 'sort', 'limit', 'fields', 'populate'].forEach((element) => delete query[element]);
+        const query = _.omit(this.requestQueryString, ['page', 'sort', 'limit', 'fields', 'populate']);
         const filter = filterObject(query, ...this.fields);
         this.buffer.find = { ...this.buffer.find, ...filter };
         return this;

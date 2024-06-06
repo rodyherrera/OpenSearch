@@ -2,6 +2,7 @@ import Suggests from '@models/suggest';
 import Website from '@models/website';
 import BaseImprovement from '@services/baseImprovement';
 import WebScraper from '@services/webScraper';
+import _ from 'lodash';
 
 // @ts-ignore
 import CDrakeSE from 'cdrake-se';
@@ -42,7 +43,7 @@ class WebsiteEngineImprovement extends BaseImprovement{
     private async getLinksFromSuggest(suggest: string): Promise<string[]>{
         try{
             const { Results: webSearch } = await CDrakeSE({ Query: suggest, Method: 'Search' });
-            return webSearch.map(({ Link }: { Link: string }) => Link);
+            return _.map(webSearch, 'Link');
         }catch (error){
             return [];
         }
@@ -56,8 +57,8 @@ class WebsiteEngineImprovement extends BaseImprovement{
     */
     private async scrapeLinksAndExtractData(links: string[]): Promise<BulkWriteDocument[]>{
         const promises = links.map((link) => this.webScraper.scrapeSite(link));
-        const results = await Promise.all(promises.map((p) => p.catch((error) => error)));
-        return results.filter((result) => result !== null);
+        const results = await Promise.all(promises.map((p) => p.catch(_.noop)));
+        return _.compact(results);
     };
 
     /**
@@ -92,8 +93,8 @@ class WebsiteEngineImprovement extends BaseImprovement{
                 { $limit: batchSize },
                 { $project: { _id: 0, suggest: 1 } },
             ]);
-            const websitesPromises = suggestions.map(({ suggest }) => this.processSuggest(suggest));
-            return (await Promise.all(websitesPromises)).flat();
+            const websitesPromises = _.map(suggestions, ({ suggest }: { suggest: string }) => this.processSuggest(suggest));
+            return _.flatten(await Promise.all(websitesPromises));
         };
         await Promise.all([
             this.processImprovement(method, batchSize, getDataFunc(-1)),

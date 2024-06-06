@@ -1,5 +1,6 @@
 import axios from 'axios';
 import HtmlDataExtractor, { ScrapedAsset, ScrapedImage } from '@services/htmlDataExtractor';
+import _ from 'lodash';
 
 /**
  * Web Scraper Class
@@ -147,7 +148,9 @@ class WebScraper{
      * @returns {Promise<ScrapedImage[]>} - A promise that resolves to an array of extracted images from all websites.
     */
     async getExtractedImages(websites: { url: string }[]): Promise<ScrapedImage[]>{
-        return this.getExtractedDataFromWebsites(websites, url => this.extractImagesFromURL(url));
+        const promises = _.map(websites, ({ url }) => this.extractImagesFromURL(url));
+        const extractedImagesArray = await Promise.all(promises);
+        return _.flatMap(extractedImagesArray);
     };
 
     /**
@@ -156,7 +159,9 @@ class WebScraper{
      * @returns {Promise<ScrapedAsset[]>} - A promise that resolves to an array of extracted assets from all websites.
     */
     async getExtractedAssets(websites: { url: string }[]): Promise<ScrapedAsset[]>{
-        return this.getExtractedDataFromWebsites(websites, url => this.extractAssetsFromURL(url));
+        const promises = _.map(websites, ({ url }) => this.extractAssetsFromURL(url));
+        const extractedAssetsArray = await Promise.all(promises);
+        return _.flatMap(extractedAssetsArray);
     };
 
     /**
@@ -165,7 +170,9 @@ class WebScraper{
      * @returns {Promise<string[]>} - A promise that resolves to an array of extracted URLs from all websites.
     */
     async getExtractedUrls(websites: { url: string }[]): Promise<string[]>{
-        return this.getExtractedDataFromWebsites(websites, url => this.extractHyperlinksFromURL(url));
+        const promises = _.map(websites, ({ url }) => this.extractHyperlinksFromURL(url));
+        const extractedUrlsArray = await Promise.all(promises);
+        return _.flatMap(extractedUrlsArray);
     };
 
     /**

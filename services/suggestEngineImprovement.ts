@@ -2,6 +2,7 @@ import BaseImprovement from '@services/baseImprovement';
 import WebScraper from '@services/webScraper';
 import Suggest from '@models/suggest';
 import PQueue from 'p-queue';
+import _ from 'lodash';
 import { getUniqueKeywords } from '@utilities/websites';
 import { suggestionsFromContent } from '@utilities/suggestions';
 
@@ -33,7 +34,7 @@ class SuggestEngineImprovement extends BaseImprovement{
             const websites = await this.getWebsitesFromDatabase(skip, batchSize, createdAt);
             const contents = await this.suggestQueue.addAll(websites.map(({ url }) => () => this.webScraper.getWebsiteContent(url)));
             const keywords = await this.suggestQueue.addAll(contents.map((content) => () => suggestionsFromContent(content, 5)));
-            return Array.from(new Set(keywords.flat()));
+            return _.uniq(_.flatten(keywords));
         };
         await Promise.all([
             this.processImprovement(method, batchSize, getDataFunc(1)),
@@ -54,7 +55,7 @@ class SuggestEngineImprovement extends BaseImprovement{
                 { $skip: skip },
                 { $limit: batchSize }
             ]);
-            return uniqueKeywords.map(({ keyword }) => keyword);
+            return _.map(uniqueKeywords, 'keyword');
         };
         await Promise.all([
             this.processImprovement(method, batchSize, getDataFunc(1)),

@@ -1,12 +1,8 @@
 import { NextFunction, RequestHandler, Request, Response } from 'express';
+import _ from 'lodash';
 
 export const filterObject = (object: Record<string, any>, ...fields: string[]): Record<string, any> => {
-    return fields.reduce((acc, field) => {
-        if(field in object){
-            acc[field] = object[field];
-        }
-        return acc;
-    }, {} as Record<string, any>);
+    return _.pick(object, fields);
 };
 
 export const normalizeUrl = (src: string, baseUrl: string): string | null => {

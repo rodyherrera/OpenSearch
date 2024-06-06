@@ -1,5 +1,6 @@
 import { load } from 'cheerio';
 import { normalizeUrl } from '@utilities/runtime';
+import _ from 'lodash';
 
 /**
  * Class for extracting data from an HTML document.
@@ -42,19 +43,23 @@ class HtmlDataExtractor{
         return this.$('meta[name="description"]').attr('content')?.trim();
     };
 
+    extractAssetsBySelector(selector: string, mapFunction: (element: any) => ScrapedAsset | null): ScrapedAsset[]{
+        return _.compact(this.$(selector).map((_: any, element: any) => mapFunction(element)));
+    };
+
     /**
      * Extracts the URLs of stylesheets from the HTML document.
      * @returns {ScrapedAsset[]} - An array of ScrapedAsset objects representing the stylesheets.
     */
     extractStylesheetURLs(): ScrapedAsset[]{
-        const assets: ScrapedAsset[] = [];
-        this.$('link[rel="stylesheet"]').each((_: any, element: any) => {
+        return this.extractAssetsBySelector('link[rel="stylesheet"]', (element) => {
             const src = this.$(element).attr('href');
             const normalizedSrc = normalizeUrl(src, this.baseUrl);
-            if(!src || !normalizedSrc) return;
-            assets.push({ type: 'stylesheet', url: normalizedSrc, parentUrl: this.baseUrl });
+            if(src && normalizedSrc){
+                return { type: 'stylesheet', url: normalizedSrc, parentUrl: this.baseUrl };
+            }
+            return null;
         });
-        return assets;
     };
 
     /**
@@ -62,14 +67,14 @@ class HtmlDataExtractor{
      * @returns {ScrapedAsset[]} - An array of ScrapedAsset objects representing the scripts.
     */
     extractScriptsURLs(): ScrapedAsset[]{
-        const assets: ScrapedAsset[] = [];
-        this.$('script').each((_: any, element: any) => {
+        return this.extractAssetsBySelector('script', (element) => {
             const src = this.$(element).attr('src') || '';
             const normalizedSrc = normalizeUrl(src, this.baseUrl);
-            if(!src || !normalizedSrc) return;
-            assets.push({ type: 'script', url: normalizedSrc, parentUrl: this.baseUrl });
+            if(src && normalizedSrc){
+                return { type: 'script', url: normalizedSrc, parentUrl: this.baseUrl };
+            }
+            return null;
         });
-        return assets;
     };
 
     /**
@@ -77,15 +82,15 @@ class HtmlDataExtractor{
      * @returns {ScrapedAsset[]} - An array of ScrapedAsset objects representing the fonts.
     */
     extractFontURLs(): ScrapedAsset[]{
-        const assets: ScrapedAsset[] = [];
-        this.$('link[rel="preload"]').each((_: any, element: any) => {
+        return this.extractAssetsBySelector('link[rel="preload"]', (element) => {
             const src = this.$(element).attr('href');
             const as = this.$(element).attr('as');
             const normalizedSrc = normalizeUrl(src, this.baseUrl);
-            if(!src || !normalizedSrc || as !== 'font') return;
-            assets.push({ type: 'font', url: normalizedSrc, parentUrl: this.baseUrl });
+            if(src && normalizedSrc && as === 'font'){
+                return { type: 'font', url: normalizedSrc, parentUrl: this.baseUrl };
+            }
+            return null;
         });
-        return assets;
     };
 
     /**
