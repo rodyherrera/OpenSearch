@@ -4,6 +4,24 @@
     "type": "module",
     "description": "",
     "main": "server.js",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/rodyherrera/OpenSearch"
+    },
+    "keywords": [
+        "opensearch",
+        "google",
+        "websites",
+        "images",
+        "assets",
+        "search",
+        "node"
+    ],
+    "engines": {
+        "node": ">=20.14.0",
+        "npm": ">=10.7.0"
+    },
+    "homepage": "https://github.com/rodyherrera",
     "scripts": {
         "start": "npx tsx server.ts",
         "cli": "npx tsx cli/manager.ts"
