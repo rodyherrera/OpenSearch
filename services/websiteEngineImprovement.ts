@@ -68,15 +68,15 @@ class WebsiteEngineImprovement extends BaseImprovement{
     */
     async hyperlinkBasedImprovement(batchSize: number = 1): Promise<void>{
         const method = 'hyperlinkBased';
+        const totalDocuments = await Website.countDocuments();
         const getDataFunc = (createdAt: -1 | 1) => async (skip: number) => {
             const websites = await this.getWebsitesFromDatabase(skip, batchSize, createdAt);
+            console.log(websites.length);
             const extractedUrls = await this.webScraper.getExtractedUrls(websites);
+            console.log(extractedUrls.length);
             return await this.webScraper.getScrapedWebsites(extractedUrls);
         };
-        await Promise.all([
-            this.processImprovement(method, batchSize, getDataFunc(1)),
-            this.processImprovement(method, batchSize, getDataFunc(-1))
-        ]);
+        this.processImprovement(method, batchSize, totalDocuments, getDataFunc(-1))
     };
 
     /**
@@ -86,6 +86,7 @@ class WebsiteEngineImprovement extends BaseImprovement{
     */
     async suggestsBasedImprovement(batchSize: number = 1): Promise<void>{
         const method = 'suggestsBased';
+        const totalDocuments = await Website.countDocuments() / 2;
         const getDataFunc = (createdAt: -1 | 1) => async (skip: number) => {
             const suggestions = await Suggests.aggregate([
                 { $sort: { createdAt } },
@@ -97,8 +98,8 @@ class WebsiteEngineImprovement extends BaseImprovement{
             return _.flatten(await Promise.all(websitesPromises));
         };
         await Promise.all([
-            this.processImprovement(method, batchSize, getDataFunc(-1)),
-            this.processImprovement(method, batchSize, getDataFunc(1))
+            this.processImprovement(method, batchSize, totalDocuments, getDataFunc(-1)),
+            this.processImprovement(method, batchSize, totalDocuments, getDataFunc(1))
         ]);
     };
 

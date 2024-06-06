@@ -25,15 +25,13 @@ class ImageEngineImprovement extends BaseImprovement{
     */
     async contentBasedImprovement(batchSize: number = 1): Promise<void>{
         const method = 'contentBased';
+        const totalDocuments = await Image.countDocuments();
         const getDataFunc = (createdAt: -1 | 1) => async (skip: number) => {
             const websites = await this.getWebsitesFromDatabase(skip, batchSize, createdAt);
             const extractedImages = await this.imageScraper.getExtractedImages(websites);
             return extractedImages;
         };
-        await Promise.all([
-            this.processImprovement(method, batchSize, getDataFunc(-1)),
-            this.processImprovement(method, batchSize, getDataFunc(1))
-        ]);
+        await this.processImprovement(method, batchSize, totalDocuments, getDataFunc(-1));
     };
 
     /**

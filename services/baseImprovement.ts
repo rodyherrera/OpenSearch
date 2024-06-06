@@ -5,14 +5,14 @@ import _ from 'lodash';
 
 /**
  * A base class for improvements.
-*/
-class BaseImprovement extends EventEmitter{
+ */
+class BaseImprovement extends EventEmitter {
     private queue: PQueue;
 
-    constructor(){
+    constructor() {
         super();
-        this.queue = new PQueue({ concurrency: 4 });
-    };
+        this.queue = new PQueue({ concurrency: 10 });
+    }
 
     /**
      * Processes an improvement.
@@ -20,31 +20,33 @@ class BaseImprovement extends EventEmitter{
      * @param {number} batchSize - The batch size for processing.
      * @param {function} getDataFunc - A function to get the data for processing.
      * @returns {Promise<void>} A promise that resolves when the improvement is complete.
-    */
+     */
     async processImprovement(
         method: string,
         batchSize: number,
+        totalDataSize: number,
         getDataFunc: (skip: number) => Promise<any[]>,
-    ): Promise<void>{
+    ): Promise<void> {
         this.emit('improvementStart', { method });
-        let skip = 0;
-        let shouldContinue = true;
-        while(shouldContinue){
-            await this.queue.add(async () => {
+        const totalBatches = Math.ceil(totalDataSize / batchSize);
+
+        const tasks = [];
+        for (let i = 1; i <= totalBatches; i++) {
+            const skip = i * batchSize;
+            const task = async () => {
                 const data = await getDataFunc(skip);
-                if(_.isEmpty(data)){
-                    shouldContinue = false;
-                    return;
-                }
-                const bulkOps = _.map(data, this.getBulkOps);
+                console.log('processing...');
+                const bulkOps = _.flatMap(data, this.getBulkOps.bind(this));
                 await this.performBulkWrite(bulkOps);
-                this.emit('batchProcessed', { data: bulkOps, method });
-            });
-            skip += batchSize;
+                this.emit('batchProcessed', { method, data: bulkOps });
+            };
+            tasks.push(this.queue.add(task));
         }
+
+        await Promise.all(tasks);
         await this.queue.onIdle();
         this.emit('improvementEnd');
-    };
+    }
 
     /**
      * Gets websites from the database.
@@ -52,32 +54,32 @@ class BaseImprovement extends EventEmitter{
      * @param {number} limit - The number of documents to limit.
      * @param {number} createdAt - The sort order for the createdAt field.
      * @returns {Promise<{ url: string }[]>} A promise that resolves to an array of websites.
-    */
-    async getWebsitesFromDatabase(skip: number, limit: number, createdAt: -1 | 1): Promise<{ url: string }[]>{
+     */
+    async getWebsitesFromDatabase(skip: number, limit: number, createdAt: -1 | 1): Promise<{ url: string }[]> {
         return await Website.aggregate([
             { $sort: { createdAt } },
             { $skip: skip },
             { $limit: limit },
             { $project: { _id: 0, url: 1 } }
         ]);
-    };
+    }
 
     /**
      * Gets the bulk operations for an item.
      * @param {any} item - The item to get the bulk operations for.
      * @returns {any} The bulk operations.
-    */
-    getBulkOps(item: any){
+     */
+    getBulkOps(item: any) {
         throw new Error('@services/baseImprovement.ts - getBulkOps - not implemented.');
-    };
+    }
 
     /**
      * Performs a bulk write operation.
      * @param {any[]} bulkOps - The bulk operations to perform.
-    */
-    performBulkWrite(bulkOps: any[]): void{
+     */
+    async performBulkWrite(bulkOps: any[]): Promise<void> {
         throw new Error('@services/baseImprovement.ts - performBulkWrite - not implemented.');
-    };
-};
+    }
+}
 
 export default BaseImprovement;

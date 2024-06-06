@@ -30,16 +30,15 @@ class SuggestEngineImprovement extends BaseImprovement{
     */
     async contentBasedImprovement(batchSize: number = 5): Promise<void>{
         const method = 'contentBased';
+        const totalDocuments = await Suggest.countDocuments();
         const getDataFunc = (createdAt: 1 | -1) => async (skip: number) => {
             const websites = await this.getWebsitesFromDatabase(skip, batchSize, createdAt);
+            console.log(websites.length)
             const contents = await this.suggestQueue.addAll(websites.map(({ url }) => () => this.webScraper.getWebsiteContent(url)));
             const keywords = await this.suggestQueue.addAll(contents.map((content) => () => suggestionsFromContent(content, 5)));
             return _.uniq(_.flatten(keywords));
         };
-        await Promise.all([
-            this.processImprovement(method, batchSize, getDataFunc(1)),
-            this.processImprovement(method, batchSize, getDataFunc(-1))
-        ]);
+        await this.processImprovement(method, batchSize, totalDocuments, getDataFunc(-1));
     };
 
     /**
@@ -49,6 +48,7 @@ class SuggestEngineImprovement extends BaseImprovement{
     */
     async keywordBasedImprovement(batchSize: number = 1): Promise<void>{
         const method = 'keywordBased';
+        const totalDocuments = await Suggest.countDocuments();
         const getDataFunc = (createdAt: number) => async (skip: number) => {
             const uniqueKeywords = await getUniqueKeywords([
                 { $sort: { createdAt } },
@@ -57,10 +57,7 @@ class SuggestEngineImprovement extends BaseImprovement{
             ]);
             return _.map(uniqueKeywords, 'keyword');
         };
-        await Promise.all([
-            this.processImprovement(method, batchSize, getDataFunc(1)),
-            this.processImprovement(method, batchSize, getDataFunc(-1))
-        ]);
+        await this.processImprovement(method, batchSize, totalDocuments, getDataFunc(-1))
     };
 
     /**

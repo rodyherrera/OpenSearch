@@ -25,15 +25,13 @@ class AssetEngineImprovement extends BaseImprovement{
     */
     async contentBasedImprovement(batchSize: number = 1): Promise<void>{
         const method = 'contentBased';
+        const totalDocuments = await Asset.countDocuments();
         const getDataFunc = (createdAt: -1 | 1) => async (skip: number) => {
             const websites = await this.getWebsitesFromDatabase(skip, batchSize, createdAt);
             const extractedAssets = await this.assetScraper.getExtractedAssets(websites);
             return extractedAssets;
         };
-        await Promise.all([
-            this.processImprovement(method, batchSize, getDataFunc(-1)),
-            this.processImprovement(method, batchSize, getDataFunc(1))
-        ]);
+        this.processImprovement(method, batchSize, totalDocuments, getDataFunc(-1));
     };
 
     /**

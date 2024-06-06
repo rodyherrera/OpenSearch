@@ -217,6 +217,7 @@ class HtmlDataExtractor{
                 links.push(href);
             }
         });
+        console.log('EL:', this.baseUrl, links.length);
         return links;
     }
 };

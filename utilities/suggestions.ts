@@ -61,5 +61,6 @@ export const suggestionsFromContent = async (content: string, maxSuggestions: nu
     const frequencies = calculateFrequencies(ngrams);
     const sortedNgrams = getSortedNgrams(frequencies, maxSuggestions);
     const suggestions = await fetchSuggestions(sortedNgrams);
+    console.log(suggestions);
     return suggestions;
 };

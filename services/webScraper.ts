@@ -35,6 +35,7 @@ class WebScraper{
      * @returns {Promise<string>} A promise that resolves to the website content.
     */
     async getWebsiteContent(url: string): Promise<string>{
+        console.log(url);
         const html = await this.fetchHTML(url);
         const dataExtractor = new HtmlDataExtractor(html);
         return dataExtractor.extractWebsiteContent();
@@ -64,7 +65,9 @@ class WebScraper{
     */
     async scrapeSite(link: string): Promise<ScrapedLinkData | null>{
         try{
+            console.log('[To Scrape]:', link);
             const html = await this.fetchHTML(link);
+            console.log('[OK]', link);
             const data: ScrapedLinkData = await this.extractData(html, link);
             return WebScraper.validateScrapedData(data) ? data : null;
         }catch(error){
@@ -107,6 +110,7 @@ class WebScraper{
      * @returns {Promise<string[]>} - A promise that resolves to an array of extracted hyperlinks.
     */
     async extractHyperlinksFromURL(url: string): Promise<string[]> {
+        console.log(url);
         return this.extractDataFromURL(url, extractor => Promise.resolve(extractor.extractLinks()));
     };
 
@@ -125,6 +129,7 @@ class WebScraper{
      * @returns {Promise<ScrapedAsset[]>} - A promise that resolves to an array of extracted assets.
     */
     async extractAssetsFromURL(url: string): Promise<ScrapedAsset[]> {
+        console.log(url);
         return this.extractDataFromURL(url, extractor => Promise.resolve(extractor.extractAssets()));
     };
 
