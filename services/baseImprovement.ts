@@ -11,7 +11,7 @@ class BaseImprovement extends EventEmitter {
 
     constructor() {
         super();
-        this.queue = new PQueue({ concurrency: 10 });
+        this.queue = new PQueue({ concurrency: 2 });
     }
 
     /**
@@ -26,26 +26,27 @@ class BaseImprovement extends EventEmitter {
         batchSize: number,
         totalDataSize: number,
         getDataFunc: (skip: number) => Promise<any[]>,
-    ): Promise<void> {
+    ): Promise<void>{
         this.emit('improvementStart', { method });
         const totalBatches = Math.ceil(totalDataSize / batchSize);
-
-        const tasks = [];
-        for (let i = 1; i <= totalBatches; i++) {
-            const skip = i * batchSize;
-            const task = async () => {
-                const data = await getDataFunc(skip);
-                console.log('processing...');
-                const bulkOps = _.flatMap(data, this.getBulkOps.bind(this));
-                await this.performBulkWrite(bulkOps);
-                this.emit('batchProcessed', { method, data: bulkOps });
-            };
-            tasks.push(this.queue.add(task));
+        const groupSize = 5;
+        const totalGroups = Math.ceil(totalBatches / groupSize);
+        for(let group = 0; group < totalGroups; group++){
+            const tasks = [];
+            for(let i = group * groupSize; i < Math.min((group + 1) * groupSize, totalBatches); i++){
+                const skip = i * batchSize;
+                const task = this.queue.add(async () => {
+                    const data = await getDataFunc(skip);
+                    const bulkOps = _.flatMap(data, this.getBulkOps.bind(this));
+                    this.performBulkWrite(bulkOps);
+                    this.emit('batchProcessed', { method, data: bulkOps });
+                });
+                tasks.push(task);
+            }
+            await Promise.all(tasks);
         }
-
-        await Promise.all(tasks);
         await this.queue.onIdle();
-        this.emit('improvementEnd');
+        this.emit('improvementEnd', { method })
     }
 
     /**
