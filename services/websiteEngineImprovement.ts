@@ -80,7 +80,7 @@ class WebsiteEngineImprovement extends BaseImprovement{
     async listBasedImprovement(batchSize: number = 1, urls: string[], includeSameDomain: boolean = false): Promise<void>{
         const method = 'listBased';
         const getDataFunc = () => async (skip: number) => {
-            const websites = urls.slice(skip, batchSize).map((url) => ({ url }));
+            const websites = urls.slice(skip, skip + batchSize).map((url) => ({ url }));
             const urlsExtracted = await this.webScraper.getExtractedUrls(websites, includeSameDomain);
             return await this.webScraper.getScrapedWebsites(urlsExtracted);
         };
