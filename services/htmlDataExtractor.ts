@@ -1,6 +1,7 @@
 import { load } from 'cheerio';
 import { normalizeUrl } from '@utilities/runtime';
-import _ from 'lodash';
+import { EventEmitter } from 'events';
+import _, { includes } from 'lodash';
 
 /**
  * Class for extracting data from an HTML document.
@@ -8,14 +9,16 @@ import _ from 'lodash';
 class HtmlDataExtractor{
     private $: any;
     private baseUrl: string;
+    private eventEmitter: EventEmitter;
 
     /**
      * Creates an instance of HtmlDataExtractor.
      * @param {string} html - The HTML string to be loaded.
      * @param {string} [baseUrl=''] - The base URL for normalizing relative URLs.
     */
-    constructor(html: string, baseUrl = ''){
+    constructor(html: string, baseUrl = '', eventEmitter: EventEmitter){
         this.$ = load(html);
+        this.eventEmitter = eventEmitter;
         this.baseUrl = baseUrl;
     };
     
@@ -52,7 +55,8 @@ class HtmlDataExtractor{
      * @returns {ScrapedAsset[]} - An array of ScrapedAsset objects representing the stylesheets.
     */
     extractStylesheetURLs(): ScrapedAsset[]{
-        return this.extractAssetsBySelector('link[rel="stylesheet"]', (element) => {
+        this.eventEmitter.emit('fetchingWebsiteAssets', { type: 'stylesheets', url: this.baseUrl });
+        const assets = this.extractAssetsBySelector('link[rel="stylesheet"]', (element) => {
             const src = this.$(element).attr('href');
             const normalizedSrc = normalizeUrl(src, this.baseUrl);
             if(src && normalizedSrc){
@@ -60,6 +64,8 @@ class HtmlDataExtractor{
             }
             return null;
         });
+        this.eventEmitter.emit('fetchedWebsiteAssets', { type: 'stylesheets', url: this.baseUrl, assets });
+        return assets;
     };
 
     /**
@@ -67,7 +73,8 @@ class HtmlDataExtractor{
      * @returns {ScrapedAsset[]} - An array of ScrapedAsset objects representing the scripts.
     */
     extractScriptsURLs(): ScrapedAsset[]{
-        return this.extractAssetsBySelector('script', (element) => {
+        this.eventEmitter.emit('fetchingWebsiteAssets', { type: 'scripts', url: this.baseUrl });
+        const assets = this.extractAssetsBySelector('script', (element) => {
             const src = this.$(element).attr('src') || '';
             const normalizedSrc = normalizeUrl(src, this.baseUrl);
             if(src && normalizedSrc){
@@ -75,6 +82,8 @@ class HtmlDataExtractor{
             }
             return null;
         });
+        this.eventEmitter.emit('fetchedWebsiteAssets', { type: 'scripts', url: this.baseUrl, assets });
+        return assets;
     };
 
     /**
@@ -82,7 +91,8 @@ class HtmlDataExtractor{
      * @returns {ScrapedAsset[]} - An array of ScrapedAsset objects representing the fonts.
     */
     extractFontURLs(): ScrapedAsset[]{
-        return this.extractAssetsBySelector('link[rel="preload"]', (element) => {
+        this.eventEmitter.emit('fetchingWebsiteAssets', { type: 'fonts', url: this.baseUrl });
+        const assets = this.extractAssetsBySelector('link[rel="preload"]', (element) => {
             const src = this.$(element).attr('href');
             const as = this.$(element).attr('as');
             const normalizedSrc = normalizeUrl(src, this.baseUrl);
@@ -91,6 +101,8 @@ class HtmlDataExtractor{
             }
             return null;
         });
+        this.eventEmitter.emit('fetchedWebsiteAssets', { type: 'fonts', url: this.baseUrl, assets });
+        return assets;
     };
 
     /**
@@ -98,6 +110,7 @@ class HtmlDataExtractor{
      * @returns {ScrapedAsset[]} - An array of ScrapedAsset objects representing the files.
     */
     extractFileURLs(): ScrapedAsset[]{
+        this.eventEmitter.emit('fetchingWebsiteAssets', { type: 'files', url: this.baseUrl });
         const assets: ScrapedAsset[] = [];
         this.$('a').each((_: any, element: any) => {
             const src = this.$(element).attr('href');
@@ -108,6 +121,7 @@ class HtmlDataExtractor{
             const extension = maybeExtension[0] as AssetTypes;
             assets.push({ type: extension, url: normalizedSrc, parentUrl: this.baseUrl });
         });
+        this.eventEmitter.emit('fetchedWebsiteAssets', { type: 'files', url: this.baseUrl, assets });
         return assets;
     };
 
@@ -129,7 +143,7 @@ class HtmlDataExtractor{
      * @returns {ScrapedImage[]} - An array of ScrapedImage objects representing the images.
     */
     extractImages(): ScrapedImage[]{
-        const images: ScrapedImage[] = [];
+        const assets: ScrapedImage[] = [];
         this.$('img').each((_: any, element: any) => {
             const src = this.$(element).attr('src') || '';
             const normalizedSrc = normalizeUrl(src, this.baseUrl);
@@ -137,9 +151,9 @@ class HtmlDataExtractor{
             const alt = this.$(element).attr('alt') || '';
             const width = this.$(element).attr('width');
             const height = this.$(element).attr('height');
-            images.push({ src: normalizedSrc, width, height, alt });
+            assets.push({ src: normalizedSrc, width, height, alt });
         });
-        return images;
+        return assets;
     };
 
     /**
@@ -147,15 +161,15 @@ class HtmlDataExtractor{
      * @returns {ScrapedImage[]} - An array of ScrapedImage objects representing the pictures.
     */
     extractPictures(): ScrapedImage[]{
-        const images: ScrapedImage[] = [];
+        const assets: ScrapedImage[] = [];
         this.$('picture source').each(async (_: any, element: any) => {
             const src = this.$(element).attr('srcset') || '';
             const normalizedSrc = normalizeUrl(src.split(' ')[0], this.baseUrl);
             if(!src || !normalizedSrc) return;
             const alt = this.$(element).attr('alt') || '';
-            images.push({ src: normalizedSrc, alt });
+            assets.push({ src: normalizedSrc, alt });
         });
-        return images;
+        return assets;
     };
 
     /**
@@ -163,14 +177,14 @@ class HtmlDataExtractor{
      * @returns {ScrapedImage[]} - An array of ScrapedImage objects representing the images from meta tags.
     */
     extractMetaTagsImages(): ScrapedImage[]{
-        const images: ScrapedImage[] = [];
+        const assets: ScrapedImage[] = [];
         this.$('meta[property="og:image"], meta[name="twitter:image"]').each(async (_: any, element: any) => {
             const src = this.$(element).attr('content') || '';
             const normalizedSrc = normalizeUrl(src, this.baseUrl);
             if(!src || !normalizedSrc) return;
-            images.push({ src: normalizedSrc, alt: '' });
+            assets.push({ src: normalizedSrc, alt: '' });
         });
-        return images;
+        return assets;
     };
 
     /**
@@ -178,11 +192,14 @@ class HtmlDataExtractor{
      * @returns {ScrapedImage[]} - An array of all ScrapedImage objects.
     */
     exctractAllImages(): ScrapedImage[]{
-        return [
+        this.eventEmitter.emit('fetchingWebsiteAssets', { type: 'images', url: this.baseUrl });
+        const assets = [
             ...this.extractPictures(),
             ...this.extractMetaTagsImages(),
             ...this.extractImages()
         ];
+        this.eventEmitter.emit('fetchedWebsiteAssets', { type: 'images', url: this.baseUrl, assets });
+        return assets;
     };
 
     /**
@@ -203,21 +220,34 @@ class HtmlDataExtractor{
             }
         });
         return metaData;
-    }
+    };
+
+    isValidUrl(string: string): boolean{
+        try{
+            // If it's not a valid URL, the constructor throws an error
+            new URL(string);
+            return string.startsWith('http://') || string.startsWith('https://');
+        }catch (_){
+            return false;
+        }
+    };
 
     /**
      * Extracts all links from the HTML document.
      * @returns {string[]} An array of URLs found in anchor tags.
     */
-    extractLinks(): string[] {
+    extractLinks(includeSameDomain: boolean): string[] {
         const links: string[] = [];
+        this.eventEmitter.emit('fetchingWebsiteLinks', { url: this.baseUrl });
+        const baseUrlDomain = new URL(this.baseUrl).hostname;
         this.$('a').each((_: any, element: any) => {
             const href = this.$(element).attr('href');
-            if(href && (href.startsWith('http://') || href.startsWith('https://'))){
-                links.push(href);
-            }
+            if(!this.isValidUrl(href)) return;
+            const hrefDomain = new URL(href).hostname;
+            if((baseUrlDomain === hrefDomain) && !includeSameDomain) return;
+            links.push(href);
         });
-        console.log('EL:', this.baseUrl, links.length);
+        this.eventEmitter.emit('fetchedWebsitesLinks', { url: this.baseUrl, links });
         return links;
     }
 };

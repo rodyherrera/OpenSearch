@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { EventEmitter } from 'events';
 import HtmlDataExtractor, { ScrapedAsset, ScrapedImage } from '@services/htmlDataExtractor';
 import _ from 'lodash';
 
@@ -6,6 +7,12 @@ import _ from 'lodash';
  * Web Scraper Class
 */
 class WebScraper{
+    private eventEmitter: EventEmitter;
+
+    constructor(eventEmitter: EventEmitter){
+        this.eventEmitter = eventEmitter;
+    };
+
     /**
      * Validates the scraped data.
      * @param {ScrapedLinkData} data - The scraped data.
@@ -35,9 +42,10 @@ class WebScraper{
      * @returns {Promise<string>} A promise that resolves to the website content.
     */
     async getWebsiteContent(url: string): Promise<string>{
-        console.log(url);
+        this.eventEmitter.emit('fetchingWebsiteContent', { url });
         const html = await this.fetchHTML(url);
-        const dataExtractor = new HtmlDataExtractor(html);
+        this.eventEmitter.emit('fetchedWebsiteContent', { url, html });
+        const dataExtractor = new HtmlDataExtractor(html, undefined, this.eventEmitter);
         return dataExtractor.extractWebsiteContent();
     };
 
@@ -48,13 +56,15 @@ class WebScraper{
      * @returns {Promise<ScrapedLinkData>} A promise that resolves to the extracted data.
     */
     async extractData(html: string, url: string): Promise<ScrapedLinkData>{
-        const dataExtractor = new HtmlDataExtractor(html);
+        this.eventEmitter.emit('fetchingWebsiteMetaData', { html, url });
+        const dataExtractor = new HtmlDataExtractor(html, undefined, this.eventEmitter);
         const data: ScrapedLinkData = {
             title: dataExtractor.extractTitle(),
             description: dataExtractor.extractDescription(),
             metaData: dataExtractor.extractMetaData(),
             url
         };
+        this.eventEmitter.emit('fetchedWebsiteMetaData', { html, url, data });
         return data;
     };
 
@@ -63,12 +73,12 @@ class WebScraper{
      * @param {string} link - The URL of the website.
      * @returns {Promise<ScrapedLinkData | null>} A promise that resolves to the scraped data or null.
     */
-    async scrapeSite(link: string): Promise<ScrapedLinkData | null>{
+    async scrapeSite(url: string): Promise<ScrapedLinkData | null>{
         try{
-            console.log('[To Scrape]:', link);
-            const html = await this.fetchHTML(link);
-            console.log('[OK]', link);
-            const data: ScrapedLinkData = await this.extractData(html, link);
+            this.eventEmitter.emit('scrapingWebsite', { url });
+            const html = await this.fetchHTML(url);
+            const data: ScrapedLinkData = await this.extractData(html, url);
+            this.eventEmitter.emit('websiteScraped', { url, html, data });
             return WebScraper.validateScrapedData(data) ? data : null;
         }catch(error){
             return null;
@@ -84,7 +94,7 @@ class WebScraper{
     private async createHtmlDataExtractorInstanceFromURL(url: string): Promise<HtmlDataExtractor>{
         try{
             const html = await this.fetchHTML(url);
-            const dataExtractor = new HtmlDataExtractor(html, url);
+            const dataExtractor = new HtmlDataExtractor(html, url, this.eventEmitter);
             return dataExtractor;
         }catch(error){
             return new HtmlDataExtractor('');
@@ -109,9 +119,8 @@ class WebScraper{
      * @param {string} url - The URL from which to extract hyperlinks.
      * @returns {Promise<string[]>} - A promise that resolves to an array of extracted hyperlinks.
     */
-    async extractHyperlinksFromURL(url: string): Promise<string[]> {
-        console.log(url);
-        return this.extractDataFromURL(url, extractor => Promise.resolve(extractor.extractLinks()));
+    async extractHyperlinksFromURL(url: string, includeSameDomain: boolean): Promise<string[]> {
+        return this.extractDataFromURL(url, extractor => Promise.resolve(extractor.extractLinks(includeSameDomain)));
     };
 
     /**
@@ -129,22 +138,7 @@ class WebScraper{
      * @returns {Promise<ScrapedAsset[]>} - A promise that resolves to an array of extracted assets.
     */
     async extractAssetsFromURL(url: string): Promise<ScrapedAsset[]> {
-        console.log(url);
         return this.extractDataFromURL(url, extractor => Promise.resolve(extractor.extractAssets()));
-    };
-
-    /**
-     * Gets extracted data from multiple websites.
-     * @template T
-     * @param {{ url: string }[]} websites - An array of websites.
-     * @param {(url: string) => Promise<T[]>} extractMethod - The method to extract data from each URL.
-     * @returns {Promise<T[]>} - A promise that resolves to an array of extracted data from all websites.
-     * @private
-    */
-    private async getExtractedDataFromWebsites<T>(websites: { url: string }[], extractMethod: (url: string) => Promise<T[]>): Promise<T[]>{
-        const promises = websites.map(({ url }) => extractMethod(url));
-        const extractedDataArray = await Promise.all(promises);
-        return extractedDataArray.flat();
     };
 
     /**
@@ -174,8 +168,8 @@ class WebScraper{
      * @param {{ url: string }[]} websites - An array of websites.
      * @returns {Promise<string[]>} - A promise that resolves to an array of extracted URLs from all websites.
     */
-    async getExtractedUrls(websites: { url: string }[]): Promise<string[]>{
-        const promises = _.map(websites, ({ url }) => this.extractHyperlinksFromURL(url));
+    async getExtractedUrls(websites: { url: string }[], includeSameDomain: boolean): Promise<string[]>{
+        const promises = _.map(websites, ({ url }) => this.extractHyperlinksFromURL(url, includeSameDomain));
         const extractedUrlsArray = await Promise.all(promises);
         return _.flatMap(extractedUrlsArray);
     };

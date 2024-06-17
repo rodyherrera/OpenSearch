@@ -19,7 +19,7 @@ class WebsiteEngineImprovement extends BaseImprovement{
     */
     constructor(){
         super();
-        this.webScraper = new WebScraper();
+        this.webScraper = new WebScraper(this);
     };
 
     /**
@@ -66,17 +66,15 @@ class WebsiteEngineImprovement extends BaseImprovement{
      * @param {number} [batchSize=1] - The number of websites to process in each batch.
      * @returns {Promise<void>} - A promise that resolves when improvement is complete.
     */
-    async hyperlinkBasedImprovement(batchSize: number = 1): Promise<void>{
+    async hyperlinkBasedImprovement(batchSize: number = 1, includeSameDomain: boolean = false): Promise<void>{
         const method = 'hyperlinkBased';
         const totalDocuments = await Website.countDocuments();
         const getDataFunc = (createdAt: -1 | 1) => async (skip: number) => {
             const websites = await this.getWebsitesFromDatabase(skip, batchSize, createdAt);
-            console.log(websites.length);
-            const extractedUrls = await this.webScraper.getExtractedUrls(websites);
-            console.log(extractedUrls.length);
-            return await this.webScraper.getScrapedWebsites(extractedUrls);
+            const urlsExtracted = await this.webScraper.getExtractedUrls(websites, includeSameDomain);
+            return await this.webScraper.getScrapedWebsites(urlsExtracted);
         };
-        this.processImprovement(method, batchSize, totalDocuments, getDataFunc(-1))
+        this.processImprovement(method, batchSize, totalDocuments, getDataFunc(-1));
     };
 
     /**
