@@ -11,7 +11,7 @@ class BaseImprovement extends EventEmitter {
 
     constructor() {
         super();
-        this.queue = new PQueue({ concurrency: 10 });
+        this.queue = new PQueue({ concurrency: 4 });
     }
 
     /**

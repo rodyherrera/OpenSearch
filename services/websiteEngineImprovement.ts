@@ -2,7 +2,7 @@ import Suggests from '@models/suggest';
 import Website from '@models/website';
 import BaseImprovement from '@services/baseImprovement';
 import WebScraper from '@services/webScraper';
-import _ from 'lodash';
+import _, { includes } from 'lodash';
 
 // @ts-ignore
 import CDrakeSE from 'cdrake-se';
@@ -75,6 +75,16 @@ class WebsiteEngineImprovement extends BaseImprovement{
             return await this.webScraper.getScrapedWebsites(urlsExtracted);
         };
         this.processImprovement(method, batchSize, totalDocuments, getDataFunc(-1));
+    };
+
+    async listBasedImprovement(batchSize: number = 1, urls: string[], includeSameDomain: boolean = false): Promise<void>{
+        const method = 'listBased';
+        const getDataFunc = () => async (skip: number) => {
+            const websites = urls.slice(skip, batchSize).map((url) => ({ url }));
+            const urlsExtracted = await this.webScraper.getExtractedUrls(websites, includeSameDomain);
+            return await this.webScraper.getScrapedWebsites(urlsExtracted);
+        };
+        this.processImprovement(method, batchSize, urls.length, getDataFunc());
     };
 
     /**
