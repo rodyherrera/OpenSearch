@@ -1,5 +1,5 @@
 import Image from '@models/images';
-import BaseImprovement from '@services/engineImprovement/baseImprovement';
+import BaseImprovement, { baseImprovementOpts } from '@services/engineImprovement/baseImprovement';
 import WebScraper from '@services/webScraper';
 import { ScrapedImage } from '@services/htmlDataExtractor';
 
@@ -13,8 +13,8 @@ class ImageEngineImprovement extends BaseImprovement{
     /**
      * Creates an instance of ImageEngineImprovement.
     */
-    constructor(){
-        super();
+    constructor(opts : baseImprovementOpts){
+        super(opts);
         this.imageScraper = new WebScraper(this);
     };
 

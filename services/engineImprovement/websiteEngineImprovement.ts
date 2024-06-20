@@ -1,6 +1,6 @@
 import Suggests from '@models/suggest';
 import Website from '@models/website';
-import BaseImprovement from '@services/engineImprovement/baseImprovement';
+import BaseImprovement, { baseImprovementOpts } from '@services/engineImprovement/baseImprovement';
 import WebScraper from '@services/webScraper';
 import _ from 'lodash';
 
@@ -17,8 +17,8 @@ class WebsiteEngineImprovement extends BaseImprovement{
     /**
      * Creates an instance of WebsiteEngineImprovement.
     */
-    constructor(){
-        super();
+    constructor(opts : baseImprovementOpts){
+        super(opts);
         this.webScraper = new WebScraper(this);
     };
 

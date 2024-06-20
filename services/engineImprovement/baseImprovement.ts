@@ -3,15 +3,22 @@ import Website from '@models/website';
 import PQueue from 'p-queue';
 import _ from 'lodash';
 
+export interface baseImprovementOpts{
+    groupSize?: number,
+    concurrency?: number
+};
+
 /**
  * A base class for improvements.
  */
-class BaseImprovement extends EventEmitter {
+class BaseImprovement extends EventEmitter{
     private queue: PQueue;
+    private groupSize: number;
 
-    constructor() {
+    constructor({ groupSize = 1, concurrency = 1 }: baseImprovementOpts = {}){
         super();
-        this.queue = new PQueue({ concurrency: 4 });
+        this.groupSize = groupSize;
+        this.queue = new PQueue({ concurrency });
     }
 
     /**
@@ -29,11 +36,10 @@ class BaseImprovement extends EventEmitter {
     ): Promise<void>{
         this.emit('improvementStart', { method });
         const totalBatches = Math.ceil(totalDataSize / batchSize);
-        const groupSize = 5;
-        const totalGroups = Math.ceil(totalBatches / groupSize);
+        const totalGroups = Math.ceil(totalBatches / this.groupSize);
         for(let group = 0; group < totalGroups; group++){
             const tasks = [];
-            for(let i = group * groupSize; i < Math.min((group + 1) * groupSize, totalBatches); i++){
+            for(let i = group * this.groupSize; i < Math.min((group + 1) * this.groupSize, totalBatches); i++){
                 const skip = i * batchSize;
                 const task = this.queue.add(async () => {
                     const data = await getDataFunc(skip);

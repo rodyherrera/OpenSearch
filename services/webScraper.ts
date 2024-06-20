@@ -115,41 +115,26 @@ class WebScraper{
     };
 
     /**
-     * Extracts images from a URL.
-     * @param {string} url - The URL from which to extract images.
-     * @returns {Promise<ScrapedImage[]>} - A promise that resolves to an array of extracted images.
-    */
-    async extractImagesFromURL(url: string): Promise<ScrapedImage[]> {
-        return this.extractDataFromURL(url, extractor => Promise.resolve(extractor.exctractAllImages()));
-    };
-
-    /**
-     * Extracts assets from a URL.
-     * @param {string} url - The URL from which to extract assets.
-     * @returns {Promise<ScrapedAsset[]>} - A promise that resolves to an array of extracted assets.
-    */
-    async extractAssetsFromURL(url: string): Promise<ScrapedAsset[]> {
-        return this.extractDataFromURL(url, extractor => Promise.resolve(extractor.extractAssets()));
-    };
-
-    /**
      * Gets extracted images from multiple websites.
      * @param {{ url: string }[]} websites - An array of websites.
      * @returns {Promise<ScrapedImage[]>} - A promise that resolves to an array of extracted images from all websites.
     */
     async getExtractedImages(websites: { url: string }[]): Promise<ScrapedImage[]>{
-        const promises = _.map(websites, ({ url }) => this.extractImagesFromURL(url));
+        const promises = _.map(websites, ({ url }) => {
+            return this.extractDataFromURL(url, (extractor) => {
+                return Promise.resolve(extractor.exctractAllImages());
+            });
+        });
         const extractedImagesArray = await Promise.all(promises);
         return _.flatMap(extractedImagesArray);
     };
 
-    /**
-     * Gets extracted assets from multiple websites.
-     * @param {{ url: string }[]} websites - An array of websites.
-     * @returns {Promise<ScrapedAsset[]>} - A promise that resolves to an array of extracted assets from all websites.
-    */
     async getExtractedAssets(websites: { url: string }[]): Promise<ScrapedAsset[]>{
-        const promises = _.map(websites, ({ url }) => this.extractAssetsFromURL(url));
+        const promises = _.map(websites, ({ url }) => {
+            return this.extractDataFromURL(url, (extractor) => {
+                return Promise.resolve(extractor.extractAssets());
+            });
+        });
         const extractedAssetsArray = await Promise.all(promises);
         return _.flatMap(extractedAssetsArray);
     };

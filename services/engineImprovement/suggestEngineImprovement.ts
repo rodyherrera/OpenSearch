@@ -1,4 +1,4 @@
-import BaseImprovement from '@services/engineImprovement/baseImprovement';
+import BaseImprovement, { baseImprovementOpts } from '@services/engineImprovement/baseImprovement';
 import WebScraper from '@services/webScraper';
 import Suggest from '@models/suggest';
 import PQueue from 'p-queue';
@@ -17,8 +17,8 @@ class SuggestEngineImprovement extends BaseImprovement{
     /**
      * Creates an instance of SuggestEngineImprovement.
     */
-    constructor(){
-        super();
+    constructor(opts : baseImprovementOpts){
+        super(opts);
         this.webScraper = new WebScraper(this);
         this.suggestQueue = new PQueue({ concurrency: 5 });
     };

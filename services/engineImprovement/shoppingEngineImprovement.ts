@@ -1,13 +1,13 @@
 import Shopping from '@models/shopping';
 import secureShoppingProviders from '@data/scrapingTargets/shopping.json';
-import BaseImprovement from '@services/engineImprovement/baseImprovement';
+import BaseImprovement, { baseImprovementOpts } from '@services/engineImprovement/baseImprovement';
 import WebScraper from '@services/webScraper';
 
 class NewsEngineImprovement extends BaseImprovement{
     private webScraper: WebScraper;
 
-    constructor(){
-        super();
+    constructor(opts : baseImprovementOpts){
+        super(opts);
         this.webScraper = new WebScraper(this);
     };
 
