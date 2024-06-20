@@ -15,7 +15,7 @@ class ImageEngineImprovement extends BaseImprovement{
     */
     constructor(){
         super();
-        this.imageScraper = new WebScraper();
+        this.imageScraper = new WebScraper(this);
     };
 
     /**

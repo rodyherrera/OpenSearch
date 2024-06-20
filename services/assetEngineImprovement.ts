@@ -15,7 +15,7 @@ class AssetEngineImprovement extends BaseImprovement{
     */
     constructor(){
         super();
-        this.assetScraper = new WebScraper();
+        this.assetScraper = new WebScraper(this);
     };
 
     /**

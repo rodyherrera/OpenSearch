@@ -19,7 +19,7 @@ class SuggestEngineImprovement extends BaseImprovement{
     */
     constructor(){
         super();
-        this.webScraper = new WebScraper();
+        this.webScraper = new WebScraper(this);
         this.suggestQueue = new PQueue({ concurrency: 5 });
     };
 
@@ -33,7 +33,6 @@ class SuggestEngineImprovement extends BaseImprovement{
         const totalDocuments = await Suggest.countDocuments();
         const getDataFunc = (createdAt: 1 | -1) => async (skip: number) => {
             const websites = await this.getWebsitesFromDatabase(skip, batchSize, createdAt);
-            console.log(websites.length)
             const contents = await this.suggestQueue.addAll(websites.map(({ url }) => () => this.webScraper.getWebsiteContent(url)));
             const keywords = await this.suggestQueue.addAll(contents.map((content) => () => suggestionsFromContent(content, 5)));
             return _.uniq(_.flatten(keywords));
