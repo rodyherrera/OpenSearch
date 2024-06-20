@@ -1,5 +1,5 @@
 import Image from '@models/images';
-import BaseImprovement from '@services/baseImprovement';
+import BaseImprovement from '@services/engineImprovement/baseImprovement';
 import WebScraper from '@services/webScraper';
 import { ScrapedImage } from '@services/htmlDataExtractor';
 

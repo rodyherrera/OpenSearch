@@ -1,6 +1,6 @@
 import Suggests from '@models/suggest';
 import Website from '@models/website';
-import BaseImprovement from '@services/baseImprovement';
+import BaseImprovement from '@services/engineImprovement/baseImprovement';
 import WebScraper from '@services/webScraper';
 import _ from 'lodash';
 

@@ -1,5 +1,5 @@
 import Asset from '@models/asset';
-import BaseImprovement from '@services/baseImprovement';
+import BaseImprovement from '@services/engineImprovement/baseImprovement';
 import WebScraper from '@services/webScraper';
 import { ScrapedAsset } from '@services/htmlDataExtractor';
 

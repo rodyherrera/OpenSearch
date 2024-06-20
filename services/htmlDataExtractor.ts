@@ -1,7 +1,7 @@
 import { load } from 'cheerio';
 import { normalizeUrl } from '@utilities/runtime';
 import { EventEmitter } from 'events';
-import _, { includes } from 'lodash';
+import _ from 'lodash';
 
 /**
  * Class for extracting data from an HTML document.

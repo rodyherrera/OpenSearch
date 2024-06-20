@@ -1,6 +1,6 @@
 import News from '@models/news';
 import secureNewsProviders from '@data/scrapingTargets/news.json';
-import BaseImprovement from '@services/baseImprovement';
+import BaseImprovement from '@services/engineImprovement/baseImprovement';
 import WebScraper from '@services/webScraper';
 
 class NewsEngineImprovement extends BaseImprovement{
@@ -13,15 +13,6 @@ class NewsEngineImprovement extends BaseImprovement{
 
     async secureProvidersBasedImprovement(batchSize: number = 1): Promise<void>{
         const method = 'secureProviders';
-        const getDataFunc = () => async (skip: number) => {
-            const news = secureNewsProviders.slice(skip, skip + batchSize).map((url) => ({ url }));
-            const urlsExtracted = await this.webScraper.getExtractedUrls(news, {
-                restrictThirdPartyDomains: true, 
-                includeSameDomain: true 
-            });
-            return await this.webScraper.getScrapedWebsites(urlsExtracted);
-        };
-        this.processImprovement(method, batchSize, secureNewsProviders.length, getDataFunc());
     };
 
     getBulkOps(item: any): any{

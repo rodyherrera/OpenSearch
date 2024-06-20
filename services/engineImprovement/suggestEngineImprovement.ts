@@ -1,10 +1,10 @@
-import BaseImprovement from '@services/baseImprovement';
+import BaseImprovement from '@services/engineImprovement/baseImprovement';
 import WebScraper from '@services/webScraper';
 import Suggest from '@models/suggest';
 import PQueue from 'p-queue';
 import _ from 'lodash';
-import { getUniqueKeywords } from '@utilities/websites';
-import { suggestionsFromContent } from '@utilities/suggestions';
+import { getUniqueKeywords } from '@utilities/engines/websites';
+import { suggestionsFromContent } from '@utilities/engines/suggestions';
 
 /**
  * Class for improving suggestions search engine.
