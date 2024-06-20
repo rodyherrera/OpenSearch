@@ -236,7 +236,7 @@ class HtmlDataExtractor{
      * Extracts all links from the HTML document.
      * @returns {string[]} An array of URLs found in anchor tags.
     */
-    extractLinks(includeSameDomain: boolean): string[] {
+    extractLinks(includeSameDomain: boolean, restrictThirdPartyDomains: boolean): string[] {
         const links: string[] = [];
         this.eventEmitter.emit('fetchingWebsiteLinks', { url: this.baseUrl });
         const baseUrlDomain = new URL(this.baseUrl).hostname;
@@ -244,7 +244,12 @@ class HtmlDataExtractor{
             const href = this.$(element).attr('href');
             if(!this.isValidUrl(href)) return;
             const hrefDomain = new URL(href).hostname;
-            if((baseUrlDomain === hrefDomain) && !includeSameDomain) return;
+            if(
+                (!includeSameDomain && baseUrlDomain === hrefDomain) || 
+                (restrictThirdPartyDomains && baseUrlDomain !== hrefDomain)
+            ){
+                return;
+            }
             links.push(href);
         });
         this.eventEmitter.emit('fetchedWebsitesLinks', { url: this.baseUrl, links });

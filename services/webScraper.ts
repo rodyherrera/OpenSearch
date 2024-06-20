@@ -97,7 +97,7 @@ class WebScraper{
             const dataExtractor = new HtmlDataExtractor(html, url, this.eventEmitter);
             return dataExtractor;
         }catch(error){
-            return new HtmlDataExtractor('');
+            return new HtmlDataExtractor('', undefined, this.eventEmitter);
         }
     };
 
@@ -112,15 +112,6 @@ class WebScraper{
     private async extractDataFromURL<T>(url: string, extractMethod: (extractor: HtmlDataExtractor) => Promise<T>): Promise<T> {
         const dataExtractor = await this.createHtmlDataExtractorInstanceFromURL(url);
         return extractMethod(dataExtractor);
-    };
-
-    /**
-     * Extracts hyperlinks from a URL.
-     * @param {string} url - The URL from which to extract hyperlinks.
-     * @returns {Promise<string[]>} - A promise that resolves to an array of extracted hyperlinks.
-    */
-    async extractHyperlinksFromURL(url: string, includeSameDomain: boolean): Promise<string[]> {
-        return this.extractDataFromURL(url, extractor => Promise.resolve(extractor.extractLinks(includeSameDomain)));
     };
 
     /**
@@ -168,8 +159,15 @@ class WebScraper{
      * @param {{ url: string }[]} websites - An array of websites.
      * @returns {Promise<string[]>} - A promise that resolves to an array of extracted URLs from all websites.
     */
-    async getExtractedUrls(websites: { url: string }[], includeSameDomain: boolean): Promise<string[]>{
-        const promises = _.map(websites, ({ url }) => this.extractHyperlinksFromURL(url, includeSameDomain));
+    async getExtractedUrls(
+        websites: { url: string }[],
+        opts: { includeSameDomain: boolean, restrictThirdPartyDomains: boolean }
+    ): Promise<string[]>{
+        const promises = _.map(websites, ({ url }) => {
+            return this.extractDataFromURL(url, (extractor) => {
+                return Promise.resolve(extractor.extractLinks(opts.includeSameDomain, opts.restrictThirdPartyDomains));
+            });
+        });
         const extractedUrlsArray = await Promise.all(promises);
         return _.flatMap(extractedUrlsArray);
     };

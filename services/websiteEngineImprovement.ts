@@ -2,7 +2,7 @@ import Suggests from '@models/suggest';
 import Website from '@models/website';
 import BaseImprovement from '@services/baseImprovement';
 import WebScraper from '@services/webScraper';
-import _, { includes } from 'lodash';
+import _ from 'lodash';
 
 // @ts-ignore
 import CDrakeSE from 'cdrake-se';
@@ -71,7 +71,10 @@ class WebsiteEngineImprovement extends BaseImprovement{
         const totalDocuments = await Website.countDocuments();
         const getDataFunc = (createdAt: -1 | 1) => async (skip: number) => {
             const websites = await this.getWebsitesFromDatabase(skip, batchSize, createdAt);
-            const urlsExtracted = await this.webScraper.getExtractedUrls(websites, includeSameDomain);
+            const urlsExtracted = await this.webScraper.getExtractedUrls(websites, {
+                restrictThirdPartyDomains: false,
+                includeSameDomain,
+            });
             return await this.webScraper.getScrapedWebsites(urlsExtracted);
         };
         this.processImprovement(method, batchSize, totalDocuments, getDataFunc(-1));
@@ -81,7 +84,10 @@ class WebsiteEngineImprovement extends BaseImprovement{
         const method = 'listBased';
         const getDataFunc = () => async (skip: number) => {
             const websites = urls.slice(skip, skip + batchSize).map((url) => ({ url }));
-            const urlsExtracted = await this.webScraper.getExtractedUrls(websites, includeSameDomain);
+            const urlsExtracted = await this.webScraper.getExtractedUrls(websites, {
+                restrictThirdPartyDomains: false,
+                includeSameDomain,
+            });
             return await this.webScraper.getScrapedWebsites(urlsExtracted);
         };
         this.processImprovement(method, batchSize, urls.length, getDataFunc());

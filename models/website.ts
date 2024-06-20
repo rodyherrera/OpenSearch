@@ -1,6 +1,6 @@
 import mongoose, { Document, Model } from 'mongoose';
 
-interface WebsiteDocument extends Document{
+export interface WebsiteDocument extends Document{
     url: string;
     title?: string;
     description?: string,
@@ -8,7 +8,7 @@ interface WebsiteDocument extends Document{
     keywords?: string;
 };
 
-const websiteSchema = new mongoose.Schema<WebsiteDocument>({
+export const websiteSchema = new mongoose.Schema<WebsiteDocument>({
     url: {
         type: String,
         required: true,
