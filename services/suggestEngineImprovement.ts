@@ -64,8 +64,8 @@ class SuggestEngineImprovement extends BaseImprovement{
      * @param {any[]} bulkOps - The array of bulk write operations.
      * @returns {Promise<void>} - A promise that resolves when bulk write is complete.
     */
-    async performBulkWrite(bulkOps: any[]): Promise<void>{
-        await Suggest.bulkWrite(bulkOps, { ordered: false });
+    performBulkWrite(bulkOps: any[]): void {
+        Suggest.bulkWrite(bulkOps, { ordered: false });
     };
 
     /**

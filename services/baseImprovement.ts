@@ -78,7 +78,7 @@ class BaseImprovement extends EventEmitter {
      * Performs a bulk write operation.
      * @param {any[]} bulkOps - The bulk operations to perform.
      */
-    async performBulkWrite(bulkOps: any[]): Promise<void> {
+    performBulkWrite(bulkOps: any[]): void{
         throw new Error('@services/baseImprovement.ts - performBulkWrite - not implemented.');
     }
 }
