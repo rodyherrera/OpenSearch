@@ -15,7 +15,7 @@ class BaseImprovement extends EventEmitter{
     private queue: PQueue;
     private groupSize: number;
 
-    constructor({ groupSize = 1, concurrency = 1 }: baseImprovementOpts = {}){
+    constructor({ groupSize = 20, concurrency = 100 }: baseImprovementOpts = {}){
         super();
         this.groupSize = groupSize;
         this.queue = new PQueue({ concurrency });
@@ -33,7 +33,7 @@ class BaseImprovement extends EventEmitter{
         batchSize: number,
         totalDataSize: number,
         getDataFunc: (skip: number) => Promise<any[]>,
-    ): Promise<void>{
+    ): Promise<void> {
         this.emit('improvementStart', { method });
         const totalBatches = Math.ceil(totalDataSize / batchSize);
         const totalGroups = Math.ceil(totalBatches / this.groupSize);
@@ -41,19 +41,20 @@ class BaseImprovement extends EventEmitter{
             const tasks = [];
             for(let i = group * this.groupSize; i < Math.min((group + 1) * this.groupSize, totalBatches); i++){
                 const skip = i * batchSize;
-                const task = this.queue.add(async () => {
+                const task = async () => {
                     const data = await getDataFunc(skip);
                     const bulkOps = _.flatMap(data, this.getBulkOps.bind(this));
-                    this.performBulkWrite(bulkOps);
+                    await this.performBulkWrite(bulkOps);
                     this.emit('batchProcessed', { method, data: bulkOps });
-                });
-                tasks.push(task);
+                };
+                tasks.push(this.queue.add(task));
             }
             await Promise.all(tasks);
         }
         await this.queue.onIdle();
-        this.emit('improvementEnd', { method })
+        this.emit('improvementEnd', { method });
     }
+    
 
     /**
      * Gets websites from the database.

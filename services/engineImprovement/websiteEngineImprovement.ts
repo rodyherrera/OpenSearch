@@ -77,6 +77,7 @@ class WebsiteEngineImprovement extends BaseImprovement{
             });
             return await this.webScraper.getScrapedWebsites(urlsExtracted);
         };
+        
         this.processImprovement(method, batchSize, totalDocuments, getDataFunc(-1));
     };
 
