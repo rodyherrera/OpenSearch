@@ -2,6 +2,7 @@ import Suggests from '@models/suggest';
 import Website from '@models/website';
 import BaseImprovement, { baseImprovementOpts } from '@services/engineImprovement/baseImprovement';
 import WebScraper from '@services/webScraper';
+import logger from '@utilities/logger';
 import _ from 'lodash';
 
 // @ts-ignore
@@ -69,13 +70,16 @@ class WebsiteEngineImprovement extends BaseImprovement{
     async hyperlinkBasedImprovement(batchSize: number = 1, includeSameDomain: boolean = false): Promise<void>{
         const method = 'hyperlinkBased';
         const totalDocuments = await Website.countDocuments();
+        logger.debug(`@hyperlinkBasedImprovement: ${totalDocuments} documents.`);
         const getDataFunc = (createdAt: -1 | 1) => async (skip: number) => {
             const websites = await this.getWebsitesFromDatabase(skip, batchSize, createdAt);
+            logger.debug(`@hyperlinkBasedImprovement: working with ${websites.length} documents. Skipping ${skip}, Batch Size ${batchSize}.`);
             const urlsExtracted = await this.webScraper.getExtractedUrls(websites, {
                 restrictThirdPartyDomains: false,
                 includeSameDomain,
             });
-            return await this.webScraper.getScrapedWebsites(urlsExtracted);
+            logger.debug(`@hyperlinkBasedImprovement: ${urlsExtracted.length} urls extracted.`);
+            return await this.webScraper.getScrapedWebsites(urlsExtracted.slice(0, 1));
         };
         
         this.processImprovement(method, batchSize, totalDocuments, getDataFunc(-1));
@@ -112,10 +116,7 @@ class WebsiteEngineImprovement extends BaseImprovement{
             const websitesPromises = _.map(suggestions, ({ suggest }: { suggest: string }) => this.processSuggest(suggest));
             return _.flatten(await Promise.all(websitesPromises));
         };
-        await Promise.all([
-            this.processImprovement(method, batchSize, totalDocuments, getDataFunc(-1)),
-            this.processImprovement(method, batchSize, totalDocuments, getDataFunc(1))
-        ]);
+        this.processImprovement(method, batchSize, totalDocuments, getDataFunc(-1));
     };
 
     /**
@@ -139,8 +140,8 @@ class WebsiteEngineImprovement extends BaseImprovement{
      * @param {BulkWriteDocument[]} bulkOps - The array of bulk write operations.
      * @returns {void}
     */
-    performBulkWrite(bulkOps: any[]): void{
-        Website.bulkWrite(bulkOps, { ordered: false });
+    async performBulkWrite(bulkOps: any[]): Promise<void>{
+        await Website.bulkWrite(bulkOps, { ordered: false });
     };
 };
 

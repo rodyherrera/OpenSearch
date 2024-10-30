@@ -240,17 +240,21 @@ class HtmlDataExtractor{
         const links: string[] = [];
         this.eventEmitter.emit('fetchingWebsiteLinks', { url: this.baseUrl });
         const baseUrlDomain = new URL(this.baseUrl).hostname;
-        this.$('a').each((_: any, element: any) => {
-            const href = this.$(element).attr('href');
-            if(!this.isValidUrl(href)) return;
+        const processLink = (href: string) => {
             const hrefDomain = new URL(href).hostname;
             if(
-                (!includeSameDomain && baseUrlDomain === hrefDomain) || 
+                (!includeSameDomain && baseUrlDomain === hrefDomain) ||
                 (restrictThirdPartyDomains && baseUrlDomain !== hrefDomain)
             ){
-                return;
+                return false;
             }
-            links.push(href);
+            return true;
+        };
+        this.$('a').each((_: any, element: any) => {
+            const href = this.$(element).attr('href');
+            if(this.isValidUrl(href) && processLink(href)){
+                links.push(href);
+            }
         });
         this.eventEmitter.emit('fetchedWebsitesLinks', { url: this.baseUrl, links });
         return links;

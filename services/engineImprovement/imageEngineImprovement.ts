@@ -31,7 +31,7 @@ class ImageEngineImprovement extends BaseImprovement{
             const extractedImages = await this.imageScraper.getExtractedImages(websites);
             return extractedImages;
         };
-        await this.processImprovement(method, batchSize, totalDocuments, getDataFunc(-1));
+        await this.processImprovement(method, batchSize, totalDocuments, getDataFunc(1));
     };
 
     /**
@@ -55,8 +55,8 @@ class ImageEngineImprovement extends BaseImprovement{
      * @param {any[]} bulkOps - The array of bulk write operations.
      * @returns {void}
     */
-    performBulkWrite(bulkOps: any[]): void{
-        Image.bulkWrite(bulkOps, { ordered: false });
+    async performBulkWrite(bulkOps: any[]): Promise<void>{
+        await Image.bulkWrite(bulkOps, { ordered: false });
     };
 };
 

@@ -21,7 +21,7 @@ const engines = {
 };
 
 const improvementStartHandler = (engine, method) => {
-    console.log(`${engine} Engine Improvement -> Starting using method "${method}"...`);
+   console.log(`${engine} Engine Improvement -> Starting using method "${method}"...`);
 };
 
 const improvementEndHandler = (engine, method) => {
@@ -43,20 +43,18 @@ import scrapingTargets from '@data/scrapingTargets';
 (async () => {
     await mongoConnector();
     await Promise.all([
-        engines.Website.hyperlinkBasedImprovement(5, true),
-        engines.Website.suggestsBasedImprovement(5),
-        engines.Website.listBasedImprovement(5, [
+        engines.Website.hyperlinkBasedImprovement(1000, true),
+        //engines.Website.suggestsBasedImprovement(1000),
+        engines.Website.listBasedImprovement(1000, [
             ...scrapingTargets.devs,
             ...scrapingTargets.news,
             ...scrapingTargets.shopping,
             ...scrapingTargets.wikipedia
-        ]),
-        engines.Asset.contentBasedImprovement(5),
-        engines.Image.contentBasedImprovement(5),
-        engines.Shopping.secureProvidersBasedImprovement(10000),
-        //engines.Suggest.contentBasedImprovement(10000),
-        //engines.Suggest.keywordBasedImprovement(10000)
+        ], true),
+        engines.Asset.contentBasedImprovement(1000),
+        engines.Image.contentBasedImprovement(1000),
+        //engines.Shopping.secureProvidersBasedImprovement(100),
+        //engines.Suggest.contentBasedImprovement(10),
+        engines.Suggest.keywordBasedImprovement(1000)
     ]);
 })();
-
-

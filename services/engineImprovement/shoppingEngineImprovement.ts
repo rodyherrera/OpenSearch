@@ -26,7 +26,7 @@ class NewsEngineImprovement extends BaseImprovement{
         };
     };
 
-    performBulkWrite(bulkOps: any[]): void {
+    async performBulkWrite(bulkOps: any[]): Promise<void> {
         Shopping.bulkWrite(bulkOps, { ordered: false });
     }
 };

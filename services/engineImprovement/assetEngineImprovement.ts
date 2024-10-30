@@ -31,7 +31,7 @@ class AssetEngineImprovement extends BaseImprovement{
             const extractedAssets = await this.assetScraper.getExtractedAssets(websites);
             return extractedAssets;
         };
-        this.processImprovement(method, batchSize, totalDocuments, getDataFunc(-1));
+        this.processImprovement(method, batchSize, totalDocuments, getDataFunc(1));
     };
 
     /**
@@ -55,7 +55,7 @@ class AssetEngineImprovement extends BaseImprovement{
      * @param {any[]} bulkOps - The array of bulk write operations.
      * @returns {void}
     */
-    performBulkWrite(bulkOps: any[]): void{
+    async performBulkWrite(bulkOps: any[]): Promise<void>{
         Asset.bulkWrite(bulkOps, { ordered: false });
     }
 };

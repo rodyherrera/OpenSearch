@@ -17,15 +17,15 @@ const mongoConnector = async () => {
     mongoose.set('strictPopulate', false);
     
     const options = {
-        maxPoolSize: 10, 
+        maxPoolSize: 100, 
         autoIndex: NODE_ENV !== 'production', 
-        connectTimeoutMS: 10000,
-        socketTimeoutMS: 45000, 
+        connectTimeoutMS: 100000,
+        socketTimeoutMS: 60000, 
         authSource: 'admin',
         appName: 'opensearch',
         serverSelectionTimeoutMS: 5000,
         maxIdleTimeMS: 30000,
-        retryWrites: true,
+        retryWrites: true
     };
 
     try{

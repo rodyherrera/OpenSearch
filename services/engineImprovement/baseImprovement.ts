@@ -1,9 +1,9 @@
 import { EventEmitter } from 'events';
 import Website from '@models/website';
-import PQueue from 'p-queue';
+import logger from '@utilities/logger';
 import _ from 'lodash';
 
-export interface baseImprovementOpts{
+export interface baseImprovementOpts {
     groupSize?: number,
     concurrency?: number
 };
@@ -11,14 +11,14 @@ export interface baseImprovementOpts{
 /**
  * A base class for improvements.
  */
-class BaseImprovement extends EventEmitter{
-    private queue: PQueue;
+class BaseImprovement extends EventEmitter {
     private groupSize: number;
+    private concurrency: number;
 
-    constructor({ groupSize = 20, concurrency = 100 }: baseImprovementOpts = {}){
+    constructor({ groupSize = 500, concurrency = 100 }: baseImprovementOpts = {}) {
         super();
         this.groupSize = groupSize;
-        this.queue = new PQueue({ concurrency });
+        this.concurrency = concurrency;
     }
 
     /**
@@ -32,26 +32,48 @@ class BaseImprovement extends EventEmitter{
         method: string,
         batchSize: number,
         totalDataSize: number,
-        getDataFunc: (skip: number) => Promise<any[]>,
+        getDataFunc: (skip: number) => Promise<any[]>
     ): Promise<void> {
         this.emit('improvementStart', { method });
         const totalBatches = Math.ceil(totalDataSize / batchSize);
         const totalGroups = Math.ceil(totalBatches / this.groupSize);
+        logger.debug(`@processImprovement: Method (${method}), Batch Size (${batchSize}), Total Data Size (${totalDataSize}), Total Batches (${totalBatches}), Total Groups (${totalGroups})`);
+        
         for(let group = 0; group < totalGroups; group++){
-            const tasks = [];
-            for(let i = group * this.groupSize; i < Math.min((group + 1) * this.groupSize, totalBatches); i++){
+            const batches = Math.min((group + 1) * this.groupSize, totalBatches);
+            const batchPromises = [];
+    
+            for(let i = group * this.groupSize; i < batches; i++){
                 const skip = i * batchSize;
+    
                 const task = async () => {
                     const data = await getDataFunc(skip);
+                    if (data.length === 0) return;
+    
+                    logger.debug(`@processImprovement: Working on [${group}/${i}]...`);
                     const bulkOps = _.flatMap(data, this.getBulkOps.bind(this));
                     await this.performBulkWrite(bulkOps);
+                    logger.debug(`@processImprovement: OK [${group}/${i}] of [${totalGroups}/${batches}]`);
                     this.emit('batchProcessed', { method, data: bulkOps });
+                    bulkOps.length = 0;
                 };
-                tasks.push(this.queue.add(task));
+
+                if(batchPromises.length >= this.concurrency){
+                    await Promise.race(batchPromises);
+                    for(let j = batchPromises.length - 1; j >= 0; j--){
+                        if((await batchPromises[j]).isFulfilled){
+                            batchPromises.splice(j, 1);
+                        }
+                    }
+                }
+    
+                const wrappedTask = task().then(() => ({ isFulfilled: true }));
+                batchPromises.push(wrappedTask);
             }
-            await Promise.all(tasks);
+    
+            await Promise.all(batchPromises);
         }
-        await this.queue.onIdle();
+    
         this.emit('improvementEnd', { method });
     }
     
@@ -85,7 +107,7 @@ class BaseImprovement extends EventEmitter{
      * Performs a bulk write operation.
      * @param {any[]} bulkOps - The bulk operations to perform.
      */
-    performBulkWrite(bulkOps: any[]): void{
+    async performBulkWrite(bulkOps: any[]): Promise<void> {
         throw new Error('@services/baseImprovement.ts - performBulkWrite - not implemented.');
     }
 }

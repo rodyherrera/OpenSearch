@@ -37,7 +37,7 @@ class SuggestEngineImprovement extends BaseImprovement{
             const keywords = await this.suggestQueue.addAll(contents.map((content) => () => suggestionsFromContent(content, 5)));
             return _.uniq(_.flatten(keywords));
         };
-        await this.processImprovement(method, batchSize, totalDocuments, getDataFunc(-1));
+        await this.processImprovement(method, batchSize, totalDocuments, getDataFunc(1));
     };
 
     /**
@@ -56,7 +56,7 @@ class SuggestEngineImprovement extends BaseImprovement{
             ]);
             return _.map(uniqueKeywords, 'keyword');
         };
-        await this.processImprovement(method, batchSize, totalDocuments, getDataFunc(-1))
+        await this.processImprovement(method, batchSize, totalDocuments, getDataFunc(1))
     };
 
     /**
@@ -64,8 +64,8 @@ class SuggestEngineImprovement extends BaseImprovement{
      * @param {any[]} bulkOps - The array of bulk write operations.
      * @returns {Promise<void>} - A promise that resolves when bulk write is complete.
     */
-    performBulkWrite(bulkOps: any[]): void {
-        Suggest.bulkWrite(bulkOps, { ordered: false });
+    async performBulkWrite(bulkOps: any[]): Promise<void> {
+        await Suggest.bulkWrite(bulkOps, { ordered: false });
     };
 
     /**
