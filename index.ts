@@ -43,18 +43,18 @@ import scrapingTargets from '@data/scrapingTargets';
 (async () => {
     await mongoConnector();
     await Promise.all([
-        engines.Website.hyperlinkBasedImprovement(1000, true),
+        engines.Website.hyperlinkBasedImprovement(10, true),
         //engines.Website.suggestsBasedImprovement(1000),
-        engines.Website.listBasedImprovement(1000, [
+        /*engines.Website.listBasedImprovement(1, [
             ...scrapingTargets.devs,
             ...scrapingTargets.news,
             ...scrapingTargets.shopping,
             ...scrapingTargets.wikipedia
-        ], true),
-        engines.Asset.contentBasedImprovement(1000),
-        engines.Image.contentBasedImprovement(1000),
+        ], true),*/
+        engines.Asset.contentBasedImprovement(10),
+        engines.Image.contentBasedImprovement(10),
         //engines.Shopping.secureProvidersBasedImprovement(100),
         //engines.Suggest.contentBasedImprovement(10),
-        engines.Suggest.keywordBasedImprovement(1000)
+        //engines.Suggest.keywordBasedImprovement(1000)
     ]);
 })();

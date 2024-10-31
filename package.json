@@ -43,6 +43,7 @@
         "lodash": "^4.17.21",
         "mongoose": "^8.4.0",
         "nodejs-file-downloader": "^4.12.2",
+        "p-limit": "^6.1.0",
         "p-queue": "^8.0.1",
         "pino": "^9.5.0",
         "pino-pretty": "^11.3.0",
