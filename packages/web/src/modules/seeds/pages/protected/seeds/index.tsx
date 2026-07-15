@@ -45,7 +45,7 @@ const Seeds = () => {
             rows={list.items}
             rowKey={(row) => row.id}
             loading={!list.loaded}
-            emptyLabel='No seeds added yet'
+            emptyLabel={list.query ? 'No seeds match your filter' : 'No seeds added yet'}
             initialSort={{ key: 'added', dir: 'desc' }}
             hasMore={list.hasMore}
             loadingMore={list.loading}

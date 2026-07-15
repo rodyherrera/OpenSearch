@@ -1,6 +1,7 @@
 export interface PublicWebsite{
     id: string;
     url: string;
+    domain?: string;
     title?: string;
     description?: string;
     keywords?: string;

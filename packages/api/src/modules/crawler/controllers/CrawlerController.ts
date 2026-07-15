@@ -69,16 +69,6 @@ export default class CrawlerController extends BaseController{
         return { paused: false };
     }
 
-    @Route('/domains', 'GET')
-    async domains(){
-        return { domains: await this.#frontier.indexedDomains(300) };
-    }
-
-    @Route('/queue', 'GET')
-    async queue(){
-        return { urls: await this.#frontier.queueSample(300) };
-    }
-
     @Route('/reset', 'POST')
     async reset(){
         const redis = await getRedis();

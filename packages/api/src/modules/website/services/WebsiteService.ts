@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import _ from 'lodash';
+import { getDomain } from 'tldts';
 import Website from '@/modules/website/models/Website';
 import RuntimeError from '@/shared/errors/RuntimeError';
 import { RequestError } from '@/shared/errors/RequestError';
@@ -11,7 +12,7 @@ export default class WebsiteService{
         const bulkOps = records.map(({ url, title, description, keywords, content, metaData }) => ({
             updateOne: {
                 filter: { url },
-                update: { $setOnInsert: { url, title, description, keywords, content, metaData } },
+                update: { $setOnInsert: { url, domain: getDomain(url) ?? '', title, description, keywords, content, metaData } },
                 upsert: true
             }
         }));
@@ -30,6 +31,41 @@ export default class WebsiteService{
             { $project: { _id: 0, url: 1 } }
         ]);
         return known.map((doc) => doc.url);
+    }
+
+    // Registrable domains actually present in the index with their page counts,
+    // busiest first. Documents that predate the domain field are excluded until
+    // the boot-time backfill reaches them.
+    async listDomains(limit = 1000): Promise<{ domain: string; pages: number }[]>{
+        return Website.aggregate<{ domain: string; pages: number }>([
+            { $match: { domain: { $exists: true, $ne: '' } } },
+            { $group: { _id: '$domain', pages: { $sum: 1 } } },
+            { $sort: { pages: -1 } },
+            { $limit: limit },
+            { $project: { _id: 0, domain: '$_id', pages: 1 } }
+        ]);
+    }
+
+    // One-shot migration for documents written before the domain field existed.
+    // Batched so a large index is never loaded into memory at once. URLs with no
+    // registrable domain get '' so they are never re-scanned on the next boot.
+    async backfillDomains(batchSize = 1000): Promise<number>{
+        let updated = 0;
+        for(;;){
+            const docs = await Website.find({ domain: { $exists: false } })
+                .select('url')
+                .limit(batchSize)
+                .lean<Array<{ _id: mongoose.Types.ObjectId; url: string }>>();
+            if(!docs.length) break;
+            await Website.bulkWrite(docs.map(({ _id, url }) => ({
+                updateOne: {
+                    filter: { _id },
+                    update: { $set: { domain: getDomain(url) ?? '' } }
+                }
+            })), { ordered: false });
+            updated += docs.length;
+        }
+        return updated;
     }
 
     async deleteById(id: string): Promise<boolean>{

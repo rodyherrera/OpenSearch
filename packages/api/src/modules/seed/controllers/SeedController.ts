@@ -12,8 +12,8 @@ export default class SeedController extends BaseController{
     #service = new SeedService();
 
     @Route('/', 'GET')
-    list(@Query('page') page?: string, @Query('limit') limit?: string): Promise<PublicSeed[]>{
-        return this.#service.list(Number(page), Number(limit));
+    list(@Query('page') page?: string, @Query('limit') limit?: string, @Query('q') q?: string): Promise<PublicSeed[]>{
+        return this.#service.list(Number(page), Number(limit), q);
     }
 
     @Route('/', 'POST')

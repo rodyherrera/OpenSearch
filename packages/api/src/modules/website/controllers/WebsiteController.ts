@@ -18,6 +18,12 @@ export default class WebsiteController extends BaseController{
         return this.#search.search(query);
     }
 
+    @Route('/domains', 'GET')
+    @Middleware(AuthenticatedRoute)
+    async domains(){
+        return { domains: await this.#service.listDomains() };
+    }
+
     @Route('/:id', 'DELETE')
     @Status(204)
     @Middleware(AuthenticatedRoute)

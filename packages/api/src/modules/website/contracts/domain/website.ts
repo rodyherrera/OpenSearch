@@ -11,6 +11,7 @@ export interface WebsitePageRecord{
 
 export interface WebsiteFields{
     url: string;
+    domain?: string;
     title?: string;
     description?: string;
     keywords?: string;

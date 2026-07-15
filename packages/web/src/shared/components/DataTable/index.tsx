@@ -1,6 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import { ArrowDown, ArrowUp, Search } from 'lucide-react';
-import { TextField, Input } from '@heroui/react';
+import { ArrowDown, ArrowUp } from 'lucide-react';
 import { useInfiniteScroll } from '@/shared/hooks/useInfiniteScroll';
 import type { ReactNode } from 'react';
 
@@ -20,12 +19,6 @@ export interface Column<T>{
     cell?: (row: T) => ReactNode;
 }
 
-export interface DataTableSearch{
-    value: string;
-    onChange: (value: string) => void;
-    placeholder?: string;
-}
-
 export interface DataTableProps<T>{
     columns: Column<T>[];
     rows: T[];
@@ -33,7 +26,6 @@ export interface DataTableProps<T>{
     title?: string;
     subtitle?: string;
     onRefresh?: () => void;
-    search?: DataTableSearch;
     // Optional controls rendered on the right side of the header (e.g. an "Add" button).
     actions?: ReactNode;
     loading?: boolean;
@@ -54,7 +46,6 @@ function DataTable<T>({
     title,
     subtitle,
     onRefresh,
-    search,
     actions,
     loading = false,
     error,
@@ -96,7 +87,7 @@ function DataTable<T>({
         });
     };
 
-    const hasHeader = Boolean(title || search || onRefresh || actions);
+    const hasHeader = Boolean(title || onRefresh || actions);
 
     return (
         <div className='flex w-full flex-col gap-4'>
@@ -107,22 +98,6 @@ function DataTable<T>({
                         {subtitle ? <p className='mt-1 text-sm text-muted'>{subtitle}</p> : null}
                     </div>
                     <div className='flex shrink-0 items-center gap-3'>
-                        {search ? (
-                            <TextField
-                                aria-label='Search'
-                                value={search.value}
-                                onChange={search.onChange}
-                                className='w-64'
-                            >
-                                <div className='relative'>
-                                    <Search className='pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted' />
-                                    <Input
-                                        placeholder={search.placeholder ?? 'Search…'}
-                                        className='w-full rounded-lg border border-foreground/10 bg-surface-secondary py-1.5 pr-3 pl-8 text-sm placeholder:text-muted focus:outline-none'
-                                    />
-                                </div>
-                            </TextField>
-                        ) : null}
                         {onRefresh ? (
                             <button
                                 type='button'

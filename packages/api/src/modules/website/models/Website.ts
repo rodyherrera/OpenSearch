@@ -3,6 +3,7 @@ import { defineModel } from '@/shared/models/BaseModel';
 
 export interface WebsiteDocument extends Document{
     url: string;
+    domain?: string;
     title?: string;
     description?: string;
     keywords?: string;
@@ -24,6 +25,13 @@ export default defineModel<WebsiteDocument>('Website', {
         required: true,
         unique: true,
         trim: true
+    },
+    // Registrable domain (eTLD+1) of the URL, set at write time. Powers the
+    // Domains view via aggregation, so it must stay consistent with the index.
+    domain: {
+        type: String,
+        trim: true,
+        index: true
     },
     title: {
         type: String,

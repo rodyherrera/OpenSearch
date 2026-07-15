@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import _ from 'lodash';
 import Seed from '@/modules/seed/models/Seed';
 import CrawlFrontier, { normalizeUrl, domainOf } from '@/modules/crawler/services/CrawlFrontier';
 import RuntimeError from '@/shared/errors/RuntimeError';
@@ -33,11 +34,15 @@ export default class SeedService{
         return { saved: result.upsertedCount ?? 0, enqueued };
     }
 
-    async list(page: number, limit: number): Promise<PublicSeed[]>{
+    async list(page: number, limit: number, q?: string): Promise<PublicSeed[]>{
         const safeLimit = Math.min(Math.max(limit || DEFAULT_LIMIT, 1), MAX_LIMIT);
         const safePage = Math.max(page || 1, 1);
+        // Substring filter over URL and domain — seeds stay a small collection.
+        const term = q?.trim();
+        const pattern = term ? new RegExp(_.escapeRegExp(term), 'i') : null;
+        const filter = pattern ? { $or: [{ url: pattern }, { domain: pattern }] } : {};
         const records = await Seed
-            .find()
+            .find(filter)
             .sort({ createdAt: -1 })
             .skip((safePage - 1) * safeLimit)
             .limit(safeLimit);

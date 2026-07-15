@@ -1,9 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useRequest } from 'alova/client';
+import { safeParse } from 'valibot';
 import { Button, Switch, Spinner } from '@heroui/react';
 import { RefreshCw } from 'lucide-react';
 import { Form } from '@/shared/components/forms/Form';
 import { Field } from '@/shared/components/forms/Field';
 import { useForm } from '@/shared/hooks/forms/useForm';
+import { crawlerApi } from '@/modules/crawler/api/api';
 import { useCrawlerControl } from '@/modules/crawler/hooks/useCrawlerControl';
 import { TuningSchema } from '@/modules/crawler/contracts/crawler';
 import type { ReactNode } from 'react';
@@ -27,7 +30,7 @@ const NUMBER_FIELDS: NumberFieldSpec[] = [
     { name: 'timeoutMs', label: 'Timeout (ms)', hint: 'Per-request fetch timeout.', min: 1000, step: 500 }
 ];
 
-const cardClass = 'rounded-xl border border-foreground/10 bg-surface-secondary p-6';
+const cardClass = 'rounded-xl border border-foreground/10 p-6';
 const inputClass =
     'w-full rounded-lg border border-foreground/10 bg-background px-3 py-2 text-sm tabular-nums text-foreground placeholder:text-muted transition-colors focus:border-foreground/30 focus:outline-none disabled:opacity-60';
 
@@ -80,10 +83,9 @@ const ToggleRow = ({ title, description, isSelected, onChange, disabled }: Toggl
 interface TuningFieldProps{
     spec: NumberFieldSpec;
     binding: FieldBinding<unknown>;
-    disabled: boolean;
 }
 
-const TuningField = ({ spec, binding, disabled }: TuningFieldProps) => {
+const TuningField = ({ spec, binding }: TuningFieldProps) => {
     const value = typeof binding.value === 'number' && !Number.isNaN(binding.value) ? String(binding.value) : '';
     return (
         <div className='flex flex-col gap-1.5'>
@@ -95,7 +97,6 @@ const TuningField = ({ spec, binding, disabled }: TuningFieldProps) => {
                 min={spec.min}
                 step={spec.step}
                 value={value}
-                disabled={disabled}
                 aria-invalid={binding.isInvalid}
                 onChange={(event) => binding.onChange(event.target.value === '' ? NaN : Number(event.target.value))}
                 onBlur={() => binding.onBlur()}
@@ -112,37 +113,78 @@ const TuningField = ({ spec, binding, disabled }: TuningFieldProps) => {
 
 interface TuningPanelProps{
     tuning: Tuning;
-    saving: boolean;
     onSave: CrawlerControlApi['saveTuning'];
 }
 
-const TuningPanel = ({ tuning, saving, onSave }: TuningPanelProps) => {
-    const [applied, setApplied] = useState(false);
+type SaveState = 'idle' | 'saving' | 'saved' | 'error';
+
+const AUTOSAVE_MS = 800;
+
+const SAVE_HINTS: Partial<Record<SaveState, { className: string; text: string }>> = {
+    saving: { className: 'text-muted', text: 'Saving…' },
+    saved: { className: 'text-success', text: 'Saved — applies next tick.' },
+    error: { className: 'text-danger', text: 'Save failed.' }
+};
+
+const TuningPanel = ({ tuning, onSave }: TuningPanelProps) => {
+    const [saveState, setSaveState] = useState<SaveState>('idle');
+    const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+    const lastSavedRef = useRef('');
+
+    const initialValues = {
+        concurrency: tuning.concurrency,
+        batchSize: tuning.batchSize,
+        domainDelayMs: tuning.domainDelayMs,
+        maxLinksPerPage: tuning.maxLinksPerPage,
+        timeoutMs: tuning.timeoutMs,
+        respectRobots: tuning.respectRobots
+    };
+    if(!lastSavedRef.current) lastSavedRef.current = JSON.stringify(initialValues);
+
+    const persist = async (values: TuningInput) => {
+        const serialized = JSON.stringify(values);
+        if(serialized === lastSavedRef.current) return;
+        setSaveState('saving');
+        try{
+            await onSave(values);
+            lastSavedRef.current = serialized;
+            setSaveState('saved');
+        }catch{
+            setSaveState('error');
+        }
+    };
 
     const form = useForm({
         schema: TuningSchema,
-        initialValues: {
-            concurrency: tuning.concurrency,
-            batchSize: tuning.batchSize,
-            domainDelayMs: tuning.domainDelayMs,
-            maxLinksPerPage: tuning.maxLinksPerPage,
-            timeoutMs: tuning.timeoutMs,
-            respectRobots: tuning.respectRobots
-        },
-        onSubmit: async (values) => {
-            setApplied(false);
-            await onSave(values);
-            setApplied(true);
-        }
+        initialValues,
+        onSubmit: persist
     });
 
+    // Autosave: once the edited values parse as a valid profile, push them shortly
+    // after the user stops typing. Invalid intermediates just wait for a fix.
+    const persistRef = useRef(persist);
+    persistRef.current = persist;
+    const serializedValues = JSON.stringify(form.values);
+    useEffect(() => {
+        const result = safeParse(TuningSchema, JSON.parse(serializedValues));
+        if(!result.success || JSON.stringify(result.output) === lastSavedRef.current) return;
+        debounceRef.current = setTimeout(() => { void persistRef.current(result.output); }, AUTOSAVE_MS);
+        return () => clearTimeout(debounceRef.current);
+    }, [serializedValues]);
+
+    const hint = SAVE_HINTS[saveState];
+
     return (
-        <Section title='Tuning' subtitle='Adjust the crawl profile. Changes apply on the next tick.'>
+        <Section
+            title='Tuning'
+            subtitle='Adjust the crawl profile. Changes save automatically and apply on the next tick.'
+            action={hint ? <span className={`text-xs ${hint.className}`}>{hint.text}</span> : null}
+        >
             <Form form={form} className='flex flex-col gap-6'>
                 <div className='grid gap-5 sm:grid-cols-2'>
                     {NUMBER_FIELDS.map((spec) => (
                         <Field key={spec.name} form={form} name={spec.name}>
-                            {(binding) => <TuningField spec={spec} binding={binding} disabled={saving} />}
+                            {(binding) => <TuningField spec={spec} binding={binding} />}
                         </Field>
                     ))}
                 </div>
@@ -154,25 +196,48 @@ const TuningPanel = ({ tuning, saving, onSave }: TuningPanelProps) => {
                             description="Honor each site's crawl directives."
                             isSelected={Boolean(binding.value)}
                             onChange={binding.onChange}
-                            disabled={saving}
                         />
                     )}
                 </Field>
-
-                <div className='flex items-center justify-end gap-3'>
-                    {applied ? (
-                        <span className='text-sm text-success'>Applied — takes effect next tick.</span>
-                    ) : null}
-                    <button
-                        type='submit'
-                        disabled={saving}
-                        className='inline-flex items-center gap-2 rounded-full bg-foreground px-5 py-2 text-sm font-semibold text-background transition-colors hover:bg-foreground/90 disabled:opacity-60'
-                    >
-                        {saving ? <Spinner size='sm' /> : null}
-                        Save
-                    </button>
-                </div>
             </Form>
+        </Section>
+    );
+};
+
+const DangerZone = () => {
+    const purger = useRequest(crawlerApi.purgeIndex, { immediate: false });
+    const [outcome, setOutcome] = useState<{ tone: 'ok' | 'error'; text: string } | null>(null);
+
+    const onPurge = async () => {
+        if(!window.confirm('Purge the ENTIRE index? Every crawled page is deleted. This cannot be undone.')) return;
+        setOutcome(null);
+        try{
+            const { deleted } = await purger.send();
+            setOutcome({ tone: 'ok', text: `Purged the index — ${deleted.toLocaleString()} page(s) removed.` });
+        }catch(error){
+            setOutcome({ tone: 'error', text: error instanceof Error ? error.message : 'Something went wrong' });
+        }
+    };
+
+    return (
+        <Section title='Danger zone' subtitle='Destructive actions over the crawled index.'>
+            <div className='flex items-center justify-between gap-4'>
+                <div className='flex flex-col'>
+                    <span className='text-sm font-semibold text-foreground'>Purge index</span>
+                    <span className={`text-xs ${outcome ? (outcome.tone === 'error' ? 'text-danger' : 'text-success') : 'text-muted'}`}>
+                        {outcome?.text ?? 'Delete every crawled page from the index.'}
+                    </span>
+                </div>
+                <button
+                    type='button'
+                    onClick={() => void onPurge()}
+                    disabled={purger.loading}
+                    className='inline-flex shrink-0 items-center gap-2 rounded-full border border-danger/30 px-5 py-2 text-sm font-semibold text-danger transition-colors hover:bg-danger/10 disabled:opacity-60'
+                >
+                    {purger.loading ? <Spinner size='sm' /> : null}
+                    Purge all
+                </button>
+            </div>
         </Section>
     );
 };
@@ -206,11 +271,6 @@ const Crawler = () => {
 
     return (
         <div className='mx-auto flex w-full max-w-3xl flex-col gap-10 py-2'>
-            <header className='flex flex-col gap-1'>
-                <h1 className='text-2xl font-semibold text-foreground'>Crawler</h1>
-                <p className='text-sm text-muted'>Pause, resume, and tune the crawl in real time.</p>
-            </header>
-
             <Section title='Crawl state' subtitle='Workers drain in-flight pages before halting.'>
                 <ToggleRow
                     title={status.paused ? 'Crawl paused' : 'Crawl running'}
@@ -221,7 +281,9 @@ const Crawler = () => {
                 />
             </Section>
 
-            <TuningPanel tuning={status.tuning} saving={control.saving} onSave={control.saveTuning} />
+            <TuningPanel tuning={status.tuning} onSave={control.saveTuning} />
+
+            <DangerZone />
         </div>
     );
 };

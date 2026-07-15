@@ -9,6 +9,7 @@ import Bootstrap from '@/core/Bootstrap';
 import ModuleDiscovery, { type MountedController } from '@/core/modules/discovery';
 import { logger } from '@/core/utils/Logger';
 import AuthService from '@/modules/auth/services/AuthService';
+import WebsiteService from '@/modules/website/services/WebsiteService';
 import RuntimeError from '@/shared/errors/RuntimeError';
 import { ApiError } from '@/shared/contracts/http';
 import type BaseGateway from '@/shared/gateways/BaseGateway';
@@ -42,6 +43,7 @@ export default class HttpApplication{
         this.#mountGateways(gateways);
 
         await new AuthService().bootstrapAdmin();
+        this.#backfillWebsiteDomains();
 
         await this.#app.listen({ port: config.server.port, host: config.server.host });
     }
@@ -49,6 +51,16 @@ export default class HttpApplication{
     async stop(): Promise<void>{
         await this.#app.close();
         await this.#bootstrap.shutdown();
+    }
+
+    // Fire-and-forget: stamp Website.domain on documents that predate the field,
+    // so the /website/domains aggregation covers the whole index.
+    #backfillWebsiteDomains(): void{
+        new WebsiteService().backfillDomains()
+            .then((updated) => {
+                if(updated) logger.info(`Backfilled domain on ${updated} website document(s)`, { scope: 'http' });
+            })
+            .catch((error) => logger.error('Website domain backfill failed', error, { scope: 'http' }));
     }
 
     #registerErrorHandler(): void{
