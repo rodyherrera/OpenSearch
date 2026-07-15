@@ -1,10 +1,34 @@
+name: crawlm
+
+# Shared env for the API server and the crawler workers (both import the same
+# config module, so both need the DB/Redis/JWT settings).
+x-api-env: &api-env
+  MONGO_URI: mongodb://${MONGO_USER:-crawlm}:${MONGO_PASSWORD:-crawlm}@mongo:27017
+  MONGO_DB: ${MONGO_DB:-crawlm}
+  REDIS_URI: redis://redis:6379
+  API_PREFIX: /api/v1
+  CORS_ORIGIN: http://localhost:${WEB_PORT:-8080}
+  JWT_SECRET: ${JWT_SECRET}
+  ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@crawlm.local}
+  ADMIN_PASSWORD: ${ADMIN_PASSWORD:-changeme}
+  LOG_LEVEL: info
+  LOG_PRETTY: "false"
+  CRAWLER_CONCURRENCY: "32"
+  CRAWLER_BATCH_SIZE: "128"
+  CRAWLER_DOMAIN_DELAY_MS: ${CRAWLER_DOMAIN_DELAY_MS:-1000}
+  CRAWLER_MAX_LINKS_PER_PAGE: "40"
+  CRAWLER_MAX_FRONTIER: "500000"
+  CRAWLER_MAX_PAGES: "0"
+  CRAWLER_RESPECT_ROBOTS: "true"
+  CRAWLER_TIMEOUT_MS: "15000"
+
 services:
   mongo:
     image: mongo:7.0
     restart: unless-stopped
     environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:-crawlm}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:-crawlm}
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:-crawlm}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-crawlm}
     volumes:
       - mongo_data:/data/db
     healthcheck:
@@ -31,12 +55,12 @@ services:
       - crawlm
 
   api:
-    build: .
+    build: ./packages/api
     restart: unless-stopped
     command: ["npx", "tsx", "src/server.ts"]
-    env_file: .env
+    environment: *api-env
     ports:
-      - "5000:5000"
+      - "${API_PORT:-5000}:5000"
     depends_on:
       mongo:
         condition: service_healthy
@@ -46,25 +70,33 @@ services:
       - crawlm
 
   crawler:
-    build: .
+    build: ./packages/api
     restart: unless-stopped
     command: ["npx", "tsx", "src/worker.ts"]
-    env_file: .env
-    # Horizontal scaling: every replica shares the same Redis frontier, and the
-    # per-domain cooldown is global, so adding workers raises throughput across
-    # MORE domains without hammering any single one. Tune with CRAWLER_REPLICAS.
+    environment: *api-env
     deploy:
-      replicas: ${CRAWLER_REPLICAS:-3}
+      replicas: ${CRAWLER_REPLICAS:-2}
       resources:
         limits:
-          # Hard cap per worker so a runaway container can't OOM the host or
-          # starve other projects sharing this machine.
           memory: 512M
     depends_on:
       mongo:
         condition: service_healthy
       redis:
         condition: service_healthy
+    networks:
+      - crawlm
+
+  web:
+    build:
+      context: ./packages/web
+      args:
+        VITE_API_URL: http://localhost:${WEB_PORT:-8080}
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    depends_on:
+      - api
     networks:
       - crawlm
 

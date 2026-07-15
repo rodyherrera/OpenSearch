@@ -1,0 +1,18 @@
+@import "@heroui/styles";
+
+:root,
+.light,
+[data-theme="light"],
+.dark,
+[data-theme="dark"] {
+    --accent-soft-foreground: var(--default-foreground);
+}
+
+.dark,
+[data-theme="dark"] {
+    --background: #090909;
+}
+
+.button {
+    --spacing: 0.3rem;
+}

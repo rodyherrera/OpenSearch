@@ -1,0 +1,45 @@
+{
+    "name": "crawlm",
+    "version": "1.0.0",
+    "description": "Crawlm — distributed web crawler and search API.",
+    "type": "module",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/rodyherrera/Crawlm"
+    },
+    "homepage": "https://github.com/rodyherrera/Crawlm",
+    "engines": {
+        "node": ">=20.14.0",
+        "npm": ">=10.7.0"
+    },
+    "scripts": {
+        "start": "tsx src/server.ts",
+        "worker": "tsx src/worker.ts",
+        "dev": "tsx watch src/server.ts",
+        "dev:worker": "tsx watch src/worker.ts"
+    },
+    "license": "MIT",
+    "dependencies": {
+        "@fastify/cors": "^11.3.0",
+        "@fastify/static": "^8.0.0",
+        "@fastify/websocket": "11.3.0",
+        "axios": "^1.6.8",
+        "cheerio": "^1.0.0-rc.12",
+        "dotenv": "^16.4.5",
+        "fastify": "^5.10.0",
+        "jsonwebtoken": "^9.0.3",
+        "lodash": "^4.17.21",
+        "mongoose": "^8.4.0",
+        "p-limit": "^6.1.0",
+        "pino": "^9.5.0",
+        "pino-pretty": "^11.3.0",
+        "redis": "^4.6.14"
+    },
+    "devDependencies": {
+        "@types/jsonwebtoken": "^9.0.10",
+        "@types/lodash": "^4.17.4",
+        "@types/node": "^20.12.12",
+        "tsx": "^4.10.5",
+        "typescript": "^5.4.5"
+    }
+}

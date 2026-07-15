@@ -1,0 +1,11 @@
+node_modules
+dist
+out
+.DS_Store
+*.log*
+.env
+test.ts
+
+data/opensearch@suggests.json
+data/opensearch@websites.json
+data/opensearch@documents.tar.xz
