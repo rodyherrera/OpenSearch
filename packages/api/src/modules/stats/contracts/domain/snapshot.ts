@@ -14,6 +14,7 @@ export interface Snapshot{
     seen: number;
     stored: number;
     perMin: number;
+    domainsPerMin: number;
     domains: number;
     workers: SnapshotWorker[];
     recent: RecentPage[];

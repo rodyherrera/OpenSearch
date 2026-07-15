@@ -33,7 +33,8 @@
         "p-limit": "^6.1.0",
         "pino": "^9.5.0",
         "pino-pretty": "^11.3.0",
-        "redis": "^4.6.14"
+        "redis": "^4.6.14",
+        "tldts": "^7.4.8"
     },
     "devDependencies": {
         "@types/jsonwebtoken": "^9.0.10",

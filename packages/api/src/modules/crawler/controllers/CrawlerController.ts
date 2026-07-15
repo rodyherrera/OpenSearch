@@ -8,15 +8,20 @@ import CrawlerControlService from '@/modules/crawler/services/CrawlerControlServ
 import CrawlFrontier from '@/modules/crawler/services/CrawlFrontier';
 import type { Tuning, ControlState } from '@/modules/crawler/contracts/domain/control';
 
-// Frontier counter keys wiped on reset
+// Frontier counter/state keys wiped on reset (queues aside).
 const FRONTIER_COUNTER_KEYS = [
     'frontier:stored',
     'frontier:seen',
     'frontier:domains',
+    'frontier:saturated',
     'frontier:rate',
+    'frontier:domrate',
     'frontier:recent',
     'frontier:workers'
 ];
+
+// Per-domain keys (one per domain) cleared by pattern on reset.
+const FRONTIER_KEY_PATTERNS = ['frontier:dompages:*', 'frontier:cooldown:*'];
 
 @Middleware(AuthenticatedRoute)
 export default class CrawlerController extends BaseController{
@@ -73,6 +78,10 @@ export default class CrawlerController extends BaseController{
     async reset(){
         const redis = await getRedis();
         await redis.del(FRONTIER_COUNTER_KEYS);
+        for(const pattern of FRONTIER_KEY_PATTERNS){
+            const keys = await redis.keys(pattern);
+            if(keys.length) await redis.del(keys);
+        }
         return { cleared: true };
     }
 }

@@ -9,6 +9,7 @@ export interface SnapshotFrame{
     seen: number;
     stored: number;
     perMin: number;
+    domainsPerMin: number;
     domains: number;
     workers: {
         id: string;
@@ -42,6 +43,7 @@ export interface BatchFrame{
     workerStored: number;
     totalStored: number;
     perMin: number;
+    domainsPerMin: number;
     frontier: number;
     seen: number;
     domains: number;

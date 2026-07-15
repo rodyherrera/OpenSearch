@@ -59,6 +59,11 @@ export const config = {
         maxPages: toInt(optional('CRAWLER_MAX_PAGES', '0'), 0),
         respectRobots: toBool(optional('CRAWLER_RESPECT_ROBOTS', 'true'), true),
         timeoutMs: toInt(optional('CRAWLER_TIMEOUT_MS', '15000'), 15000),
-        replicas: toInt(optional('CRAWLER_REPLICAS', '3'), 3)
+        replicas: toInt(optional('CRAWLER_REPLICAS', '3'), 3),
+        // Stop chasing a site once this many of its pages are stored (starve deep
+        // sinks so the crawl fans out across more domains). 0 = unlimited.
+        maxPagesPerDomain: toInt(optional('CRAWLER_MAX_PAGES_PER_DOMAIN', '25'), 25),
+        // Cap same-domain links harvested per page; external links are always kept.
+        maxInternalLinks: toInt(optional('CRAWLER_MAX_INTERNAL_LINKS', '5'), 5)
     }
 } as const;

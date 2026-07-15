@@ -11,6 +11,7 @@ export interface CrawlMetrics{
     websites: number;
     domains: number;
     perMin: number;
+    domainsPerMin: number;
     frontier: number;
     seen: number;
 }
@@ -23,6 +24,7 @@ export interface CrawlHistory{
     frontier: number[];
     seen: number[];
     perMin: number[];
+    domainsPerMin: number[];
 }
 
 export interface CrawlLive{
@@ -44,8 +46,8 @@ interface CrawlLiveState{
     applyBatch: (frame: BatchFrame) => void;
 }
 
-const EMPTY_METRICS: CrawlMetrics = { stored: 0, websites: 0, domains: 0, perMin: 0, frontier: 0, seen: 0 };
-const EMPTY_HISTORY: CrawlHistory = { stored: [], domains: [], frontier: [], seen: [], perMin: [] };
+const EMPTY_METRICS: CrawlMetrics = { stored: 0, websites: 0, domains: 0, perMin: 0, domainsPerMin: 0, frontier: 0, seen: 0 };
+const EMPTY_HISTORY: CrawlHistory = { stored: [], domains: [], frontier: [], seen: [], perMin: [], domainsPerMin: [] };
 
 const cap = (series: number[], value: number): number[] => {
     const next = [...series, value];
@@ -58,7 +60,8 @@ const pushHistory = (history: CrawlHistory, metrics: CrawlMetrics): CrawlHistory
     domains: cap(history.domains, metrics.domains),
     frontier: cap(history.frontier, metrics.frontier),
     seen: cap(history.seen, metrics.seen),
-    perMin: cap(history.perMin, metrics.perMin)
+    perMin: cap(history.perMin, metrics.perMin),
+    domainsPerMin: cap(history.domainsPerMin, metrics.domainsPerMin)
 });
 
 /**
@@ -78,6 +81,7 @@ const useCrawlStore = create<CrawlLiveState>((set) => ({
             websites: frame.websites,
             domains: frame.domains,
             perMin: frame.perMin,
+            domainsPerMin: frame.domainsPerMin,
             frontier: frame.frontier,
             seen: frame.seen
         };
@@ -126,6 +130,7 @@ const useCrawlStore = create<CrawlLiveState>((set) => ({
             ...state.metrics,
             stored: frame.totalStored,
             perMin: frame.perMin,
+            domainsPerMin: frame.domainsPerMin,
             frontier: frame.frontier,
             seen: frame.seen,
             domains: frame.domains,

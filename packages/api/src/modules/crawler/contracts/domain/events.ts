@@ -17,6 +17,7 @@ export interface BatchEvent{
     workerStored: number;
     totalStored: number;
     perMin: number;
+    domainsPerMin: number;
     frontier: number;
     seen: number;
     domains: number;

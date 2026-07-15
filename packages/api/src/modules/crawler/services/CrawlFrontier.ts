@@ -1,3 +1,4 @@
+import { getDomain } from 'tldts';
 import { getRedis } from '@/shared/redis/RedisClient';
 import type { WorkerStat, RecentPage } from '@/modules/crawler/contracts/domain/crawl';
 
@@ -5,24 +6,33 @@ const QUEUE_KEY = 'frontier:queue';
 const PRIORITY_KEY = 'frontier:priority';
 const SEEN_KEY = 'frontier:seen';
 const DOMAINS_KEY = 'frontier:domains';
+const SATURATED_KEY = 'frontier:saturated';
 const STORED_KEY = 'frontier:stored';
 const RATE_KEY = 'frontier:rate';
+const DOMRATE_KEY = 'frontier:domrate';
 const RECENT_KEY = 'frontier:recent';
 const WORKERS_KEY = 'frontier:workers';
 const DOMAIN_KEY = (domain: string) => `frontier:cooldown:${domain}`;
+const DOMPAGES_KEY = (domain: string) => `frontier:dompages:${domain}`;
 
 const RECENT_MAX = 30;
+const MAX_PATH_SEGMENTS = 8;
+const MAX_QUERY_PARAMS = 4;
 
 const BINARY_EXT = /\.(png|jpe?g|gif|webp|svg|ico|bmp|tiff?|avif|mp4|webm|mkv|avi|mov|flv|wmv|mp3|wav|ogg|flac|aac|m4a|pdf|zip|rar|7z|tar|gz|bz2|xz|dmg|iso|exe|msi|deb|rpm|apk|woff2?|ttf|otf|eot|css|js|json|xml|rss|atom|doc|docx|xls|xlsx|ppt|pptx|psd|ai|epub|mobi)$/i;
+const TRACKING_PARAMS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'gclid', 'fbclid', 'ref'];
 
 export const normalizeUrl = (raw: string): string | null => {
     try{
         const url = new URL(raw);
         if(url.protocol !== 'http:' && url.protocol !== 'https:') return null;
         if(BINARY_EXT.test(url.pathname)) return null;
+        // Trap guard: skip very deep paths (infinite-space traps live down there).
+        if(url.pathname.split('/').filter(Boolean).length > MAX_PATH_SEGMENTS) return null;
         url.hash = '';
-        const drop = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'gclid', 'fbclid', 'ref'];
-        drop.forEach((p) => url.searchParams.delete(p));
+        TRACKING_PARAMS.forEach((p) => url.searchParams.delete(p));
+        // Trap guard: skip over-parameterised URLs (faceted search / calendars).
+        if(url.searchParams.size > MAX_QUERY_PARAMS) return null;
         url.hostname = url.hostname.toLowerCase();
         if(url.pathname.length > 1 && url.pathname.endsWith('/')){
             url.pathname = url.pathname.slice(0, -1);
@@ -33,12 +43,11 @@ export const normalizeUrl = (raw: string): string | null => {
     }
 };
 
+// Registrable domain (eTLD+1) via the Public Suffix List, so every subdomain of a
+// site collapses to one domain — blog.x.com and x.com are the SAME domain. This is
+// what makes "new domain" discovery, per-domain politeness and saturation meaningful.
 export const domainOf = (url: string): string => {
-    try{
-        return new URL(url).hostname.toLowerCase();
-    }catch{
-        return '';
-    }
+    return getDomain(url) ?? '';
 };
 
 export default class CrawlFrontier{
@@ -70,31 +79,52 @@ export default class CrawlFrontier{
 
         const freshDomains = fresh.map(domainOf);
         const distinctDomains = [...new Set(freshDomains.filter(Boolean))];
-        const domainMembership = distinctDomains.length
-            ? await redis.smIsMember(DOMAINS_KEY, distinctDomains)
-            : [];
+
+        // One round trip each: which domains are already known, and which have hit the
+        // per-domain page cap (saturated → drop their URLs so the crawl fans outward).
+        const [domainMembership, saturatedMembership] = distinctDomains.length
+            ? await Promise.all([
+                redis.smIsMember(DOMAINS_KEY, distinctDomains),
+                redis.smIsMember(SATURATED_KEY, distinctDomains)
+            ])
+            : [[] as boolean[], [] as boolean[]];
         const knownDomain = new Map<string, boolean>();
-        distinctDomains.forEach((d, i) => knownDomain.set(d, domainMembership[i]));
+        const saturatedDomain = new Set<string>();
+        distinctDomains.forEach((d, i) => {
+            knownDomain.set(d, domainMembership[i]);
+            if(saturatedMembership[i]) saturatedDomain.add(d);
+        });
 
         const priorityUrls: string[] = [];
         const normalUrls: string[] = [];
+        const seenToAdd: string[] = [];
         for(let i = 0; i < fresh.length; i++){
             const domain = freshDomains[i];
+            if(domain && saturatedDomain.has(domain)) continue;
+            seenToAdd.push(fresh[i]);
+            // URLs to never-seen domains jump the priority queue (discover-new bias).
             if(domain && !knownDomain.get(domain)){
                 priorityUrls.push(fresh[i]);
             }else{
                 normalUrls.push(fresh[i]);
             }
         }
+        if(!seenToAdd.length) return 0;
 
+        const newDomains = distinctDomains.filter((d) => !knownDomain.get(d) && !saturatedDomain.has(d));
+        const now = Date.now();
         const multi = redis.multi();
-        multi.sAdd(SEEN_KEY, fresh);
-        if(distinctDomains.length) multi.sAdd(DOMAINS_KEY, distinctDomains);
+        multi.sAdd(SEEN_KEY, seenToAdd);
+        if(newDomains.length){
+            multi.sAdd(DOMAINS_KEY, newDomains);
+            multi.zAdd(DOMRATE_KEY, { score: now, value: `${now}:${newDomains.length}:${Math.round(now % 100000)}` });
+            multi.zRemRangeByScore(DOMRATE_KEY, 0, now - 120000);
+        }
         if(priorityUrls.length) multi.rPush(PRIORITY_KEY, priorityUrls);
         if(normalUrls.length) multi.rPush(QUEUE_KEY, normalUrls);
         await multi.exec();
 
-        return fresh.length;
+        return seenToAdd.length;
     }
 
     async dequeue(count: number): Promise<string[]>{
@@ -189,6 +219,43 @@ export default class CrawlFrontier{
         for(const member of events){
             const parts = String(member).split(':');
             const count = parseInt(parts[1], 10);
+            if(!Number.isNaN(count)) total += count;
+        }
+        return total;
+    }
+
+    // Count crawled pages per domain; once a domain reaches the cap it is marked
+    // saturated, so enqueue() stops feeding it and the crawl moves to fresh domains.
+    async recordDomainPages(domains: string[], cap: number): Promise<void>{
+        if(!domains.length || cap <= 0) return;
+        const counts = new Map<string, number>();
+        for(const domain of domains){
+            if(domain) counts.set(domain, (counts.get(domain) ?? 0) + 1);
+        }
+        if(!counts.size) return;
+
+        const redis = await getRedis();
+        const multi = redis.multi();
+        for(const [domain, by] of counts) multi.incrBy(DOMPAGES_KEY(domain), by);
+        const results = await multi.exec();
+
+        const saturated: string[] = [];
+        let i = 0;
+        for(const [domain] of counts){
+            if((Number(results[i]) || 0) >= cap) saturated.push(domain);
+            i++;
+        }
+        if(saturated.length) await redis.sAdd(SATURATED_KEY, saturated);
+    }
+
+    // New distinct domains discovered in the trailing 60s — the metric that matters
+    // when the goal is coverage, not raw page throughput.
+    async domainsPerMin(now: number): Promise<number>{
+        const redis = await getRedis();
+        const events = await redis.zRangeByScore(DOMRATE_KEY, now - 60000, now);
+        let total = 0;
+        for(const member of events){
+            const count = parseInt(String(member).split(':')[1], 10);
             if(!Number.isNaN(count)) total += count;
         }
         return total;

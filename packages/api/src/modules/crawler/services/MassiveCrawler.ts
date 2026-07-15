@@ -75,15 +75,28 @@ export default class MassiveCrawler extends EventEmitter{
 
         const keywords = metaData['keywords'] || '';
 
-        const linkSet = new Set<string>();
+        // Bias link harvesting toward EXTERNAL domains (the ones that grow coverage):
+        // keep every external link up to the cap, but only a handful of internal ones.
+        const srcDomain = domainOf(url);
+        const maxExternal = this.#opts.maxLinksPerPage;
+        const maxInternal = config.crawler.maxInternalLinks;
+        const externals: string[] = [];
+        const internals: string[] = [];
+        const seen = new Set<string>();
         $('a[href]').each((_, el) => {
-            if(linkSet.size >= this.#opts.maxLinksPerPage) return;
+            if(externals.length >= maxExternal && internals.length >= maxInternal) return;
             const href = $(el).attr('href');
             if(!href) return;
             try{
-                const absolute = new URL(href, url).toString();
-                const normalized = normalizeUrl(absolute);
-                if(normalized) linkSet.add(normalized);
+                const normalized = normalizeUrl(new URL(href, url).toString());
+                if(!normalized || seen.has(normalized)) return;
+                seen.add(normalized);
+                const linkDomain = domainOf(normalized);
+                if(linkDomain && linkDomain !== srcDomain){
+                    if(externals.length < maxExternal) externals.push(normalized);
+                }else if(internals.length < maxInternal){
+                    internals.push(normalized);
+                }
             }catch{
             }
         });
@@ -92,7 +105,7 @@ export default class MassiveCrawler extends EventEmitter{
         const bodyText = $('body').text().replace(/\s+/g, ' ').trim();
         const content = bodyText.slice(0, 2000);
 
-        return { url, title, description, keywords, content, metaData, links: [...linkSet] };
+        return { url, title, description, keywords, content, metaData, links: [...externals, ...internals] };
     }
 
     async #crawlOne(url: string): Promise<PageRecord | null>{
@@ -152,6 +165,10 @@ export default class MassiveCrawler extends EventEmitter{
         // GET /api/v1/graph). Fire-and-forget so it never slows the crawl loop.
         void this.#graph.recordBatch(records);
 
+        // Count pages per domain so the frontier can saturate (and stop chasing) sites
+        // that have given up enough pages — pushing the crawl toward fresh domains.
+        void this.#frontier.recordDomainPages(records.map((r) => domainOf(r.url)), config.crawler.maxPagesPerDomain);
+
         const discovered = records.flatMap((r) => r.links);
         const added = await this.#frontier.enqueue(discovered);
 
@@ -159,6 +176,7 @@ export default class MassiveCrawler extends EventEmitter{
             const now = Date.now();
             const total = await this.#frontier.addStored(stored, now);
             const perMin = await this.#frontier.storedPerMin(now);
+            const domainsPerMin = await this.#frontier.domainsPerMin(now);
             const workerStat = await this.#frontier.recordWorker(this.#opts.workerId, stored, now);
             const recentPages = records.map((r) => ({
                 url: r.url,
@@ -180,6 +198,7 @@ export default class MassiveCrawler extends EventEmitter{
                 workerStored: workerStat.stored,
                 totalStored: total,
                 perMin,
+                domainsPerMin,
                 frontier: frontierSize,
                 seen,
                 domains,

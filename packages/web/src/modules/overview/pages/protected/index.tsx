@@ -60,6 +60,13 @@ const Overview = () => {
                     series={history.seen}
                     live
                 />
+                <MetricCard
+                    label='New domains'
+                    value={`${metrics.domainsPerMin.toLocaleString()}/min`}
+                    context='fresh domains discovered'
+                    series={history.domainsPerMin}
+                    live
+                />
             </div>
 
             <section className='flex flex-col gap-4'>

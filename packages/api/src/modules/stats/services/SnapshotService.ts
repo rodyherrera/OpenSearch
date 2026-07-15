@@ -9,7 +9,7 @@ export default class SnapshotService{
     #websites = new WebsiteService();
 
     async build(now: number): Promise<Snapshot>{
-        const [websites, frontier, seen, stored, perMin, workers, recent, domains] = await Promise.all([
+        const [websites, frontier, seen, stored, perMin, workers, recent, domains, domainsPerMin] = await Promise.all([
             this.#websites.estimatedCount(),
             this.#frontier.size().catch(() => 0),
             this.#frontier.seenCount().catch(() => 0),
@@ -17,7 +17,8 @@ export default class SnapshotService{
             this.#frontier.storedPerMin(now).catch(() => 0),
             this.#frontier.getWorkers(now).catch(() => [] as WorkerStat[]),
             this.#frontier.getRecent(15).catch(() => [] as RecentPage[]),
-            this.#frontier.domainCount().catch(() => 0)
+            this.#frontier.domainCount().catch(() => 0),
+            this.#frontier.domainsPerMin(now).catch(() => 0)
         ]);
 
         const decoratedWorkers = workers.map((worker) => ({
@@ -33,6 +34,7 @@ export default class SnapshotService{
             seen,
             stored,
             perMin,
+            domainsPerMin,
             domains,
             workers: decoratedWorkers,
             recent
