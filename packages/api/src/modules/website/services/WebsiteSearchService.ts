@@ -67,7 +67,9 @@ export default class WebsiteSearchService{
         buffer.skip = skip;
         buffer.limit = limit;
         const recordsCount = await Website.countDocuments(buffer.find);
-        if(query.page && skip >= recordsCount){
+        // Only reject genuine over-paging (page 2+ past the end). Page 1 with no matches
+        // is a valid empty result, not an error — infinite-scroll listings rely on this.
+        if(page > 1 && skip >= recordsCount){
             throw new RuntimeError(SearchError.PageOutOfRange, 404);
         }
     }

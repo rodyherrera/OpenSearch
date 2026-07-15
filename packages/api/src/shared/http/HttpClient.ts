@@ -1,10 +1,34 @@
 import axios, { type AxiosInstance } from 'axios';
+import http from 'node:http';
+import https from 'node:https';
+import CacheableLookup from 'cacheable-lookup';
 import { config } from '@/shared/config';
 import { logger } from '@/core/utils/Logger';
 
 const USER_AGENT = 'CrawlmBot/1.0 (+https://github.com/rodyherrera/Crawlm)';
 
+// At high concurrency the dominant cost per fetch is a fresh TCP + TLS handshake and
+// a DNS lookup. Keep-alive agents pool and reuse sockets; cacheable-lookup memoises
+// DNS so repeat hosts skip resolution. The socket ceiling scales with the worker's
+// fetch concurrency so it never becomes the bottleneck.
+const MAX_SOCKETS = Math.max(256, config.crawler.concurrency * 2);
+const dnsCache = new CacheableLookup();
+
+const agentOptions: http.AgentOptions = {
+    keepAlive: true,
+    keepAliveMsecs: 15000,
+    maxSockets: MAX_SOCKETS,
+    maxFreeSockets: 256,
+    scheduling: 'fifo'
+};
+const httpAgent = new http.Agent(agentOptions);
+const httpsAgent = new https.Agent(agentOptions);
+dnsCache.install(httpAgent);
+dnsCache.install(httpsAgent);
+
 export const httpClient: AxiosInstance = axios.create({
+    httpAgent,
+    httpsAgent,
     headers: {
         'User-Agent': USER_AGENT,
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',

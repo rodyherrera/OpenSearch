@@ -4,7 +4,7 @@ import type { PublicWebsite, PurgeInput } from '@/modules/search/contracts/searc
 const BASE = '/website';
 
 export const searchApi = {
-    search: (q: string, limit = 20) => alova.Get<PublicWebsite[]>(BASE, { params: { q, limit } }),
+    search: (q: string, page = 1, limit = 20) => alova.Get<PublicWebsite[]>(BASE, { params: { q, page, limit } }),
     remove: (id: string) => alova.Delete<void>(`${BASE}/${id}`),
     purge: (body: PurgeInput) => alova.Post<{ deleted: number }>(`${BASE}/purge`, body)
 };

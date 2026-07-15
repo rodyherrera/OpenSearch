@@ -1,69 +1,57 @@
-import { useState } from 'react';
-import { Button } from '@heroui/react';
-import { useSeeds } from '@/modules/seeds/hooks/useSeeds';
-import type { ChangeEvent, FormEvent } from 'react';
+import DataTable from '@/shared/components/DataTable';
+import AddSeedModal from '@/modules/seeds/components/AddSeedModal';
+import { useSeedList } from '@/modules/seeds/hooks/useSeedList';
+import type { Column } from '@/shared/components/DataTable';
+import type { PublicSeed } from '@/modules/seeds/contracts/seeds';
+
+const formatWhen = (iso: string): string =>
+    new Date(iso).toLocaleString(undefined, {
+        dateStyle: 'medium',
+        timeStyle: 'short'
+    });
+
+const columns: Column<PublicSeed>[] = [
+    {
+        key: 'url',
+        header: 'URL',
+        value: (row) => row.url,
+        cell: (row) => <span className='block max-w-md truncate text-foreground'>{row.url}</span>
+    },
+    {
+        key: 'domain',
+        header: 'Domain',
+        sortable: true,
+        value: (row) => row.domain,
+        cell: (row) => <span className='text-muted'>{row.domain}</span>
+    },
+    {
+        key: 'added',
+        header: 'Added',
+        align: 'right',
+        sortable: true,
+        value: (row) => row.createdAt,
+        cell: (row) => <span className='whitespace-nowrap text-muted'>{formatWhen(row.createdAt)}</span>
+    }
+];
 
 const Seeds = () => {
-    const [value, setValue] = useState('');
-    const [emptyError, setEmptyError] = useState(false);
-    const { submit, adding, added, error } = useSeeds();
-
-    const handleSubmit = (event: FormEvent) => {
-        event.preventDefault();
-        if(value.trim().length === 0){
-            setEmptyError(true);
-            return;
-        }
-        setEmptyError(false);
-        submit(value);
-    };
-
-    const handleChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
-        setValue(event.target.value);
-        if(emptyError) setEmptyError(false);
-    };
+    const list = useSeedList();
 
     return (
-        <div className='mx-auto flex w-full max-w-2xl flex-col gap-4'>
-            <header className='flex flex-col gap-1'>
-                <h1 className='text-lg font-medium text-foreground'>Seed URLs</h1>
-                <p className='text-sm text-muted'>
-                    One URL per line; they'll be normalized and enqueued into the crawl frontier.
-                </p>
-            </header>
-
-            <form onSubmit={handleSubmit} className='flex flex-col gap-3'>
-                <textarea
-                    rows={10}
-                    value={value}
-                    onChange={handleChange}
-                    disabled={adding}
-                    placeholder='https://example.com'
-                    className='w-full rounded-lg border border-foreground/10 bg-surface-secondary p-3 text-sm'
-                />
-
-                {emptyError ? (
-                    <p role='alert' className='text-sm text-danger'>Enter at least one URL.</p>
-                ) : null}
-
-                {error ? (
-                    <p role='alert' className='text-sm text-danger'>{error.message}</p>
-                ) : null}
-
-                {added !== null ? (
-                    <p className='text-sm text-success'>Added {added} URLs to the frontier.</p>
-                ) : null}
-
-                <Button
-                    type='submit'
-                    size='md'
-                    className='self-start bg-foreground text-background hover:bg-foreground/90'
-                    isPending={adding}
-                >
-                    Add to frontier
-                </Button>
-            </form>
-        </div>
+        <DataTable
+            title='Seeds'
+            subtitle='Every seed URL saved to the index, newest first.'
+            columns={columns}
+            rows={list.items}
+            rowKey={(row) => row.id}
+            loading={!list.loaded}
+            emptyLabel='No seeds added yet'
+            initialSort={{ key: 'added', dir: 'desc' }}
+            hasMore={list.hasMore}
+            loadingMore={list.loading}
+            onLoadMore={() => void list.loadMore()}
+            actions={<AddSeedModal onAdded={() => void list.refresh()} />}
+        />
     );
 };
 

@@ -16,7 +16,6 @@ const FeedItem = ({ item }: FeedItemProps) => {
                 {item.title || item.url}
             </a>
             <span className='truncate text-xs text-muted'>{item.url}</span>
-            <span className='text-xs text-muted'>{item.worker.slice(0, 12)}</span>
         </li>
     );
 };

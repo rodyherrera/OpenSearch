@@ -57,5 +57,4 @@ export interface ControlFrame{
     at: number;
 }
 
-export type WorkerLive = SnapshotFrame['workers'][number];
 export type RecentItem = SnapshotFrame['recent'][number];

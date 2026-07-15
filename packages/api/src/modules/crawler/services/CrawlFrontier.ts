@@ -261,6 +261,33 @@ export default class CrawlFrontier{
         return total;
     }
 
+    // Indexed domains with their crawled-page counts, busiest first. Sourced from the
+    // per-domain page counters written during crawling.
+    async indexedDomains(limit = 200): Promise<{ domain: string; pages: number }[]>{
+        const redis = await getRedis();
+        const prefix = 'frontier:dompages:';
+        const keys: string[] = [];
+        for await (const key of redis.scanIterator({ MATCH: `${prefix}*`, COUNT: 500 })){
+            keys.push(key as string);
+            if(keys.length >= 10000) break;
+        }
+        if(!keys.length) return [];
+        const values = await redis.mGet(keys);
+        return keys
+            .map((key, i) => ({ domain: key.slice(prefix.length), pages: Number(values[i]) || 0 }))
+            .sort((a, b) => b.pages - a.pages)
+            .slice(0, limit);
+    }
+
+    // A peek at the URLs waiting to be crawled (priority queue first, then normal).
+    async queueSample(limit = 200): Promise<string[]>{
+        const redis = await getRedis();
+        const priority = await redis.lRange(PRIORITY_KEY, 0, limit - 1);
+        if(priority.length >= limit) return priority;
+        const normal = await redis.lRange(QUEUE_KEY, 0, limit - priority.length - 1);
+        return priority.concat(normal);
+    }
+
     async storedCount(): Promise<number>{
         const redis = await getRedis();
         const value = await redis.get(STORED_KEY);

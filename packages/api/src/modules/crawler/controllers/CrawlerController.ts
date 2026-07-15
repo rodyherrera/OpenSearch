@@ -69,9 +69,14 @@ export default class CrawlerController extends BaseController{
         return { paused: false };
     }
 
-    @Route('/seeds', 'POST')
-    async seeds(@Body() body: { urls: string[] }){
-        return { added: await new CrawlFrontier().enqueue(body.urls) };
+    @Route('/domains', 'GET')
+    async domains(){
+        return { domains: await this.#frontier.indexedDomains(300) };
+    }
+
+    @Route('/queue', 'GET')
+    async queue(){
+        return { urls: await this.#frontier.queueSample(300) };
     }
 
     @Route('/reset', 'POST')

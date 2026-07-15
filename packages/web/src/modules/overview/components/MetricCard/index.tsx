@@ -1,11 +1,14 @@
 import Sparkline from '@/modules/overview/components/Sparkline';
 
+type MetricVariant = 'hero' | 'compact';
+
 interface MetricCardProps{
     label: string;
     value: number | string;
     context?: string;
     series?: number[];
     live?: boolean;
+    variant?: MetricVariant;
 }
 
 // Numbers get thousands separators; pre-composed strings (e.g. `${perMin}/min`)
@@ -13,16 +16,26 @@ interface MetricCardProps{
 const format = (value: number | string): string =>
     typeof value === 'number' ? value.toLocaleString() : value;
 
+const STYLES: Record<MetricVariant, { pad: string; value: string; chart: number; gridlines: number }> = {
+    hero: { pad: 'p-6', value: 'text-4xl', chart: 104, gridlines: 5 },
+    compact: { pad: 'p-5', value: 'text-2xl', chart: 52, gridlines: 0 }
+};
+
 /**
- * Polar-style stat card: a muted label, a large value, a context line with a
- * live dot, and a full-bleed sparkline anchored to the card's bottom edge.
+ * Polar-style stat tile: a muted label, a large value, a context line with an
+ * optional live dot, and a full-bleed sparkline anchored to the tile's bottom edge.
+ * Rendered as a bare cell (no border/rounding) — the surrounding grid frames it
+ * with hairline dividers. `tabular-nums` on the value keeps live counters from
+ * jittering horizontally as digits change each tick.
  */
-const MetricCard = ({ label, value, context, series, live }: MetricCardProps) => {
+const MetricCard = ({ label, value, context, series, live, variant = 'compact' }: MetricCardProps) => {
+    const style = STYLES[variant];
+
     return (
-        <div className='flex flex-col overflow-hidden rounded-xl border border-foreground/10'>
-            <div className='flex flex-col gap-3 p-5'>
+        <div className='flex min-h-full flex-col bg-background'>
+            <div className={`flex flex-col gap-2.5 ${style.pad}`}>
                 <span className='text-xs font-medium text-muted'>{label}</span>
-                <span className='text-3xl font-semibold tabular-nums text-foreground'>
+                <span className={`${style.value} font-semibold tabular-nums text-foreground`}>
                     {format(value)}
                 </span>
                 {context ? (
@@ -34,7 +47,11 @@ const MetricCard = ({ label, value, context, series, live }: MetricCardProps) =>
                     </span>
                 ) : null}
             </div>
-            {series ? <Sparkline data={series} height={56} /> : null}
+            {series ? (
+                <div className='mt-auto'>
+                    <Sparkline data={series} height={style.chart} gridlines={style.gridlines} />
+                </div>
+            ) : null}
         </div>
     );
 };

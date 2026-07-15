@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { Button, TextField, Input } from '@heroui/react';
+import DataTable from '@/shared/components/DataTable';
 import { useSearch } from '@/modules/search/hooks/useSearch';
 import type { FormEvent } from 'react';
+import type { Column } from '@/shared/components/DataTable';
 import type { PublicWebsite } from '@/modules/search/contracts/search';
 
 interface Notice{
@@ -12,8 +14,13 @@ interface Notice{
 const messageFrom = (error: unknown): string =>
     error instanceof Error ? error.message : 'Something went wrong';
 
+const formatWhen = (iso: string): string =>
+    new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+
+const dash = (value?: string): string => (value && value.trim() ? value : '—');
+
 const Search = () => {
-    const { query, setQuery, results, loading, searched, removing, purging, run, remove, purge } = useSearch();
+    const { query, setQuery, results, loading, loadingMore, searched, hasMore, removing, purging, run, loadMore, remove, purge } = useSearch();
     const [domain, setDomain] = useState('');
     const [notice, setNotice] = useState<Notice | null>(null);
 
@@ -57,6 +64,62 @@ const Search = () => {
         }
     };
 
+    const columns: Column<PublicWebsite>[] = [
+        {
+            key: 'title',
+            header: 'Title',
+            value: (row) => row.title ?? row.url,
+            cell: (row) => (
+                <a
+                    href={row.url}
+                    target='_blank'
+                    rel='noreferrer'
+                    className='block truncate font-medium text-primary hover:underline'
+                >
+                    {row.title ?? row.url}
+                </a>
+            )
+        },
+        {
+            key: 'url',
+            header: 'URL',
+            value: (row) => row.url,
+            cell: (row) => <span className='block truncate text-muted'>{row.url}</span>
+        },
+        {
+            key: 'description',
+            header: 'Description',
+            value: (row) => row.description ?? '',
+            cell: (row) => <span className='block truncate text-muted'>{dash(row.description)}</span>
+        },
+        {
+            key: 'created',
+            header: 'Created',
+            width: 'w-44',
+            align: 'right',
+            sortable: true,
+            value: (row) => row.createdAt,
+            cell: (row) => <span className='block truncate text-muted'>{formatWhen(row.createdAt)}</span>
+        },
+        {
+            key: 'actions',
+            header: '',
+            width: 'w-28',
+            align: 'right',
+            cell: (row) => (
+                <Button
+                    variant='secondary'
+                    size='sm'
+                    className='text-danger'
+                    isPending={removing}
+                    onPress={() => void onDelete(row)}
+                >
+                    Delete
+                </Button>
+            )
+        }
+    ];
+
     return (
         <div className='flex flex-col gap-6'>
             <header>
@@ -79,59 +142,25 @@ const Search = () => {
             </form>
 
             {notice ? (
-                <p className={`text-sm ${notice.tone === 'error' ? 'text-[var(--danger)]' : 'text-muted'}`}>
+                <p className={`text-sm ${notice.tone === 'error' ? 'text-danger' : 'text-muted'}`}>
                     {notice.text}
                 </p>
             ) : null}
 
-            <section>
-                {loading ? (
-                    <p className='text-sm text-muted'>Searching…</p>
-                ) : searched ? (
-                    results.length === 0 ? (
-                        <p className='text-sm text-muted'>No results for “{query}”.</p>
-                    ) : (
-                        <ul className='flex flex-col gap-3'>
-                            {results.map((site) => (
-                                <li
-                                    key={site.id}
-                                    className='rounded-lg border border-foreground/10 p-4'
-                                >
-                                    <div className='flex items-start justify-between gap-4'>
-                                        <div className='min-w-0'>
-                                            <a
-                                                href={site.url}
-                                                target='_blank'
-                                                rel='noreferrer'
-                                                className='text-sm font-medium text-primary hover:underline'
-                                            >
-                                                {site.title ?? site.url}
-                                            </a>
-                                            <p className='truncate text-xs text-muted'>{site.url}</p>
-                                            {site.description ? (
-                                                <p className='mt-1 text-sm text-foreground/80'>
-                                                    {site.description}
-                                                </p>
-                                            ) : null}
-                                        </div>
-                                        <Button
-                                            variant='secondary'
-                                            size='sm'
-                                            className='shrink-0 text-[var(--danger)]'
-                                            isPending={removing}
-                                            onPress={() => void onDelete(site)}
-                                        >
-                                            Delete
-                                        </Button>
-                                    </div>
-                                </li>
-                            ))}
-                        </ul>
-                    )
-                ) : (
-                    <p className='text-sm text-muted'>Enter a query to search the crawled index.</p>
-                )}
-            </section>
+            {searched || loading ? (
+                <DataTable
+                    columns={columns}
+                    rows={results}
+                    rowKey={(row) => row.id}
+                    loading={loading}
+                    emptyLabel={`No results for “${query}”.`}
+                    hasMore={hasMore}
+                    loadingMore={loadingMore}
+                    onLoadMore={() => void loadMore()}
+                />
+            ) : (
+                <p className='text-sm text-muted'>Enter a query to search the crawled index.</p>
+            )}
 
             <section className='flex flex-col gap-3 rounded-lg border border-foreground/10 p-4'>
                 <div>
@@ -162,7 +191,7 @@ const Search = () => {
                 <Button
                     variant='secondary'
                     size='md'
-                    className='self-start text-[var(--danger)]'
+                    className='self-start text-danger'
                     isPending={purging}
                     onPress={() => void onPurgeAll()}
                 >

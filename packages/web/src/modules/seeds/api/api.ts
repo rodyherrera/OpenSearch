@@ -1,8 +1,9 @@
 import { alova } from '@/app/alova';
-import type { AddSeedsInput } from '@/modules/seeds/contracts/seeds';
+import type { AddSeedsInput, AddSeedsResult, PublicSeed } from '@/modules/seeds/contracts/seeds';
 
-const BASE = '/crawler';
+const BASE = '/seed';
 
 export const seedsApi = {
-    add: (body: AddSeedsInput) => alova.Post<{ added: number }>(`${BASE}/seeds`, body)
+    add: (body: AddSeedsInput) => alova.Post<AddSeedsResult>(BASE, body),
+    list: (page: number, limit: number) => alova.Get<PublicSeed[]>(BASE, { params: { page, limit } })
 };

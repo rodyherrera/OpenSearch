@@ -8,15 +8,17 @@
     --accent-soft-foreground: var(--default-foreground);
 }
 
-.dark,
-[data-theme="dark"] {
-    --background: #08090a;
-    --chart: #7c86ff;
-}
-
 .light,
 [data-theme="light"] {
+    --dashboard-surface: #f4f4f5;
     --chart: #5e6ad2;
+}
+
+.dark,
+[data-theme="dark"] {
+    --background: #090909;
+    --dashboard-surface: #101011;
+    --chart: #7c86ff;
 }
 
 .button {
