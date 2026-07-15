@@ -23,6 +23,10 @@ x-api-env: &api-env
   CRAWLER_MAX_PAGES: "0"
   CRAWLER_RESPECT_ROBOTS: "true"
   CRAWLER_TIMEOUT_MS: "15000"
+  SOURCES_CERTSTREAM_ENABLED: ${SOURCES_CERTSTREAM_ENABLED:-true}
+  SOURCES_CERTSTREAM_URL: ${SOURCES_CERTSTREAM_URL:-ws://certstream:8080/full-stream}
+  SOURCES_MAX_PER_FLUSH: "200"
+  SOURCES_FLUSH_MS: "2000"
 
 services:
   mongo:
@@ -86,6 +90,30 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    networks:
+      - crawlm
+
+  # Self-hosted CertStream: connects directly to Certificate Transparency logs and
+  # streams newly-issued certs (the public certstream.calidog.io feed is dead).
+  certstream:
+    image: ghcr.io/d-rickyy-b/certstream-server-go:latest
+    restart: unless-stopped
+    networks:
+      - crawlm
+
+  # External domain-discovery feeds → enqueue fresh domains into the shared frontier.
+  sources:
+    build: ./packages/api
+    restart: unless-stopped
+    command: ["npx", "tsx", "src/sources.ts"]
+    environment: *api-env
+    depends_on:
+      redis:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+      certstream:
+        condition: service_started
     networks:
       - crawlm
 

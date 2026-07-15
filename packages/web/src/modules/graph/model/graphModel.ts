@@ -89,6 +89,9 @@ export const graphModel = {
             const dst = hostOf(raw);
             if(!dst || dst === domain) continue;
             const target = ensure(dst, now, src);
+            // A mid-loop eviction (at the node cap) may have removed src or dst; never
+            // create an edge to a node that isn't in the map (would orphan the link).
+            if(!nodes.has(domain) || !nodes.has(dst)) continue;
             const key = `${domain}→${dst}`;
             if(links.has(key)) continue;
             if(links.size >= MAX_EDGES){
@@ -132,9 +135,14 @@ export const graphModel = {
 
     // Same node object references every call (positions preserved); fresh link objects.
     arrays(): { nodes: DomainNode[]; links: DomainLinkData[] }{
+        // Defensive: only emit links whose endpoints still exist. A dangling source or
+        // target makes d3-force produce NaN positions and collapse the entire graph
+        // onto a single point — which is exactly the "only one node shows" symptom.
         return {
             nodes: [...nodes.values()],
-            links: [...links.values()].map((link) => ({ source: link.source, target: link.target }))
+            links: [...links.values()]
+                .filter((link) => nodes.has(link.source) && nodes.has(link.target))
+                .map((link) => ({ source: link.source, target: link.target }))
         };
     },
 

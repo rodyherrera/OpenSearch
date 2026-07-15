@@ -65,5 +65,15 @@ export const config = {
         maxPagesPerDomain: toInt(optional('CRAWLER_MAX_PAGES_PER_DOMAIN', '25'), 25),
         // Cap same-domain links harvested per page; external links are always kept.
         maxInternalLinks: toInt(optional('CRAWLER_MAX_INTERNAL_LINKS', '5'), 5)
+    },
+
+    // External domain-discovery feeds (run by the standalone `sources` process).
+    sources: {
+        certstreamEnabled: toBool(optional('SOURCES_CERTSTREAM_ENABLED', 'true'), true),
+        // A CertStream-compatible WS feed of newly-issued TLS certs (self-hosted
+        // certstream-server-go by default; the public feed is dead).
+        certstreamUrl: optional('SOURCES_CERTSTREAM_URL', 'ws://certstream:8080/full-stream'),
+        maxPerFlush: toInt(optional('SOURCES_MAX_PER_FLUSH', '200'), 200),
+        flushMs: toInt(optional('SOURCES_FLUSH_MS', '2000'), 2000)
     }
 } as const;
