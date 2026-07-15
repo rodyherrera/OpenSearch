@@ -1,24 +1,24 @@
 {
   "compilerOptions": {
-      "target": "ES6",
-      "module": "commonjs",
-      "strict": true,
-      "esModuleInterop": true,
-      "skipLibCheck": true,
-      "forceConsistentCasingInFileNames": true,
-      "resolveJsonModule": true,
-      "outDir": "./dist",
-      "paths": {
-          "@models/*": ["./models/*"],
-          "@utilities/*": ["./utilities/*"],
-          "@routes/*": ["./routes/*"],
-          "@config/*": ["./config/*"],
-          "@controllers/*": ["./controllers/*"],
-          "@cli/*": ["./cli/*"],
-          "@data/*": ["./data/*"],
-          "@services/*": ["./services/*"]
-      }
+    "target": "ES2022",
+    "module": "Preserve",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2022"],
+    "strict": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "useDefineForClassFields": false,
+    "declaration": true,
+    "sourceMap": true,
+    "baseUrl": "./",
+    "rootDir": "src",
+    "paths": {
+      "@/*": ["src/*"]
+    }
   },
-  "include": ["."],
-  "exclude": ["node_modules"]
+  "include": ["src"]
 }

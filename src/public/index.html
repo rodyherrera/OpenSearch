@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Crawlm · Live Crawl Dashboard</title>
+    <style>
+        :root {
+            --bg:#0b0d12; --card:#161a22; --card2:#1c212b; --fg:#e8ebf0; --muted:#8a93a3;
+            --accent:#4f8cff; --accent2:#22d3a6; --warn:#f5a623; --border:#262b34;
+            --good:#22d3a6; --bad:#ff5c6c;
+        }
+        * { box-sizing: border-box; }
+        body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background:var(--bg); color:var(--fg); }
+        .top { display:flex; align-items:center; justify-content:space-between; padding:18px 28px; border-bottom:1px solid var(--border); background:#0e1117; position:sticky; top:0; z-index:10; }
+        .brand { font-size:22px; font-weight:700; letter-spacing:-0.5px; }
+        .brand span { color:var(--accent); }
+        .conn { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--muted); }
+        .dot { width:9px; height:9px; border-radius:50%; background:var(--bad); transition:background .3s; }
+        .dot.live { background:var(--good); box-shadow:0 0 0 0 rgba(34,211,166,.6); animation:pulse 1.6s infinite; }
+        @keyframes pulse { 0%{box-shadow:0 0 0 0 rgba(34,211,166,.5);} 70%{box-shadow:0 0 0 8px rgba(34,211,166,0);} 100%{box-shadow:0 0 0 0 rgba(34,211,166,0);} }
+        .wrap { max-width:1180px; margin:0 auto; padding:24px 20px 60px; }
+
+        .cards { display:grid; grid-template-columns:repeat(5,1fr); gap:14px; margin-bottom:20px; }
+        .card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:16px 18px; }
+        .card .label { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.06em; }
+        .card .value { font-size:30px; font-weight:700; margin-top:6px; font-variant-numeric:tabular-nums; }
+        .card .value.flash { animation:flash .6s; }
+        @keyframes flash { 0%{color:var(--accent2);} 100%{color:var(--fg);} }
+        .card .sub { color:var(--muted); font-size:12px; margin-top:4px; }
+
+        .grid { display:grid; grid-template-columns:1.4fr 1fr; gap:18px; }
+        @media (max-width:880px){ .cards{grid-template-columns:repeat(2,1fr);} .grid{grid-template-columns:1fr;} }
+        .panel { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:18px; }
+        .panel h2 { margin:0 0 14px; font-size:14px; font-weight:600; color:var(--fg); display:flex; justify-content:space-between; align-items:center; }
+        .panel h2 .hint { font-weight:400; color:var(--muted); font-size:12px; }
+
+        canvas { width:100%; height:140px; display:block; }
+        #graph { height:460px; background:radial-gradient(circle at 50% 40%, #11151d 0%, #0b0d12 100%); border-radius:10px; cursor:grab; }
+
+        .worker { margin-bottom:14px; }
+        .worker-head { display:flex; justify-content:space-between; align-items:center; font-size:13px; margin-bottom:6px; }
+        .worker-id { display:flex; align-items:center; gap:8px; font-family:ui-monospace,monospace; }
+        .wdot { width:8px; height:8px; border-radius:50%; background:var(--muted); }
+        .wdot.on { background:var(--good); }
+        .wdot.beat { animation:beat .5s; }
+        @keyframes beat { 0%{transform:scale(1);} 50%{transform:scale(2);background:var(--accent2);} 100%{transform:scale(1);} }
+        .worker-stored { color:var(--muted); font-variant-numeric:tabular-nums; }
+        .bar { height:10px; border-radius:6px; background:var(--card2); overflow:hidden; }
+        .bar > span { display:block; height:100%; background:linear-gradient(90deg,var(--accent),var(--accent2)); width:0; transition:width .6s ease; }
+        .share { color:var(--muted); font-size:11px; margin-top:3px; }
+
+        .feed { max-height:360px; overflow:hidden; }
+        .feed-item { padding:9px 0; border-bottom:1px solid var(--border); font-size:13px; animation:slidein .4s; }
+        @keyframes slidein { from{opacity:0; transform:translateY(-6px);} to{opacity:1; transform:none;} }
+        .feed-item .ft { color:var(--fg); font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .feed-item .fu { color:#5fa05f; font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .feed-item .fw { color:var(--accent); font-family:ui-monospace,monospace; font-size:11px; }
+
+        .searchbar { display:flex; gap:8px; margin:22px 0 12px; }
+        .searchbar input { flex:1; padding:13px 16px; font-size:15px; border-radius:10px; border:1px solid var(--border); background:var(--card); color:var(--fg); outline:none; }
+        .searchbar input:focus { border-color:var(--accent); }
+        .searchbar button { padding:0 22px; border:none; border-radius:10px; background:var(--accent); color:#fff; cursor:pointer; font-size:14px; }
+        .result { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:13px 16px; margin-bottom:10px; }
+        .result a.title { color:var(--accent); font-size:15px; text-decoration:none; font-weight:600; }
+        .result .url { color:#5fa05f; font-size:12px; margin:3px 0 6px; word-break:break-all; }
+        .result .desc { color:#c3c9d4; font-size:13px; line-height:1.45; }
+        .empty { color:var(--muted); text-align:center; padding:24px 0; font-size:13px; }
+    </style>
+</head>
+<body>
+    <div class="top">
+        <div class="brand">Crawl<span>m</span> · Live Crawl</div>
+        <div class="conn"><span class="dot" id="connDot"></span><span id="connText">connecting…</span></div>
+    </div>
+
+    <div class="wrap">
+        <div class="cards">
+            <div class="card"><div class="label">Pages indexed</div><div class="value" id="mStored">—</div><div class="sub" id="mStoredSub"></div></div>
+            <div class="card"><div class="label">Domains</div><div class="value" id="mDomains">—</div><div class="sub">unique sites discovered</div></div>
+            <div class="card"><div class="label">Speed</div><div class="value" id="mRate">—</div><div class="sub">pages / min</div></div>
+            <div class="card"><div class="label">Frontier queued</div><div class="value" id="mFrontier">—</div><div class="sub">URLs waiting</div></div>
+            <div class="card"><div class="label">Discovered</div><div class="value" id="mSeen">—</div><div class="sub">unique URLs seen</div></div>
+        </div>
+
+        <div class="grid">
+            <div class="panel">
+                <h2>Crawl speed <span class="hint">pages/min · last ~90s</span></h2>
+                <canvas id="chart" width="700" height="140"></canvas>
+            </div>
+            <div class="panel">
+                <h2>Workers <span class="hint" id="workerHint">replicating the crawl</span></h2>
+                <div id="workers"><div class="empty">waiting for workers…</div></div>
+            </div>
+        </div>
+
+        <div class="panel" style="margin-top:18px;">
+            <h2>Live crawl graph <span class="hint" id="graphHint">domains → links, growing in real time</span></h2>
+            <canvas id="graph" width="1140" height="460"></canvas>
+        </div>
+
+        <div class="panel" style="margin-top:18px;">
+            <h2>Recently indexed <span class="hint">live feed</span></h2>
+            <div class="feed" id="feed"><div class="empty">waiting for pages…</div></div>
+        </div>
+
+        <div class="searchbar">
+            <input id="q" type="text" placeholder="Search the crawled index…" autocomplete="off" />
+            <button id="searchBtn">Search</button>
+        </div>
+        <div id="results"></div>
+    </div>
+
+    <script>
+        const $ = (id) => document.getElementById(id);
+        const fmt = (n) => (n ?? 0).toLocaleString();
+        function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+        // ====================================================================
+        //  LIVE FORCE-DIRECTED GRAPH (domains = nodes, links = edges)
+        //  A tiny self-contained physics sim — no libraries. Nodes repel each
+        //  other, edges act as springs, everything drifts toward the centre.
+        //  New domains pop in as the crawl discovers them and the web expands.
+        // ====================================================================
+        const G = (() => {
+            const canvas = $('graph');
+            const ctx = canvas.getContext('2d');
+            const nodes = new Map();   // domain -> {x,y,vx,vy,deg,seen,fresh}
+            const edges = new Map();   // "a→b" -> {a,b,t}
+            const MAX_NODES = 220;     // cap keeps the sim smooth; LRU-evicted
+            const MAX_EDGES = 700;
+            let W = canvas.width, H = canvas.height;
+            // view transform (pan/zoom)
+            const view = { x: 0, y: 0, k: 1, dragging: false, lx: 0, ly: 0 };
+
+            function color(seed){
+                // stable hue per domain
+                let h = 0; for(let i=0;i<seed.length;i++) h = (h*31 + seed.charCodeAt(i)) % 360;
+                return `hsl(${h},70%,60%)`;
+            }
+
+            function ensureNode(domain){
+                let n = nodes.get(domain);
+                if(n){ n.seen = performance.now(); return n; }
+                if(nodes.size >= MAX_NODES) evictOldest();
+                // spawn near centre with a little jitter so it visibly flies out
+                n = {
+                    x: W/2 + (Math.random()-0.5)*60,
+                    y: H/2 + (Math.random()-0.5)*60,
+                    vx: 0, vy: 0, deg: 0, seen: performance.now(), fresh: 1,
+                    c: color(domain), label: domain
+                };
+                nodes.set(domain, n);
+                return n;
+            }
+
+            function evictOldest(){
+                let oldestKey = null, oldest = Infinity;
+                for(const [k,n] of nodes){ if(n.seen < oldest){ oldest = n.seen; oldestKey = k; } }
+                if(oldestKey){
+                    nodes.delete(oldestKey);
+                    for(const [ek,e] of edges){ if(e.a === oldestKey || e.b === oldestKey) edges.delete(ek); }
+                }
+            }
+
+            // public: register a crawled page and its outbound domains
+            function addPage(domain, links){
+                const src = ensureNode(domain);
+                src.fresh = 1;
+                for(const dst of links){
+                    if(dst === domain) continue;
+                    ensureNode(dst);
+                    const key = domain + '→' + dst;
+                    if(!edges.has(key)){
+                        if(edges.size >= MAX_EDGES){ // drop an arbitrary oldest-ish edge
+                            const fk = edges.keys().next().value; edges.delete(fk);
+                        }
+                        edges.set(key, { a: domain, b: dst, t: performance.now() });
+                        const a = nodes.get(domain), b = nodes.get(dst);
+                        if(a) a.deg++; if(b) b.deg++;
+                    }
+                }
+                $('graphHint').textContent = `${nodes.size} domains · ${edges.size} links`;
+            }
+
+            // physics step
+            function step(){
+                const nodeArr = [...nodes.values()];
+                const N = nodeArr.length;
+                // repulsion (O(n²) is fine at N≤220)
+                for(let i=0;i<N;i++){
+                    const a = nodeArr[i];
+                    for(let j=i+1;j<N;j++){
+                        const b = nodeArr[j];
+                        let dx = a.x-b.x, dy = a.y-b.y;
+                        let d2 = dx*dx + dy*dy || 0.01;
+                        if(d2 < 40000){
+                            const f = 900 / d2;
+                            const d = Math.sqrt(d2);
+                            const ux = dx/d, uy = dy/d;
+                            a.vx += ux*f; a.vy += uy*f;
+                            b.vx -= ux*f; b.vy -= uy*f;
+                        }
+                    }
+                }
+                // springs along edges
+                for(const e of edges.values()){
+                    const a = nodes.get(e.a), b = nodes.get(e.b);
+                    if(!a || !b) continue;
+                    const dx = b.x-a.x, dy = b.y-a.y;
+                    const d = Math.sqrt(dx*dx+dy*dy) || 0.01;
+                    const target = 70;
+                    const f = (d - target) * 0.01;
+                    const ux = dx/d, uy = dy/d;
+                    a.vx += ux*f; a.vy += uy*f;
+                    b.vx -= ux*f; b.vy -= uy*f;
+                }
+                // gravity to centre + integrate + damping
+                for(const n of nodeArr){
+                    n.vx += (W/2 - n.x) * 0.0009;
+                    n.vy += (H/2 - n.y) * 0.0009;
+                    n.vx *= 0.86; n.vy *= 0.86;
+                    n.x += n.vx; n.y += n.vy;
+                    if(n.fresh > 0) n.fresh *= 0.92;
+                }
+            }
+
+            function draw(){
+                ctx.setTransform(1,0,0,1,0,0);
+                ctx.clearRect(0,0,W,H);
+                ctx.save();
+                ctx.translate(view.x, view.y); ctx.scale(view.k, view.k);
+                const now = performance.now();
+                // edges
+                ctx.lineWidth = 0.6;
+                for(const e of edges.values()){
+                    const a = nodes.get(e.a), b = nodes.get(e.b);
+                    if(!a || !b) continue;
+                    const age = now - e.t;
+                    const alpha = age < 800 ? 0.85 : 0.16;   // new edges flash bright
+                    ctx.strokeStyle = `rgba(120,150,200,${alpha})`;
+                    ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
+                }
+                // nodes
+                for(const n of nodes.values()){
+                    const r = Math.min(3 + Math.sqrt(n.deg)*1.7, 16);
+                    if(n.fresh > 0.1){
+                        ctx.beginPath(); ctx.arc(n.x,n.y, r + 8*n.fresh, 0, Math.PI*2);
+                        ctx.fillStyle = `rgba(34,211,166,${0.25*n.fresh})`; ctx.fill();
+                    }
+                    ctx.beginPath(); ctx.arc(n.x,n.y, r, 0, Math.PI*2);
+                    ctx.fillStyle = n.c; ctx.fill();
+                    // label only for the bigger hubs to avoid clutter
+                    if(r >= 7){
+                        ctx.fillStyle = 'rgba(230,235,240,.85)'; ctx.font = '10px ui-monospace,monospace';
+                        ctx.fillText(n.label.replace(/^www\./,'').slice(0,22), n.x + r + 2, n.y + 3);
+                    }
+                }
+                ctx.restore();
+            }
+
+            function frame(){ step(); draw(); requestAnimationFrame(frame); }
+            requestAnimationFrame(frame);
+
+            // pan & zoom
+            canvas.addEventListener('mousedown', (e)=>{ view.dragging=true; view.lx=e.offsetX; view.ly=e.offsetY; canvas.style.cursor='grabbing'; });
+            window.addEventListener('mouseup', ()=>{ view.dragging=false; canvas.style.cursor='grab'; });
+            canvas.addEventListener('mousemove', (e)=>{ if(view.dragging){ view.x += (e.offsetX-view.lx); view.y += (e.offsetY-view.ly); view.lx=e.offsetX; view.ly=e.offsetY; } });
+            canvas.addEventListener('wheel', (e)=>{ e.preventDefault(); const f = e.deltaY<0?1.1:0.9; view.k = Math.max(0.2, Math.min(3, view.k*f)); }, { passive:false });
+
+            return { addPage };
+        })();
+        function graphAddPage(domain, links){ G.addPage(domain, links); }
+
+        // ---- client-side live state (merged from snapshot + batch events) ----
+        const state = {
+            websites: 0, stored: 0, perMin: 0, frontier: 0, seen: 0, domains: 0,
+            workers: {},        // id -> {id, stored, lastBatch, lastSeen}
+            recent: []          // newest-first
+        };
+        const WORKER_ONLINE_MS = 15000;
+
+        // ---- live metric cards (flash on change) ----
+        function setCard(id, val){
+            const el = $(id);
+            const text = fmt(val);
+            if(el.textContent !== text && el.textContent !== '—'){
+                el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
+            }
+            el.textContent = text;
+        }
+        function paintCards(){
+            setCard('mStored', state.stored);
+            setCard('mDomains', state.domains);
+            setCard('mRate', state.perMin);
+            setCard('mFrontier', state.frontier);
+            setCard('mSeen', state.seen);
+            $('mStoredSub').textContent = `${fmt(state.websites)} in DB`;
+        }
+
+        // ---- speed chart (rolling) ----
+        const series = [];
+        const MAX_POINTS = 60;
+        function pushRate(r){
+            series.push(r);
+            if(series.length > MAX_POINTS) series.shift();
+            drawChart();
+        }
+        function drawChart(){
+            const c = $('chart'), ctx = c.getContext('2d');
+            const w = c.width, h = c.height;
+            ctx.clearRect(0,0,w,h);
+            if(series.length < 2) return;
+            const max = Math.max(...series, 10) * 1.15;
+            const stepX = w / (MAX_POINTS - 1);
+            ctx.beginPath();
+            series.forEach((v,i) => { const x=i*stepX, y=h-(v/max)*h; i===0?ctx.moveTo(x,y):ctx.lineTo(x,y); });
+            const grad = ctx.createLinearGradient(0,0,0,h);
+            grad.addColorStop(0,'rgba(79,140,255,.35)'); grad.addColorStop(1,'rgba(79,140,255,0)');
+            ctx.lineTo((series.length-1)*stepX, h); ctx.lineTo(0,h); ctx.closePath();
+            ctx.fillStyle = grad; ctx.fill();
+            ctx.beginPath();
+            series.forEach((v,i) => { const x=i*stepX, y=h-(v/max)*h; i===0?ctx.moveTo(x,y):ctx.lineTo(x,y); });
+            ctx.strokeStyle = '#4f8cff'; ctx.lineWidth = 2; ctx.stroke();
+            const lx = (series.length-1)*stepX, ly = h - (series[series.length-1]/max)*h;
+            ctx.beginPath(); ctx.arc(lx,ly,3,0,Math.PI*2); ctx.fillStyle='#22d3a6'; ctx.fill();
+        }
+
+        // ---- workers panel ----
+        function renderWorkers(beatId){
+            const host = $('workers');
+            const workers = Object.values(state.workers);
+            if(!workers.length){ host.innerHTML = '<div class="empty">waiting for workers…</div>'; return; }
+            const now = Date.now();
+            workers.sort((a,b) => b.lastSeen - a.lastSeen);
+            const online = workers.filter(w => (now - w.lastSeen) <= WORKER_ONLINE_MS).length;
+            $('workerHint').textContent = `${online}/${workers.length} online`;
+            const totalStored = workers.reduce((s,w) => s + (w.stored||0), 0) || 1;
+            host.innerHTML = workers.map(w => {
+                const isOnline = (now - w.lastSeen) <= WORKER_ONLINE_MS;
+                const share = Math.round((w.stored/totalStored)*100);
+                const shortId = (w.id||'').slice(0,12);
+                const beat = w.id === beatId;
+                return `<div class="worker">
+                    <div class="worker-head">
+                        <span class="worker-id"><span class="wdot ${isOnline?'on':''} ${beat?'beat':''}"></span>${escapeHtml(shortId)}</span>
+                        <span class="worker-stored">${fmt(w.stored)} pages</span>
+                    </div>
+                    <div class="bar"><span style="width:${share}%"></span></div>
+                    <div class="share">${share}% of crawl · last batch ${fmt(w.lastBatch)}</div>
+                </div>`;
+            }).join('');
+        }
+
+        // ---- live feed ----
+        function renderFeed(){
+            if(!state.recent.length) return;
+            $('feed').innerHTML = state.recent.slice(0,15).map(r => `
+                <div class="feed-item">
+                    <div class="ft">${escapeHtml(r.title || r.url)}</div>
+                    <div class="fu">${escapeHtml(r.url)} · <span class="fw">${escapeHtml((r.worker||'').slice(0,12))}</span></div>
+                </div>`).join('');
+        }
+
+        // ---- apply incoming messages ----
+        function applySnapshot(d){
+            state.websites = d.websites; state.stored = d.stored; state.perMin = d.perMin;
+            state.frontier = d.frontier; state.seen = d.seen; state.domains = d.domains || 0;
+            state.workers = {};
+            (d.workers||[]).forEach(w => { state.workers[w.id] = w; });
+            state.recent = d.recent || [];
+            paintCards(); pushRate(state.perMin); renderWorkers(); renderFeed();
+        }
+        // High-frequency per-page event: tick everything up by one, live.
+        function applyPage(d){
+            state.stored += 1;
+            state.websites = Math.max(state.websites, state.stored);
+            const w = state.workers[d.worker] || { id: d.worker, stored: 0, lastBatch: 0 };
+            w.stored = (w.stored || 0) + 1;
+            w.lastSeen = d.at || Date.now();
+            state.workers[d.worker] = w;
+            state.recent = [{ url: d.url, title: d.title, worker: d.worker, at: d.at }, ...state.recent].slice(0, 30);
+            // Feed the live graph: source domain node + an edge to each linked domain.
+            if(d.domain) graphAddPage(d.domain, d.links || []);
+            paintCards(); renderWorkers(d.worker); renderFeed();
+        }
+        // Batch event: reconcile to AUTHORITATIVE totals (counts may have drifted
+        // slightly from the page stream due to ordering / dropped frames).
+        function applyBatch(d){
+            state.stored = d.totalStored; state.perMin = d.perMin;
+            state.frontier = d.frontier; state.seen = d.seen;
+            if(d.domains !== undefined) state.domains = d.domains;
+            state.websites = Math.max(state.websites, d.totalStored);
+            const w = state.workers[d.worker] || { id: d.worker, stored: 0 };
+            w.stored = d.workerStored;           // authoritative per-worker total
+            w.lastBatch = d.stored; w.lastSeen = d.at || Date.now();
+            state.workers[d.worker] = w;
+            paintCards(); pushRate(state.perMin); renderWorkers(d.worker); renderFeed();
+        }
+
+        // ---- WebSocket connection with auto-reconnect ----
+        function setConn(live){
+            $('connDot').classList.toggle('live', live);
+            $('connText').textContent = live ? 'live' : 'reconnecting…';
+        }
+        let ws, reconnectTimer;
+        function connect(){
+            const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+            ws = new WebSocket(`${proto}://${location.host}/ws`);
+            ws.onopen = () => setConn(true);
+            ws.onclose = () => {
+                setConn(false);
+                clearTimeout(reconnectTimer);
+                reconnectTimer = setTimeout(connect, 2000);
+            };
+            ws.onerror = () => ws.close();
+            ws.onmessage = (ev) => {
+                try{
+                    const d = JSON.parse(ev.data);
+                    if(d.type === 'snapshot') applySnapshot(d);
+                    else if(d.type === 'page') applyPage(d);
+                    else if(d.type === 'batch') applyBatch(d);
+                }catch{}
+            };
+        }
+        connect();
+
+        // Re-render workers periodically so they fade to "offline" without a
+        // network event when a worker goes quiet.
+        setInterval(() => renderWorkers(), 5000);
+
+        // ---- search (still a normal request) ----
+        async function search(q){
+            $('results').innerHTML = '<div class="empty">searching…</div>';
+            try{
+                const res = await fetch('/api/v1/website?q=' + encodeURIComponent(q) + '&limit=20');
+                const data = await res.json();
+                const records = data.data || [];
+                if(!records.length){ $('results').innerHTML = '<div class="empty">No results yet — the crawler may still be indexing this topic.</div>'; return; }
+                $('results').innerHTML = records.map(r => `
+                    <div class="result">
+                        <a class="title" href="${escapeHtml(r.url)}" target="_blank" rel="noopener">${escapeHtml(r.title || r.url)}</a>
+                        <div class="url">${escapeHtml(r.url)}</div>
+                        <div class="desc">${escapeHtml(r.description || '')}</div>
+                    </div>`).join('');
+            }catch(err){ $('results').innerHTML = '<div class="empty">Search failed: ' + escapeHtml(String(err)) + '</div>'; }
+        }
+        $('searchBtn').addEventListener('click', () => { const q = $('q').value.trim(); if(q) search(q); });
+        $('q').addEventListener('keydown', (e) => { if(e.key === 'Enter'){ const q = $('q').value.trim(); if(q) search(q); } });
+    </script>
+</body>
+</html>
