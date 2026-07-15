@@ -6,6 +6,8 @@ import {
     Globe,
     Sprout,
     SlidersHorizontal,
+    TerminalSquare,
+    KeyRound,
     Sun,
     Moon,
     LogOut
@@ -25,10 +27,12 @@ interface NavItem{
 
 const NAV_ITEMS: NavItem[] = [
     { to: '/', label: 'Overview', icon: LayoutDashboard, end: true },
+    { to: '/playground', label: 'Playground', icon: TerminalSquare },
     { to: '/pages', label: 'Pages', icon: FileText },
     { to: '/domains', label: 'Domains', icon: Globe },
     { to: '/seeds', label: 'Seeds', icon: Sprout },
-    { to: '/crawler', label: 'Crawler', icon: SlidersHorizontal }
+    { to: '/crawler', label: 'Crawler', icon: SlidersHorizontal },
+    { to: '/keys', label: 'API Keys', icon: KeyRound }
 ];
 
 // Borderless nav row, Pollium style: active = weight + full-strength ink, no pill.

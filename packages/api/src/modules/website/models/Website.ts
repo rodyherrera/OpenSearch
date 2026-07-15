@@ -8,7 +8,10 @@ export interface WebsiteDocument extends Document{
     description?: string;
     keywords?: string;
     content?: string;
+    markdown?: string;
     metaData?: Record<string, unknown>;
+    createdAt: Date;
+    updatedAt: Date;
 }
 
 const configure = (schema: Schema<WebsiteDocument>): void => {
@@ -48,6 +51,11 @@ export default defineModel<WebsiteDocument>('Website', {
     content: {
         type: String,
         trim: true
+    },
+    // Full page as clean Markdown (LLM-ready). Populated lazily by the on-demand
+    // scrape endpoint; the massive crawler leaves it empty for throughput.
+    markdown: {
+        type: String
     },
     metaData: {
         type: Object

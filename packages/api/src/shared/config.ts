@@ -67,6 +67,15 @@ export const config = {
         maxInternalLinks: toInt(optional('CRAWLER_MAX_INTERNAL_LINKS', '5'), 5)
     },
 
+    // Public developer API (search/scrape/map/crawl authenticated by API key).
+    publicApi: {
+        // Requests per minute per API key. Fixed-window, enforced in Redis.
+        rateLimitPerMin: toInt(optional('PUBLIC_API_RATE_LIMIT_PER_MIN', '120'), 120),
+        // How fresh an indexed page must be to serve a scrape from cache without
+        // re-fetching, in milliseconds. Callers can request a stricter maxAge.
+        scrapeCacheMaxAgeMs: toInt(optional('PUBLIC_API_SCRAPE_CACHE_MS', '86400000'), 86400000)
+    },
+
     // External domain-discovery feeds (run by the standalone `sources` process).
     sources: {
         certstreamEnabled: toBool(optional('SOURCES_CERTSTREAM_ENABLED', 'true'), true),

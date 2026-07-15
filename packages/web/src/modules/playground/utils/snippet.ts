@@ -1,0 +1,23 @@
+import { env } from '@/shared/config/env';
+import type { Endpoint } from '@/modules/playground/contracts/playground';
+
+const base = `${env.apiUrl}${env.apiPrefix}`;
+
+// A copy-pasteable curl for the current request, with a placeholder key so the shape
+// is obvious without leaking a real one.
+export const buildCurl = (endpoint: Endpoint, url: string, limit: number): string => {
+    const auth = `-H "Authorization: Bearer os-YOUR_API_KEY"`;
+    const value = url.trim() || (endpoint === 'search' ? 'your query' : 'https://example.com');
+
+    if(endpoint === 'search'){
+        const qs = `q=${encodeURIComponent(value)}&limit=${limit}`;
+        return `curl "${base}/search?${qs}" \\\n  ${auth}`;
+    }
+
+    const body =
+        endpoint === 'crawl'
+            ? JSON.stringify({ url: value, limit })
+            : JSON.stringify({ url: value });
+
+    return `curl -X POST "${base}/${endpoint}" \\\n  ${auth} \\\n  -H "Content-Type: application/json" \\\n  -d '${body}'`;
+};

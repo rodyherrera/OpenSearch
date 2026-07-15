@@ -1,27 +1,17 @@
 import { EventEmitter } from 'events';
 import pLimit from 'p-limit';
-import { load } from 'cheerio';
 import { config } from '@/shared/config';
-import { fetchHtml } from '@/shared/http/HttpClient';
 import { logger } from '@/core/utils/Logger';
-import CrawlFrontier, { normalizeUrl, domainOf } from '@/modules/crawler/services/CrawlFrontier';
-import { isAllowed } from '@/modules/crawler/services/RobotsGuard';
+import CrawlFrontier, { domainOf } from '@/modules/crawler/services/CrawlFrontier';
 import { publishCrawlEvent, publishPageEvent } from '@/modules/crawler/services/CrawlEventPublisher';
 import CrawlerControlService from '@/modules/crawler/services/CrawlerControlService';
 import WebsiteService from '@/modules/website/services/WebsiteService';
+import PageFetcher from '@/modules/extraction/services/PageFetcher';
+import PageParser from '@/modules/extraction/services/PageParser';
+import type { ParsedPage } from '@/modules/extraction/contracts/domain/extraction';
 import type { WebsitePageRecord } from '@/modules/website/contracts/domain/website';
 import type { MassiveCrawlerOptions } from '@/modules/crawler/contracts/domain/crawl';
 import type { Tuning } from '@/modules/crawler/contracts/domain/control';
-
-interface PageRecord{
-    url: string;
-    title: string;
-    description: string;
-    keywords: string;
-    content: string;
-    metaData: Record<string, string>;
-    links: string[];
-}
 
 export default class MassiveCrawler extends EventEmitter{
     #frontier: CrawlFrontier;
@@ -30,6 +20,8 @@ export default class MassiveCrawler extends EventEmitter{
     #running = false;
     #websites = new WebsiteService();
     #control = new CrawlerControlService();
+    #fetcher = new PageFetcher();
+    #parser = new PageParser();
 
     constructor(opts: MassiveCrawlerOptions){
         super();
@@ -55,68 +47,19 @@ export default class MassiveCrawler extends EventEmitter{
         return this.#frontier;
     }
 
-    async #fetchHTML(url: string): Promise<string>{
-        return fetchHtml(url, { timeoutMs: this.#opts.timeoutMs });
-    }
-
-    #parse(html: string, url: string): PageRecord{
-        const $ = load(html);
-        const title = $('head > title').text().trim();
-        const description = $('meta[name="description"]').attr('content')?.trim() || '';
-
-        const metaData: Record<string, string> = {};
-        $('meta').each((_, el) => {
-            const name = $(el).attr('name') || $(el).attr('property');
-            const content = $(el).attr('content');
-            if(name && content) metaData[name] = content;
+    async #crawlOne(url: string): Promise<ParsedPage | null>{
+        const html = await this.#fetcher.fetch(url, {
+            timeoutMs: this.#opts.timeoutMs,
+            respectRobots: this.#opts.respectRobots
         });
-
-        const keywords = metaData['keywords'] || '';
-
-        // Bias link harvesting toward EXTERNAL domains (the ones that grow coverage):
-        // keep every external link up to the cap, but only a handful of internal ones.
-        const srcDomain = domainOf(url);
-        const maxExternal = this.#opts.maxLinksPerPage;
-        const maxInternal = config.crawler.maxInternalLinks;
-        const externals: string[] = [];
-        const internals: string[] = [];
-        const seen = new Set<string>();
-        $('a[href]').each((_, el) => {
-            if(externals.length >= maxExternal && internals.length >= maxInternal) return;
-            const href = $(el).attr('href');
-            if(!href) return;
-            try{
-                const normalized = normalizeUrl(new URL(href, url).toString());
-                if(!normalized || seen.has(normalized)) return;
-                seen.add(normalized);
-                const linkDomain = domainOf(normalized);
-                if(linkDomain && linkDomain !== srcDomain){
-                    if(externals.length < maxExternal) externals.push(normalized);
-                }else if(internals.length < maxInternal){
-                    internals.push(normalized);
-                }
-            }catch{
-            }
-        });
-
-        $('script, style, noscript, svg, nav, footer, header, form, iframe').remove();
-        const bodyText = $('body').text().replace(/\s+/g, ' ').trim();
-        const content = bodyText.slice(0, 2000);
-
-        return { url, title, description, keywords, content, metaData, links: [...externals, ...internals] };
-    }
-
-    async #crawlOne(url: string): Promise<PageRecord | null>{
-        if(this.#opts.respectRobots){
-            const allowed = await isAllowed(url);
-            if(!allowed){
-                logger.debug(`robots.txt disallows ${url}`);
-                return null;
-            }
-        }
-        const html = await this.#fetchHTML(url);
         if(!html) return null;
-        const record = this.#parse(html, url);
+        // Markdown is skipped here to preserve crawl throughput; the on-demand
+        // scrape endpoint fills it in for pages that are actually requested.
+        const record = this.#parser.parse(html, url, {
+            maxExternalLinks: this.#opts.maxLinksPerPage,
+            maxInternalLinks: config.crawler.maxInternalLinks,
+            withMarkdown: false
+        });
         if(!record.title) return null;
         const srcDomain = domainOf(record.url);
         const destDomains: string[] = [];
@@ -133,7 +76,7 @@ export default class MassiveCrawler extends EventEmitter{
         return record;
     }
 
-    async #store(records: PageRecord[]): Promise<number>{
+    async #store(records: ParsedPage[]): Promise<number>{
         if(!records.length) return 0;
         const bulk: WebsitePageRecord[] = records.map(({ url, title, description, keywords, content, metaData }) => ({
             url,
@@ -155,7 +98,7 @@ export default class MassiveCrawler extends EventEmitter{
         const results = await Promise.all(
             urls.map((url) => this.#limit(() => this.#crawlOne(url)))
         );
-        const records = results.filter((r): r is PageRecord => r !== null);
+        const records = results.filter((r): r is ParsedPage => r !== null);
 
         const stored = await this.#store(records);
 

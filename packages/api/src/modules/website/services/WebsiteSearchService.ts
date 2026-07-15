@@ -48,7 +48,11 @@ export default class WebsiteSearchService{
     #limitFields(query: SearchQuery, buffer: QueryBuffer): void{
         if(query.fields){
             buffer.select = query.fields.split(',').join(' ');
+            return;
         }
+        // markdown can be large; never ship it in list/search responses unless the
+        // caller explicitly asks for it. The scrape endpoint reads it directly.
+        buffer.select = '-markdown';
     }
 
     #search(query: SearchQuery, buffer: QueryBuffer): void{

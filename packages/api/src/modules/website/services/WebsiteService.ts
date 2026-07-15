@@ -1,10 +1,10 @@
 import mongoose from 'mongoose';
 import _ from 'lodash';
 import { getDomain } from 'tldts';
-import Website from '@/modules/website/models/Website';
+import Website, { type WebsiteDocument } from '@/modules/website/models/Website';
 import RuntimeError from '@/shared/errors/RuntimeError';
 import { RequestError } from '@/shared/errors/RequestError';
-import type { WebsitePageRecord } from '@/modules/website/contracts/domain/website';
+import type { WebsitePageRecord, ScrapedRecord } from '@/modules/website/contracts/domain/website';
 
 export default class WebsiteService{
     async bulkUpsert(records: WebsitePageRecord[]): Promise<number>{
@@ -22,6 +22,44 @@ export default class WebsiteService{
 
     async estimatedCount(): Promise<number>{
         return Website.estimatedDocumentCount();
+    }
+
+    // Upsert a fully-scraped page. Unlike bulkUpsert (discovery: $setOnInsert only),
+    // this refreshes content/markdown/metadata on every call so a re-scrape updates
+    // the cached copy and bumps updatedAt — that timestamp is the cache clock.
+    async saveScraped(page: ScrapedRecord): Promise<void>{
+        await Website.updateOne(
+            { url: page.url },
+            {
+                $set: {
+                    domain: getDomain(page.url) ?? '',
+                    title: page.title,
+                    description: page.description,
+                    keywords: page.keywords,
+                    content: page.content,
+                    markdown: page.markdown,
+                    metaData: page.metaData
+                }
+            },
+            { upsert: true }
+        );
+    }
+
+    // Read a single indexed page by exact URL, including markdown (which list/search
+    // responses omit). Returns null when the page isn't in the index.
+    async findByUrl(url: string): Promise<WebsiteDocument | null>{
+        return Website.findOne({ url }).lean<WebsiteDocument>();
+    }
+
+    // Every indexed URL for a registrable domain, newest first. Feeds the /map
+    // endpoint the pages we already know about without touching the network.
+    async listUrlsByDomain(domain: string, limit = 5000): Promise<string[]>{
+        const docs = await Website.find({ domain })
+            .select('url')
+            .sort({ createdAt: -1 })
+            .limit(limit)
+            .lean<Array<{ url: string }>>();
+        return docs.map((doc) => doc.url);
     }
 
     async recentUrls(limit: number): Promise<string[]>{

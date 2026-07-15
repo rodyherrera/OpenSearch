@@ -9,6 +9,12 @@ export interface WebsitePageRecord{
     metaData: Record<string, string>;
 }
 
+// A page captured by the on-demand scrape endpoint — like WebsitePageRecord but
+// carrying the rendered markdown that discovery crawling doesn't produce.
+export interface ScrapedRecord extends WebsitePageRecord{
+    markdown: string;
+}
+
 export interface WebsiteFields{
     url: string;
     domain?: string;
@@ -16,6 +22,7 @@ export interface WebsiteFields{
     description?: string;
     keywords?: string;
     content?: string;
+    markdown?: string;
     metaData?: Record<string, unknown>;
 }
 

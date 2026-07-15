@@ -64,3 +64,22 @@ export const fetchHtml = async (url: string, options: FetchHtmlOptions = {}): Pr
         return '';
     }
 };
+
+// Like fetchHtml but content-type agnostic — for XML sitemaps, robots.txt, plain
+// text. Returns '' on any failure so callers can treat "missing" and "errored" alike.
+export const fetchText = async (url: string, options: FetchHtmlOptions = {}): Promise<string> => {
+    const { timeoutMs = config.crawler.timeoutMs, maxBytes = DEFAULT_MAX_BYTES } = options;
+    try{
+        const response = await httpClient.get<string>(url, {
+            timeout: timeoutMs,
+            maxContentLength: maxBytes,
+            maxRedirects: 5,
+            responseType: 'text',
+            validateStatus: (status) => status >= 200 && status < 400
+        });
+        return typeof response.data === 'string' ? response.data : '';
+    }catch(error){
+        logger.debug(`fetch text failed ${url}`, { scope: 'http', error: String(error) });
+        return '';
+    }
+};
