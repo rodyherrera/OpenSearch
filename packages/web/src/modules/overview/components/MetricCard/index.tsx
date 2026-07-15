@@ -1,7 +1,11 @@
+import Sparkline from '@/modules/overview/components/Sparkline';
+
 interface MetricCardProps{
     label: string;
     value: number | string;
-    sub?: string;
+    context?: string;
+    series?: number[];
+    live?: boolean;
 }
 
 // Numbers get thousands separators; pre-composed strings (e.g. `${perMin}/min`)
@@ -9,14 +13,28 @@ interface MetricCardProps{
 const format = (value: number | string): string =>
     typeof value === 'number' ? value.toLocaleString() : value;
 
-const MetricCard = ({ label, value, sub }: MetricCardProps) => {
+/**
+ * Polar-style stat card: a muted label, a large value, a context line with a
+ * live dot, and a full-bleed sparkline anchored to the card's bottom edge.
+ */
+const MetricCard = ({ label, value, context, series, live }: MetricCardProps) => {
     return (
-        <div className='rounded-lg border border-foreground/10 bg-surface-secondary p-4'>
-            <div className='text-xs text-muted uppercase tracking-wide'>{label}</div>
-            <div className='mt-1 text-2xl font-semibold text-foreground tabular-nums'>
-                {format(value)}
+        <div className='flex flex-col overflow-hidden rounded-xl border border-foreground/10'>
+            <div className='flex flex-col gap-3 p-5'>
+                <span className='text-xs font-medium text-muted'>{label}</span>
+                <span className='text-3xl font-semibold tabular-nums text-foreground'>
+                    {format(value)}
+                </span>
+                {context ? (
+                    <span className='inline-flex items-center gap-2 text-xs text-muted'>
+                        {live ? (
+                            <span className='size-1.5 rounded-full bg-[var(--chart)]' aria-hidden='true' />
+                        ) : null}
+                        {context}
+                    </span>
+                ) : null}
             </div>
-            {sub ? <div className='mt-1 text-xs text-muted'>{sub}</div> : null}
+            {series ? <Sparkline data={series} height={56} /> : null}
         </div>
     );
 };

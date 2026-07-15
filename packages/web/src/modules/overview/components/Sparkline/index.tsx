@@ -1,3 +1,5 @@
+import { useId } from 'react';
+
 interface SparklineProps{
     data: number[];
     height?: number;
@@ -5,20 +7,20 @@ interface SparklineProps{
 }
 
 // Normalised viewBox width; the SVG stretches to its container via
-// preserveAspectRatio='none' while non-scaling strokes stay crisp.
+// preserveAspectRatio='none' while the non-scaling stroke stays crisp.
 const VIEW_WIDTH = 100;
 const POINT_CAP = 60;
 
 /**
- * React SVG reimplementation of the vanilla dashboard's rolling area+line
- * speed chart (no chart library). Renders a filled area under a stroked
- * polyline, scaled to the min/max of the last ~60 points.
+ * Minimal area+line sparkline (no chart library). A 2px line over a soft vertical
+ * gradient, coloured by the current text colour so a card can tint it via
+ * `text-[var(--chart)]`. Scaled to the min/max of the last ~60 points.
  */
-const Sparkline = ({ data, height = 96, className }: SparklineProps) => {
+const Sparkline = ({ data, height = 64, className }: SparklineProps) => {
+    const gradientId = useId();
     const points = data.slice(-POINT_CAP);
-    const svgClassName = ['block text-primary', className].filter(Boolean).join(' ');
+    const svgClassName = ['block w-full text-[var(--chart)]', className].filter(Boolean).join(' ');
 
-    // Need at least two points to draw a line; render an empty frame otherwise.
     if(points.length < 2){
         return (
             <svg
@@ -28,7 +30,7 @@ const Sparkline = ({ data, height = 96, className }: SparklineProps) => {
                 height={height}
                 className={svgClassName}
                 role='img'
-                aria-label='Crawl speed sparkline'
+                aria-label='Metric sparkline'
             />
         );
     }
@@ -36,7 +38,7 @@ const Sparkline = ({ data, height = 96, className }: SparklineProps) => {
     const lo = Math.min(...points);
     const hi = Math.max(...points);
     const range = hi - lo || 1;
-    const pad = range * 0.15;
+    const pad = range * 0.2;
     const bottom = lo - pad;
     const span = range + pad * 2;
     const count = points.length;
@@ -55,14 +57,20 @@ const Sparkline = ({ data, height = 96, className }: SparklineProps) => {
             height={height}
             className={svgClassName}
             role='img'
-            aria-label='Crawl speed sparkline'
+            aria-label='Metric sparkline'
         >
-            <path d={area} fill='currentColor' fillOpacity={0.1} stroke='none' />
+            <defs>
+                <linearGradient id={gradientId} x1='0' y1='0' x2='0' y2='1'>
+                    <stop offset='0%' stopColor='currentColor' stopOpacity={0.22} />
+                    <stop offset='100%' stopColor='currentColor' stopOpacity={0} />
+                </linearGradient>
+            </defs>
+            <path d={area} fill={`url(#${gradientId})`} stroke='none' />
             <polyline
                 points={line.join(' ')}
                 fill='none'
                 stroke='currentColor'
-                strokeWidth={2}
+                strokeWidth={1.75}
                 strokeLinejoin='round'
                 strokeLinecap='round'
                 vectorEffect='non-scaling-stroke'

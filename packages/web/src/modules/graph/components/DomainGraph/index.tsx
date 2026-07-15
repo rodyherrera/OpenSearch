@@ -1,30 +1,41 @@
 import { useEffect, useRef, useState } from 'react';
 import { useForceGraph } from '@/modules/graph/hooks/useForceGraph';
-import { useChannel } from '@/shared/hooks/socket/useChannel';
-import type { GraphStats } from '@/modules/graph/hooks/useForceGraph';
+import { graphModel } from '@/modules/graph/model/graphModel';
+import { graphApi } from '@/modules/graph/api/api';
+import type { GraphStats } from '@/modules/graph/model/graphModel';
 
 const DomainGraph = () => {
-    const canvasRef = useRef<HTMLCanvasElement>(null);
-    const graph = useForceGraph(canvasRef);
-    const [counts, setCounts] = useState<GraphStats>({ nodes: 0, edges: 0 });
+    const containerRef = useRef<HTMLDivElement>(null);
+    const graph = useForceGraph(containerRef);
+    // Seed from the persistent model so the overlay never flickers 0 on re-entry.
+    const [counts, setCounts] = useState<GraphStats>(() => graphModel.stats());
 
-    // Share the one pooled `/ws` socket (the shell + overview already hold it);
-    // we just add a `page` handler that feeds the live sim.
-    useChannel('/ws', {
-        page: (frame) => graph.addPage(frame.domain, frame.links)
-    });
+    // Hydrate from the backend on mount so the graph survives a full reload; the live
+    // feed then keeps building on top. best-effort — if it fails the feed still fills in.
+    useEffect(() => {
+        let cancelled = false;
+        void graphApi.snapshot().then(
+            (snapshot) => { if(!cancelled) graphModel.merge(snapshot); },
+            () => undefined
+        );
+        return () => { cancelled = true; };
+    }, []);
 
-    // The canvas counts live in refs (outside React) — poll them for the overlay.
+    // The graph is fed app-wide by the shell (useGraphFeed); here we just render the
+    // persistent model and poll its counts for the overlay.
     useEffect(() => {
         const id = window.setInterval(() => setCounts(graph.stats()), 500);
         return () => window.clearInterval(id);
     }, [graph]);
 
     return (
-        <div className='relative h-[70vh] w-full rounded-lg border border-foreground/10 bg-surface-secondary'>
-            <canvas ref={canvasRef} className='block size-full cursor-grab rounded-lg' />
-            <div className='pointer-events-none absolute left-3 top-3 rounded-md bg-background/70 px-2.5 py-1 text-xs text-muted backdrop-blur'>
+        <div className='relative size-full overflow-hidden'>
+            <div ref={containerRef} className='size-full' />
+            <div className='pointer-events-none absolute left-4 top-4 rounded-md border border-foreground/10 bg-background/70 px-2.5 py-1 text-xs text-muted backdrop-blur'>
                 {counts.nodes} domains · {counts.edges} links
+            </div>
+            <div className='pointer-events-none absolute bottom-4 right-4 rounded-md bg-background/70 px-2.5 py-1 text-xs text-muted backdrop-blur'>
+                drag to orbit · scroll to zoom
             </div>
         </div>
     );

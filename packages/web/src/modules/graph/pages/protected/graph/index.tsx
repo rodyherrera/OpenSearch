@@ -1,15 +1,9 @@
 import DomainGraph from '@/modules/graph/components/DomainGraph';
 
+// Full-bleed: cancel the dashboard main's px-8/py-10 padding and fill the viewport.
 const Graph = () => {
     return (
-        <div className='flex flex-col gap-4'>
-            <div>
-                <h1 className='text-lg font-medium'>Live crawl graph</h1>
-                <p className='text-sm text-muted'>
-                    Domains the crawler discovers, linked in real time as pages stream in.
-                </p>
-            </div>
-
+        <div className='-mx-8 -my-10 h-dvh overflow-hidden'>
             <DomainGraph />
         </div>
     );

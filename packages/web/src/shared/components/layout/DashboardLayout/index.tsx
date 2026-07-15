@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Button } from '@heroui/react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
     LayoutDashboard,
@@ -9,11 +8,13 @@ import {
     Sprout,
     SlidersHorizontal,
     Sun,
-    Moon
+    Moon,
+    LogOut
 } from 'lucide-react';
 import { useAuthStore } from '@/modules/auth/store/auth';
 import { applyTheme } from '@/shared/utils/theme';
 import { useCrawlLive } from '@/shared/hooks/live/useCrawlLive';
+import { useGraphFeed } from '@/modules/graph/hooks/useGraphFeed';
 import type { ComponentType } from 'react';
 import type { Theme } from '@/shared/utils/theme';
 import type { ChannelStatus } from '@/shared/contracts/channel';
@@ -28,33 +29,37 @@ interface NavItem{
 const NAV_ITEMS: NavItem[] = [
     { to: '/', label: 'Overview', icon: LayoutDashboard, end: true },
     { to: '/search', label: 'Search', icon: Search },
-    { to: '/graph', label: 'Live Graph', icon: Share2 },
+    { to: '/graph', label: 'Graph', icon: Share2 },
     { to: '/workers', label: 'Workers', icon: Server },
     { to: '/seeds', label: 'Seeds', icon: Sprout },
     { to: '/crawler', label: 'Crawler', icon: SlidersHorizontal }
 ];
 
 const linkClass = (isActive: boolean): string =>
-    `flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors ${
-        isActive ? 'bg-surface-secondary text-foreground' : 'text-muted hover:text-foreground'
+    `flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[13px] transition-colors ${
+        isActive
+            ? 'bg-foreground/[0.06] text-foreground'
+            : 'text-muted hover:bg-foreground/[0.04] hover:text-foreground'
     }`;
 
-interface ConnStyle{
-    dot: string;
-    label: string;
-}
+const STATUS_DOT: Record<ChannelStatus, string> = {
+    open: 'bg-[var(--chart)]',
+    connecting: 'bg-warning',
+    reconnecting: 'bg-warning',
+    closed: 'bg-danger'
+};
 
-const CONN_STYLE: Record<ChannelStatus, ConnStyle> = {
-    open: { dot: 'bg-success', label: 'Live' },
-    connecting: { dot: 'bg-warning', label: 'Connecting' },
-    reconnecting: { dot: 'bg-warning', label: 'Reconnecting' },
-    closed: { dot: 'bg-danger', label: 'Offline' }
+const STATUS_LABEL: Record<ChannelStatus, string> = {
+    open: 'Live',
+    connecting: 'Connecting',
+    reconnecting: 'Reconnecting',
+    closed: 'Offline'
 };
 
 const DashboardLayout = () => {
     const navigate = useNavigate();
     const { status } = useCrawlLive();
-    const conn = CONN_STYLE[status];
+    useGraphFeed();
     const [theme, setTheme] = useState<Theme>(() =>
         document.documentElement.classList.contains('dark') ? 'dark' : 'light'
     );
@@ -70,14 +75,19 @@ const DashboardLayout = () => {
         navigate('/sign-in');
     };
 
+    const iconButton = 'grid size-7 place-items-center rounded-md text-muted transition-colors hover:bg-foreground/[0.06] hover:text-foreground';
+
     return (
         <div className='flex min-h-dvh bg-background text-foreground'>
-            <aside className='flex w-60 shrink-0 flex-col gap-1 border-r border-foreground/10 p-4'>
-                <div className='px-3 py-2 text-lg font-semibold'>
-                    Crawl<span className='text-primary'>m</span>
+            <aside className='flex w-56 shrink-0 flex-col border-r border-foreground/10 px-3 py-4'>
+                <div className='flex items-center gap-2.5 px-2 py-1'>
+                    <span className='grid size-6 place-items-center rounded-md bg-[var(--chart)] text-[11px] font-bold text-white'>
+                        C
+                    </span>
+                    <span className='text-[15px] font-semibold tracking-tight'>Crawlm</span>
                 </div>
 
-                <nav className='mt-2 flex flex-col gap-1'>
+                <nav className='mt-5 flex flex-col gap-0.5'>
                     {NAV_ITEMS.map((item) => {
                         const Icon = item.icon;
                         return (
@@ -93,33 +103,36 @@ const DashboardLayout = () => {
                         );
                     })}
                 </nav>
-            </aside>
 
-            <div className='flex flex-1 flex-col'>
-                <header className='flex items-center justify-end gap-3 border-b border-foreground/10 px-6 py-3'>
-                    <span className='inline-flex items-center gap-2 text-xs text-muted'>
-                        <span className={`size-2 rounded-full ${conn.dot}`} aria-hidden='true' />
-                        {conn.label}
+                <div className='mt-auto flex flex-col gap-3'>
+                    <span className='inline-flex items-center gap-2 px-2 text-xs text-muted'>
+                        <span className={`size-1.5 rounded-full ${STATUS_DOT[status]}`} aria-hidden='true' />
+                        {STATUS_LABEL[status]}
                     </span>
 
-                    <Button
-                        variant='secondary'
-                        size='sm'
-                        onPress={toggleTheme}
-                        aria-label='Toggle theme'
-                    >
-                        {theme === 'dark' ? <Sun className='size-4' /> : <Moon className='size-4' />}
-                    </Button>
+                    <div className='flex items-center justify-between border-t border-foreground/10 pt-3'>
+                        <span className='inline-flex items-center gap-2 px-1'>
+                            <span className='grid size-6 place-items-center rounded-full bg-foreground/[0.08] text-[11px] font-medium text-foreground'>
+                                A
+                            </span>
+                            <span className='text-xs text-muted'>Administrator</span>
+                        </span>
 
-                    <Button variant='secondary' size='sm' onPress={signOut}>
-                        Sign out
-                    </Button>
-                </header>
+                        <div className='flex items-center gap-0.5'>
+                            <button type='button' onClick={toggleTheme} aria-label='Toggle theme' className={iconButton}>
+                                {theme === 'dark' ? <Sun className='size-4' /> : <Moon className='size-4' />}
+                            </button>
+                            <button type='button' onClick={signOut} aria-label='Sign out' className={iconButton}>
+                                <LogOut className='size-4' />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </aside>
 
-                <main className='flex-1 overflow-y-auto p-6'>
-                    <Outlet />
-                </main>
-            </div>
+            <main className='flex-1 overflow-y-auto px-8 py-10'>
+                <Outlet />
+            </main>
         </div>
     );
 };

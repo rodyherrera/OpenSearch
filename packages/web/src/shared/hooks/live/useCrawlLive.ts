@@ -15,8 +15,19 @@ export interface CrawlMetrics{
     seen: number;
 }
 
+// One rolling series per headline metric, so every stat card can render its own
+// sparkline. Sampled once per tick (snapshot + batch), never per page event.
+export interface CrawlHistory{
+    stored: number[];
+    domains: number[];
+    frontier: number[];
+    seen: number[];
+    perMin: number[];
+}
+
 export interface CrawlLive{
     metrics: CrawlMetrics;
+    history: CrawlHistory;
     workers: WorkerLive[];
     recent: RecentItem[];
     series: number[];
@@ -25,21 +36,30 @@ export interface CrawlLive{
 
 interface CrawlLiveState{
     metrics: CrawlMetrics;
+    history: CrawlHistory;
     workers: WorkerLive[];
     recent: RecentItem[];
-    series: number[];
     applySnapshot: (frame: SnapshotFrame) => void;
     applyPage: (frame: PageFrame) => void;
     applyBatch: (frame: BatchFrame) => void;
 }
 
 const EMPTY_METRICS: CrawlMetrics = { stored: 0, websites: 0, domains: 0, perMin: 0, frontier: 0, seen: 0 };
+const EMPTY_HISTORY: CrawlHistory = { stored: [], domains: [], frontier: [], seen: [], perMin: [] };
 
-// Rolling window, newest-last, capped so the speed chart stays bounded.
-const pushSeries = (series: number[], value: number): number[] => {
+const cap = (series: number[], value: number): number[] => {
     const next = [...series, value];
     return next.length > SERIES_CAP ? next.slice(next.length - SERIES_CAP) : next;
 };
+
+// Append the current value of every headline metric to its rolling window.
+const pushHistory = (history: CrawlHistory, metrics: CrawlMetrics): CrawlHistory => ({
+    stored: cap(history.stored, metrics.stored),
+    domains: cap(history.domains, metrics.domains),
+    frontier: cap(history.frontier, metrics.frontier),
+    seen: cap(history.seen, metrics.seen),
+    perMin: cap(history.perMin, metrics.perMin)
+});
 
 /**
  * Module-singleton store holding the merged crawl feed. Merge logic mirrors the
@@ -48,23 +68,26 @@ const pushSeries = (series: number[], value: number): number[] => {
  */
 const useCrawlStore = create<CrawlLiveState>((set) => ({
     metrics: EMPTY_METRICS,
+    history: EMPTY_HISTORY,
     workers: [],
     recent: [],
-    series: [],
 
-    applySnapshot: (frame) => set((state) => ({
-        metrics: {
+    applySnapshot: (frame) => set((state) => {
+        const metrics: CrawlMetrics = {
             stored: frame.stored,
             websites: frame.websites,
             domains: frame.domains,
             perMin: frame.perMin,
             frontier: frame.frontier,
             seen: frame.seen
-        },
-        workers: frame.workers.map((worker) => ({ ...worker })),
-        recent: frame.recent.slice(0, RECENT_CAP),
-        series: pushSeries(state.series, frame.perMin)
-    })),
+        };
+        return {
+            metrics,
+            history: pushHistory(state.history, metrics),
+            workers: frame.workers.map((worker) => ({ ...worker })),
+            recent: frame.recent.slice(0, RECENT_CAP)
+        };
+    }),
 
     applyPage: (frame) => set((state) => {
         const workers = [...state.workers];
@@ -99,18 +122,19 @@ const useCrawlStore = create<CrawlLiveState>((set) => ({
         }else{
             workers.push({ id: frame.worker, stored: frame.workerStored, lastBatch: frame.stored, lastSeen: frame.at, online: true });
         }
+        const metrics: CrawlMetrics = {
+            ...state.metrics,
+            stored: frame.totalStored,
+            perMin: frame.perMin,
+            frontier: frame.frontier,
+            seen: frame.seen,
+            domains: frame.domains,
+            websites: Math.max(state.metrics.websites, frame.totalStored)
+        };
         return {
-            metrics: {
-                ...state.metrics,
-                stored: frame.totalStored,
-                perMin: frame.perMin,
-                frontier: frame.frontier,
-                seen: frame.seen,
-                domains: frame.domains,
-                websites: Math.max(state.metrics.websites, frame.totalStored)
-            },
-            workers,
-            series: pushSeries(state.series, frame.perMin)
+            metrics,
+            history: pushHistory(state.history, metrics),
+            workers
         };
     })
 }));
@@ -126,11 +150,11 @@ export const useCrawlLive = (): CrawlLive => {
     const applyBatch = useCrawlStore((state) => state.applyBatch);
 
     const metrics = useCrawlStore((state) => state.metrics);
+    const history = useCrawlStore((state) => state.history);
     const workers = useCrawlStore((state) => state.workers);
     const recent = useCrawlStore((state) => state.recent);
-    const series = useCrawlStore((state) => state.series);
 
     const { status } = useChannel('/ws', { snapshot: applySnapshot, page: applyPage, batch: applyBatch });
 
-    return { metrics, workers, recent, series, status };
+    return { metrics, history, workers, recent, series: history.perMin, status };
 };

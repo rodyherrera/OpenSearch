@@ -10,7 +10,13 @@
 
 .dark,
 [data-theme="dark"] {
-    --background: #090909;
+    --background: #08090a;
+    --chart: #7c86ff;
+}
+
+.light,
+[data-theme="light"] {
+    --chart: #5e6ad2;
 }
 
 .button {

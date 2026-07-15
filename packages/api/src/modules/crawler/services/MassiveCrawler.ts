@@ -9,6 +9,7 @@ import { isAllowed } from '@/modules/crawler/services/RobotsGuard';
 import { publishCrawlEvent, publishPageEvent } from '@/modules/crawler/services/CrawlEventPublisher';
 import CrawlerControlService from '@/modules/crawler/services/CrawlerControlService';
 import WebsiteService from '@/modules/website/services/WebsiteService';
+import GraphService from '@/modules/graph/services/GraphService';
 import type { WebsitePageRecord } from '@/modules/website/contracts/domain/website';
 import type { MassiveCrawlerOptions } from '@/modules/crawler/contracts/domain/crawl';
 import type { Tuning } from '@/modules/crawler/contracts/domain/control';
@@ -30,6 +31,7 @@ export default class MassiveCrawler extends EventEmitter{
     #running = false;
     #websites = new WebsiteService();
     #control = new CrawlerControlService();
+    #graph = new GraphService();
 
     constructor(opts: MassiveCrawlerOptions){
         super();
@@ -145,6 +147,10 @@ export default class MassiveCrawler extends EventEmitter{
         const records = results.filter((r): r is PageRecord => r !== null);
 
         const stored = await this.#store(records);
+
+        // Persist the domain graph so it survives reloads (fed to the dashboard via
+        // GET /api/v1/graph). Fire-and-forget so it never slows the crawl loop.
+        void this.#graph.recordBatch(records);
 
         const discovered = records.flatMap((r) => r.links);
         const added = await this.#frontier.enqueue(discovered);

@@ -1,36 +1,69 @@
 import { useCrawlLive } from '@/shared/hooks/live/useCrawlLive';
 import MetricCard from '@/modules/overview/components/MetricCard';
-import Sparkline from '@/modules/overview/components/Sparkline';
 import RecentFeed from '@/modules/overview/components/RecentFeed';
+import type { ChannelStatus } from '@/shared/contracts/channel';
+
+const STATUS_LABEL: Record<ChannelStatus, string> = {
+    open: 'Live',
+    connecting: 'Connecting',
+    reconnecting: 'Reconnecting',
+    closed: 'Offline'
+};
 
 const Overview = () => {
-    const { metrics, recent, series } = useCrawlLive();
+    const { metrics, history, recent, status } = useCrawlLive();
+    const dotClass = status === 'open' ? 'bg-[var(--chart)]' : status === 'closed' ? 'bg-danger' : 'bg-warning';
 
     return (
-        <div className='flex flex-col gap-6'>
-            <h1 className='text-2xl font-semibold text-foreground'>Overview</h1>
+        <div className='mx-auto flex max-w-6xl flex-col gap-8'>
+            <div className='flex items-center justify-between'>
+                <h1 className='text-xl font-semibold tracking-tight text-foreground'>Overview</h1>
+                <span className='inline-flex items-center gap-2 rounded-full border border-foreground/10 px-3 py-1 text-xs text-muted'>
+                    <span className={`size-1.5 rounded-full ${dotClass}`} aria-hidden='true' />
+                    {STATUS_LABEL[status]}
+                </span>
+            </div>
 
-            <div className='grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5'>
+            <div className='grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3'>
                 <MetricCard
                     label='Pages indexed'
                     value={metrics.stored}
-                    sub={`${metrics.websites.toLocaleString()} in DB`}
+                    context={`${metrics.websites.toLocaleString()} in database`}
+                    series={history.stored}
+                    live
                 />
-                <MetricCard label='Domains' value={metrics.domains} sub='unique sites discovered' />
-                <MetricCard label='Speed' value={`${metrics.perMin.toLocaleString()}/min`} sub='pages / min' />
-                <MetricCard label='Frontier queued' value={metrics.frontier} sub='URLs waiting' />
-                <MetricCard label='Discovered' value={metrics.seen} sub='unique URLs seen' />
+                <MetricCard
+                    label='Domains'
+                    value={metrics.domains}
+                    context='unique sites discovered'
+                    series={history.domains}
+                    live
+                />
+                <MetricCard
+                    label='Speed'
+                    value={`${metrics.perMin.toLocaleString()}/min`}
+                    context='pages per minute'
+                    series={history.perMin}
+                    live
+                />
+                <MetricCard
+                    label='Frontier'
+                    value={metrics.frontier}
+                    context='URLs queued'
+                    series={history.frontier}
+                    live
+                />
+                <MetricCard
+                    label='Discovered'
+                    value={metrics.seen}
+                    context='unique URLs seen'
+                    series={history.seen}
+                    live
+                />
             </div>
 
-            <section className='rounded-lg border border-foreground/10 bg-surface-secondary p-4'>
-                <h2 className='mb-3 text-sm font-semibold text-foreground'>
-                    Crawl speed (last ~60 ticks)
-                </h2>
-                <Sparkline data={series} />
-            </section>
-
-            <section className='rounded-lg border border-foreground/10 bg-surface-secondary p-4'>
-                <h2 className='mb-3 text-sm font-semibold text-foreground'>Recently indexed</h2>
+            <section className='flex flex-col gap-4'>
+                <h2 className='text-sm font-medium text-muted'>Recently indexed</h2>
                 <RecentFeed items={recent} />
             </section>
         </div>
