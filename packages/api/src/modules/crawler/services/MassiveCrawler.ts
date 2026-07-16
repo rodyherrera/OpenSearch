@@ -90,20 +90,37 @@ export default class MassiveCrawler extends EventEmitter{
     async #routeLinks(records: ParsedPage[], workspaceByUrl: Map<string, string | null>): Promise<number>{
         const origins = [...new Set([...workspaceByUrl.values()].filter((id): id is string => Boolean(id)))];
         const domainsByWorkspace = new Map<string, Set<string>>();
+        const followExternalByWorkspace = new Map<string, boolean>();
         await Promise.all(origins.map(async (id) => {
-            domainsByWorkspace.set(id, await this.#frontier.getWorkspaceDomains(id));
+            const [domains, followExternal] = await Promise.all([
+                this.#frontier.getWorkspaceDomains(id),
+                this.#frontier.getWorkspaceFollowExternal(id)
+            ]);
+            domainsByWorkspace.set(id, domains);
+            followExternalByWorkspace.set(id, followExternal);
         }));
 
         const globalLinks: string[] = [];
         const workspaceLinks = new Map<string, string[]>();
+        const externalLinks = new Map<string, string[]>();
+        const push = (map: Map<string, string[]>, workspaceId: string, link: string) => {
+            const bucket = map.get(workspaceId) ?? [];
+            bucket.push(link);
+            map.set(workspaceId, bucket);
+        };
+
         for(const record of records){
             const workspaceId = workspaceByUrl.get(record.url) ?? null;
             const domains = workspaceId ? domainsByWorkspace.get(workspaceId) : undefined;
+            const onSeedDomain = Boolean(domains?.has(domainOf(record.url)));
+            const followExternal = workspaceId ? Boolean(followExternalByWorkspace.get(workspaceId)) : false;
+
             for(const link of record.links){
                 if(workspaceId && domains?.has(domainOf(link))){
-                    const bucket = workspaceLinks.get(workspaceId) ?? [];
-                    bucket.push(link);
-                    workspaceLinks.set(workspaceId, bucket);
+                    push(workspaceLinks, workspaceId, link);
+                }else if(workspaceId && followExternal && onSeedDomain){
+                    push(workspaceLinks, workspaceId, link);
+                    push(externalLinks, workspaceId, link);
                 }else{
                     globalLinks.push(link);
                 }
@@ -113,6 +130,12 @@ export default class MassiveCrawler extends EventEmitter{
         let added = await this.#frontier.enqueue(globalLinks);
         for(const [workspaceId, links] of workspaceLinks){
             added += await this.#frontier.enqueue(links, workspaceId);
+        }
+        // A one-hop external link is often already in the shared corpus, so the
+        // enqueue above dedupes it away. Adopt those existing pages into the
+        // workspace directly so followExternal actually widens the corpus.
+        for(const [workspaceId, links] of externalLinks){
+            void this.#websites.stampWorkspaceByUrls(links, workspaceId);
         }
         return added;
     }

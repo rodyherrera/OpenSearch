@@ -8,9 +8,14 @@ export interface WorkspaceMember{
     role: WorkspaceRole;
 }
 
+export interface WorkspaceCrawlConfig{
+    followExternal: boolean;
+}
+
 export interface WorkspaceDocument extends Document{
     name: string;
     members: WorkspaceMember[];
+    crawl?: WorkspaceCrawlConfig;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -25,5 +30,8 @@ export default defineModel<WorkspaceDocument>('Workspace', {
     members: [{
         userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
         role: { type: String, enum: ['owner', 'member'], default: 'member' }
-    }]
+    }],
+    crawl: {
+        followExternal: { type: Boolean, default: false }
+    }
 }, configure);

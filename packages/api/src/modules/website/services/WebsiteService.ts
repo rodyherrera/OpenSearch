@@ -30,6 +30,15 @@ export default class WebsiteService{
         return result.modifiedCount ?? 0;
     }
 
+    async stampWorkspaceByUrls(urls: string[], workspaceId: string): Promise<number>{
+        if(!urls.length) return 0;
+        const result = await Website.updateMany(
+            { url: { $in: urls } },
+            { $addToSet: { workspaces: workspaceId } }
+        );
+        return result.modifiedCount ?? 0;
+    }
+
     async estimatedCount(): Promise<number>{
         return Website.estimatedDocumentCount();
     }

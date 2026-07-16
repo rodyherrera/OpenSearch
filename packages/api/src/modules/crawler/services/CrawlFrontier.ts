@@ -14,8 +14,10 @@ const RECENT_KEY = 'frontier:recent';
 const WORKERS_KEY = 'frontier:workers';
 const DOMAIN_KEY = (domain: string) => `frontier:cooldown:${domain}`;
 const DOMPAGES_KEY = (domain: string) => `frontier:dompages:${domain}`;
-const ORIGIN_KEY = 'frontier:origin';
 const WS_DOMAINS_KEY = (workspaceId: string) => `frontier:ws:${workspaceId}:domains`;
+const WS_QUEUE_KEY = (workspaceId: string) => `frontier:ws:${workspaceId}:queue`;
+const WS_FOLLOWEXT_KEY = (workspaceId: string) => `frontier:ws:${workspaceId}:followext`;
+const WS_ACTIVE_KEY = 'frontier:ws:active';
 
 export interface FrontierItem{
     url: string;
@@ -119,22 +121,16 @@ export default class CrawlFrontier{
             multi.zAdd(DOMRATE_KEY, { score: now, value: `${now}:${newDomains.length}:${Math.round(now % 100000)}` });
             multi.zRemRangeByScore(DOMRATE_KEY, 0, now - 120000);
         }
-        if(priorityUrls.length) multi.rPush(PRIORITY_KEY, priorityUrls);
-        if(normalUrls.length) multi.rPush(QUEUE_KEY, normalUrls);
-        if(workspaceId && seenToAdd.length){
-            multi.hSet(ORIGIN_KEY, Object.fromEntries(seenToAdd.map((url) => [url, workspaceId])));
+        if(workspaceId){
+            multi.rPush(WS_QUEUE_KEY(workspaceId), seenToAdd);
+            multi.sAdd(WS_ACTIVE_KEY, workspaceId);
+        }else{
+            if(priorityUrls.length) multi.rPush(PRIORITY_KEY, priorityUrls);
+            if(normalUrls.length) multi.rPush(QUEUE_KEY, normalUrls);
         }
         await multi.exec();
 
         return seenToAdd.length;
-    }
-
-    async #attachOrigins(urls: string[]): Promise<FrontierItem[]>{
-        if(!urls.length) return [];
-        const redis = await getRedis();
-        const origins = await redis.hmGet(ORIGIN_KEY, urls);
-        void redis.hDel(ORIGIN_KEY, urls);
-        return urls.map((url, i) => ({ url, workspaceId: (origins[i] as string) || null }));
     }
 
     async registerWorkspaceDomains(workspaceId: string, domains: string[]): Promise<void>{
@@ -149,7 +145,74 @@ export default class CrawlFrontier{
         return new Set(await redis.sMembers(WS_DOMAINS_KEY(workspaceId)));
     }
 
-    async dequeue(count: number): Promise<FrontierItem[]>{
+    async setWorkspaceFollowExternal(workspaceId: string, on: boolean): Promise<void>{
+        const redis = await getRedis();
+        if(on) await redis.set(WS_FOLLOWEXT_KEY(workspaceId), '1');
+        else await redis.del(WS_FOLLOWEXT_KEY(workspaceId));
+    }
+
+    async getWorkspaceFollowExternal(workspaceId: string): Promise<boolean>{
+        const redis = await getRedis();
+        return (await redis.exists(WS_FOLLOWEXT_KEY(workspaceId))) === 1;
+    }
+
+    async #claimByDomain(urls: string[]): Promise<{ ready: string[]; blocked: string[] }>{
+        if(this.#domainDelayMs <= 0) return { ready: urls, blocked: [] };
+        const redis = await getRedis();
+        const multi = redis.multi();
+        for(const url of urls) multi.set(DOMAIN_KEY(domainOf(url) || '_'), '1', { NX: true, PX: this.#domainDelayMs });
+        const claims = await multi.exec();
+        const ready: string[] = [];
+        const blocked: string[] = [];
+        for(let i = 0; i < urls.length; i++){
+            const claim = claims[i] as unknown;
+            (claim === 'OK' || claim === true ? ready : blocked).push(urls[i]);
+        }
+        return { ready, blocked };
+    }
+
+    // Fair share for active workspace crawls: round-robin a slice of the batch across
+    // their lanes so a large global backlog can't starve a freshly-seeded workspace,
+    // and no single workspace can monopolise the reserved slice.
+    async #drainWorkspaces(budget: number): Promise<FrontierItem[]>{
+        if(budget <= 0) return [];
+        const redis = await getRedis();
+        const active = await redis.sMembers(WS_ACTIVE_KEY);
+        if(!active.length) return [];
+
+        const perLane = Math.max(1, Math.ceil(budget / active.length));
+        const pickedByLane = new Map<string, string[]>();
+        const emptied: string[] = [];
+        let total = 0;
+        for(const workspaceId of active){
+            if(total >= budget) break;
+            const take = Math.min(perLane, budget - total);
+            const urls = (await redis.lPopCount(WS_QUEUE_KEY(workspaceId), take)) || [];
+            if(urls.length) pickedByLane.set(workspaceId, urls);
+            total += urls.length;
+            if(urls.length < take && (await redis.lLen(WS_QUEUE_KEY(workspaceId))) === 0) emptied.push(workspaceId);
+        }
+        if(emptied.length) await redis.sRem(WS_ACTIVE_KEY, emptied);
+        if(!pickedByLane.size) return [];
+
+        const ready: FrontierItem[] = [];
+        const requeue = redis.multi();
+        let hasRequeue = false;
+        for(const [workspaceId, urls] of pickedByLane){
+            const { ready: claimed, blocked } = await this.#claimByDomain(urls);
+            for(const url of claimed) ready.push({ url, workspaceId });
+            if(blocked.length){
+                requeue.rPush(WS_QUEUE_KEY(workspaceId), blocked);
+                requeue.sAdd(WS_ACTIVE_KEY, workspaceId);
+                hasRequeue = true;
+            }
+        }
+        if(hasRequeue) await requeue.exec();
+        return ready;
+    }
+
+    async #pickGlobal(count: number): Promise<string[]>{
+        if(count <= 0) return [];
         const redis = await getRedis();
 
         const popFromBoth = async (n: number): Promise<string[]> => {
@@ -160,7 +223,7 @@ export default class CrawlFrontier{
         };
 
         if(this.#domainDelayMs <= 0){
-            return this.#attachOrigins(await popFromBoth(count));
+            return popFromBoth(count);
         }
 
         const window = count * 4;
@@ -168,41 +231,28 @@ export default class CrawlFrontier{
         if(!popped.length) return [];
 
         const candidates: string[] = [];
-        const candidateDomains: string[] = [];
         const leftovers: string[] = [];
         const pickedDomains = new Set<string>();
-
         for(const url of popped){
             const domain = domainOf(url) || '_';
             if(!pickedDomains.has(domain) && candidates.length < count){
                 pickedDomains.add(domain);
                 candidates.push(url);
-                candidateDomains.push(domain);
             }else{
                 leftovers.push(url);
             }
         }
 
-        const multi = redis.multi();
-        for(const domain of candidateDomains){
-            multi.set(DOMAIN_KEY(domain), '1', { NX: true, PX: this.#domainDelayMs });
-        }
-        const claims = await multi.exec();
+        const { ready, blocked } = await this.#claimByDomain(candidates);
+        const back = leftovers.concat(blocked);
+        if(back.length) await redis.rPush(QUEUE_KEY, back);
+        return ready;
+    }
 
-        const ready: string[] = [];
-        for(let i = 0; i < candidates.length; i++){
-            const claim = claims[i] as unknown;
-            const claimed = claim === 'OK' || claim === true;
-            if(claimed){
-                ready.push(candidates[i]);
-            }else{
-                leftovers.push(candidates[i]);
-            }
-        }
-
-        if(leftovers.length) await redis.rPush(QUEUE_KEY, leftovers);
-
-        return this.#attachOrigins(ready);
+    async dequeue(count: number): Promise<FrontierItem[]>{
+        const workspaceItems = await this.#drainWorkspaces(Math.ceil(count / 2));
+        const globalUrls = await this.#pickGlobal(count - workspaceItems.length);
+        return [...workspaceItems, ...globalUrls.map((url) => ({ url, workspaceId: null }))];
     }
 
     async size(): Promise<number>{
@@ -211,7 +261,16 @@ export default class CrawlFrontier{
         multi.lLen(PRIORITY_KEY);
         multi.lLen(QUEUE_KEY);
         const [pri, normal] = await multi.exec();
-        return (Number(pri) || 0) + (Number(normal) || 0);
+        let total = (Number(pri) || 0) + (Number(normal) || 0);
+
+        const active = await redis.sMembers(WS_ACTIVE_KEY);
+        if(active.length){
+            const laneMulti = redis.multi();
+            for(const workspaceId of active) laneMulti.lLen(WS_QUEUE_KEY(workspaceId));
+            const lengths = await laneMulti.exec();
+            for(const length of lengths) total += Number(length) || 0;
+        }
+        return total;
     }
 
     async domainCount(): Promise<number>{

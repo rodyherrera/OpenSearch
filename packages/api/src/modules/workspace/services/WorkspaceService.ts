@@ -4,6 +4,7 @@ import RuntimeError from '@/shared/errors/RuntimeError';
 import User from '@/modules/auth/models/User';
 import Seed from '@/modules/seed/models/Seed';
 import WebsiteService from '@/modules/website/services/WebsiteService';
+import CrawlFrontier from '@/modules/crawler/services/CrawlFrontier';
 import Workspace, { type WorkspaceDocument } from '@/modules/workspace/models/Workspace';
 import { PublicWorkspace, WorkspaceError } from '@/modules/workspace/contracts/domain/workspace';
 
@@ -11,13 +12,29 @@ const DEFAULT_NAME = 'Personal';
 
 const toPublic = (doc: WorkspaceDocument, userId: string): PublicWorkspace => {
     const membership = doc.members.find((member) => String(member.userId) === userId);
-    return { id: doc.id, name: doc.name, role: membership?.role ?? 'member' };
+    return {
+        id: doc.id,
+        name: doc.name,
+        role: membership?.role ?? 'member',
+        followExternal: doc.crawl?.followExternal ?? false
+    };
 };
 
 export default class WorkspaceService{
+    #frontier = new CrawlFrontier();
+
     async listForUser(userId: string): Promise<PublicWorkspace[]>{
         const docs = await Workspace.find({ 'members.userId': userId }).sort({ createdAt: 1 });
         return docs.map((doc) => toPublic(doc, userId));
+    }
+
+    async update(userId: string, workspaceId: string, followExternal: boolean): Promise<PublicWorkspace>{
+        const doc = await this.getIfMember(workspaceId, userId);
+        if(!doc) throw new RuntimeError(WorkspaceError.NotFound, 404);
+        doc.crawl = { followExternal };
+        await doc.save();
+        await this.#frontier.setWorkspaceFollowExternal(workspaceId, followExternal);
+        return toPublic(doc, userId);
     }
 
     async create(userId: string, name?: string): Promise<PublicWorkspace>{
@@ -67,6 +84,11 @@ export default class WorkspaceService{
                 const stamped = await new WebsiteService().stampWorkspaceByDomains(domains, target.id);
                 logger.info(`workspace: adopted ${orphans} pre-tenancy seed(s), stamped ${stamped} page(s)`, { workspace: target.id });
             }
+        }
+
+        const followers = await Workspace.find({ 'crawl.followExternal': true });
+        for(const workspace of followers){
+            await this.#frontier.setWorkspaceFollowExternal(workspace.id, true);
         }
     }
 }

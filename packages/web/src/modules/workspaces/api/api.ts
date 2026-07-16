@@ -5,5 +5,6 @@ const BASE = '/workspace';
 
 export const workspacesApi = {
     list: () => alova.Get<Workspace[]>(BASE),
-    create: (name: string) => alova.Post<Workspace>(BASE, { name })
+    create: (name: string) => alova.Post<Workspace>(BASE, { name }),
+    update: (id: string, followExternal: boolean) => alova.Patch<Workspace>(`${BASE}/${id}`, { followExternal })
 };

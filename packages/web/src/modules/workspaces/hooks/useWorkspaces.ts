@@ -12,6 +12,7 @@ export interface UseWorkspaces{
     loading: boolean;
     switchTo: (id: string) => void;
     create: (name: string) => Promise<Workspace>;
+    setFollowExternal: (on: boolean) => Promise<void>;
 }
 
 export const useWorkspaces = (): UseWorkspaces => {
@@ -42,7 +43,13 @@ export const useWorkspaces = (): UseWorkspaces => {
         return workspace;
     };
 
+    const setFollowExternal = async (on: boolean): Promise<void> => {
+        if(!activeId) return;
+        const updated = await workspacesApi.update(activeId, on);
+        setWorkspaces(workspaces.map((workspace) => (workspace.id === updated.id ? updated : workspace)));
+    };
+
     const active = workspaces.find((workspace) => workspace.id === activeId) ?? null;
 
-    return { workspaces, activeId, active, loading, switchTo, create };
+    return { workspaces, activeId, active, loading, switchTo, create, setFollowExternal };
 };
