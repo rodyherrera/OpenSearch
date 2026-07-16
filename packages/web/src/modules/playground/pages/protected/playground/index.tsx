@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Button } from '@heroui/react';
+import { Button, ScrollShadow } from '@heroui/react';
 import { Search, FileText, Map, Network, Code2, Check, Braces, Link2, ScrollText, Download, Share2 } from 'lucide-react';
-import Crosshairs from '@/shared/components/ui/Crosshairs';
+import { Canvas, Row } from '@/shared/components/ui/Blueprint';
 import EndpointPicker from '@/modules/playground/components/EndpointPicker';
+import RecentRuns from '@/modules/playground/components/RecentRuns';
+import { useRecentRuns } from '@/modules/playground/store/runs';
 import ResultMeta from '@/modules/playground/components/ResultMeta';
 import SearchResults from '@/modules/playground/components/SearchResults';
 import LinkList from '@/modules/playground/components/LinkList';
@@ -77,29 +79,6 @@ const download = (filename: string, text: string, type = 'application/json'): vo
 
 const ghostButton = 'inline-flex items-center gap-1.5 rounded-lg border border-hairline px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-foreground/5';
 
-interface RowProps{
-    children?: ReactNode;
-    className?: string;
-    grow?: boolean;
-    // Band width: Firecrawl's blueprint steps — narrow picker, medium request
-    // card, wide results — so the rails shift per band.
-    max?: string;
-}
-
-/**
- * One band of the blueprint grid: the horizontal hairline spans the full content
- * width while the centered column's rails and corner crosshairs mark the cell —
- * the signature Firecrawl playground framing.
- */
-const Row = ({ children, className = '', grow = false, max = 'max-w-4xl' }: RowProps) => (
-    <div className={`relative border-b border-hairline ${grow ? 'flex-1' : ''}`}>
-        <div className={`relative mx-auto h-full w-full border-x border-hairline ${max} ${className}`}>
-            <Crosshairs />
-            {children}
-        </div>
-    </div>
-);
-
 interface TabSpec{
     key: string;
     label: string;
@@ -153,6 +132,25 @@ const Playground = () => {
     const [copiedCode, setCopiedCode] = useState(false);
     const [copiedShare, setCopiedShare] = useState(false);
 
+    const { runs, record } = useRecentRuns();
+    const runStartRef = useRef(0);
+    const wasRunning = useRef(false);
+
+    // Log each finished run into the Recent Runs history (running: true → false).
+    useEffect(() => {
+        if(wasRunning.current && !pg.running && submitted){
+            record({
+                endpoint: submitted.endpoint,
+                query: submitted.value,
+                status: pg.error ? 'failed' : 'success',
+                startedAt: runStartRef.current || Date.now(),
+                formats: submitted.endpoint === 'scrape' || submitted.endpoint === 'crawl' ? ['Markdown'] : []
+            });
+        }
+        wasRunning.current = pg.running;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [pg.running]);
+
     // The sidebar deep-links endpoints via ?endpoint=; keep the runner in sync.
     // A shared ?q= prefills the input (without auto-running).
     useEffect(() => {
@@ -177,6 +175,7 @@ const Playground = () => {
         if(!pg.url.trim()) return;
         setSubmitted({ endpoint, value: pg.url.trim() });
         setView(DEFAULT_VIEW[endpoint]);
+        runStartRef.current = Date.now();
         void pg.run();
     };
 
@@ -206,7 +205,7 @@ const Playground = () => {
     const showResults = submitted !== null;
 
     return (
-        <div className='-mx-8 -mb-10 flex min-h-full flex-col'>
+        <Canvas>
             {/* Endpoint picker band — narrow cell hugging the tab strip */}
             <Row max='max-w-xl' className='flex justify-center px-6 pt-7 pb-5'>
                 <EndpointPicker endpoint={endpoint} onSelect={selectEndpoint} />
@@ -308,9 +307,11 @@ const Playground = () => {
                 </>
             ) : null}
 
+            <RecentRuns runs={runs} />
+
             {/* Bottom filler so the rails run the full height of the canvas. */}
             <Row grow />
-        </div>
+        </Canvas>
     );
 };
 
@@ -461,9 +462,11 @@ const ResultBody = ({ endpoint, result, view, onView, onScrape }: ResultBodyProp
                     />
                     <div className='bg-foreground/[0.02]'>
                         {view === 'markdown' ? (
-                            <pre className='max-h-[32rem] overflow-auto px-8 py-5 font-mono text-xs leading-relaxed whitespace-pre-wrap break-words text-foreground/90'>
-                                {markdown}
-                            </pre>
+                            <ScrollShadow className='max-h-[32rem] px-8 py-5'>
+                                <pre className='font-mono text-xs leading-relaxed whitespace-pre-wrap break-words text-foreground/90'>
+                                    {markdown}
+                                </pre>
+                            </ScrollShadow>
                         ) : (
                             <JsonView value={result} className='max-h-[32rem] px-8 py-5' />
                         )}

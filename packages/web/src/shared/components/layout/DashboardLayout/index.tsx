@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { ScrollShadow } from '@heroui/react';
 import {
     LayoutDashboard,
     FileText,
@@ -130,7 +131,7 @@ const DashboardLayout = () => {
                     {collapsed ? null : <span className='text-[15px] font-semibold tracking-tight'>Crawlm</span>}
                 </div>
 
-                <nav className='flex flex-1 flex-col overflow-x-hidden overflow-y-auto pt-1 pb-4'>
+                <ScrollShadow hideScrollBar role='navigation' className='flex min-h-0 flex-1 flex-col overflow-x-hidden pt-1 pb-4'>
                     {SECTIONS.map((section, index) => (
                         <div key={section.label ?? index} className='flex flex-col gap-0.5'>
                             {section.label ? (
@@ -161,7 +162,7 @@ const DashboardLayout = () => {
                             })}
                         </div>
                     ))}
-                </nav>
+                </ScrollShadow>
 
                 <div className={`flex items-center gap-2.5 border-t border-hairline py-3 ${collapsed ? 'justify-center px-0' : 'px-4'}`}>
                     <span className='grid size-7 shrink-0 place-items-center rounded-full bg-accent/15 font-mono text-[10px] font-semibold text-accent'>
@@ -201,8 +202,10 @@ const DashboardLayout = () => {
                         <LogOut className='size-4' />
                     </button>
                 </header>
-                <main className='relative min-h-0 flex-1 overflow-y-scroll px-8 pb-10'>
-                    <Outlet />
+                <main className='relative min-h-0 flex-1'>
+                    <ScrollShadow className='h-full px-8 pb-10'>
+                        <Outlet />
+                    </ScrollShadow>
                 </main>
             </div>
         </div>

@@ -1,3 +1,4 @@
+import { useSearchParams } from 'react-router-dom';
 import DataTable from '@/shared/components/DataTable';
 import AddSeedModal from '@/modules/seeds/components/AddSeedModal';
 import { useSeedList } from '@/modules/seeds/hooks/useSeedList';
@@ -36,11 +37,15 @@ const columns: Column<PublicSeed>[] = [
 
 const Seeds = () => {
     const list = useSeedList();
+    const [, setSearchParams] = useSearchParams();
+
+    const setQuery = (value: string) => setSearchParams(value ? { q: value } : {}, { replace: true });
 
     return (
         <DataTable
             title='Seeds'
             subtitle='Every seed URL saved to the index, newest first.'
+            search={{ value: list.query, onChange: setQuery, placeholder: 'Filter seeds…' }}
             columns={columns}
             rows={list.items}
             rowKey={(row) => row.id}

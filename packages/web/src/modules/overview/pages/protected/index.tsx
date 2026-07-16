@@ -5,33 +5,15 @@ import QuickActions from '@/modules/overview/components/QuickActions';
 import WorkersPanel from '@/modules/overview/components/WorkersPanel';
 import TopDomains from '@/modules/overview/components/TopDomains';
 import Crosshairs from '@/shared/components/ui/Crosshairs';
-import type { ChannelStatus } from '@/shared/contracts/channel';
-
-const STATUS_LABEL: Record<ChannelStatus, string> = {
-    open: 'Live',
-    connecting: 'Connecting',
-    reconnecting: 'Reconnecting',
-    closed: 'Offline'
-};
 
 const Overview = () => {
-    const { metrics, history, recent, workers, status } = useCrawlLive();
-    const live = status === 'open';
+    const { metrics, history, recent, workers } = useCrawlLive();
 
     return (
         <div className='flex flex-col gap-8 pt-10'>
-            <header className='flex items-end justify-between gap-4'>
-                <div className='flex flex-col gap-2'>
-                    <h1 className='text-4xl font-semibold tracking-tight text-foreground'>Overview</h1>
-                    <p className='text-[15px] text-muted'>Live crawl metrics, streaming as pages land.</p>
-                </div>
-                <span className='mono-label inline-flex shrink-0 items-center gap-2 rounded-full border border-hairline px-3 py-1.5 text-muted'>
-                    <span
-                        className={`size-1.5 rounded-full ${live ? 'animate-pulse bg-accent' : 'bg-danger'}`}
-                        aria-hidden='true'
-                    />
-                    {STATUS_LABEL[status]}
-                </span>
+            <header className='flex flex-col gap-2'>
+                <h1 className='text-4xl font-semibold tracking-tight text-foreground'>Overview</h1>
+                <p className='text-[15px] text-muted'>Live crawl metrics, streaming as pages land.</p>
             </header>
 
             {/* Firecrawl-style stat band: one bordered container, hairline dividers drawn

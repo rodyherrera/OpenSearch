@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Trash2 } from 'lucide-react';
 import DataTable from '@/shared/components/DataTable';
 import { usePages } from '@/modules/pages/hooks/usePages';
@@ -18,7 +19,10 @@ const messageFrom = (error: unknown): string =>
 
 const Pages = () => {
     const { items, loading, loaded, hasMore, loadMore, query, removing, remove } = usePages();
+    const [, setSearchParams] = useSearchParams();
     const [error, setError] = useState<string | null>(null);
+
+    const setQuery = (value: string) => setSearchParams(value ? { q: value } : {}, { replace: true });
 
     const onDelete = async (site: PublicWebsite) => {
         const label = site.title ?? site.url;
@@ -104,22 +108,21 @@ const Pages = () => {
     ];
 
     return (
-        <div className='flex flex-col gap-3'>
-            <DataTable
-                title='Pages'
-                subtitle={query ? `Pages matching “${query}”.` : 'Every page in the index, newest first.'}
-                columns={columns}
-                rows={items}
-                rowKey={(row) => row.id}
-                loading={!loaded}
-                emptyLabel={query ? 'No pages match your search' : 'No pages indexed yet'}
-                initialSort={{ key: 'created', dir: 'desc' }}
-                hasMore={hasMore}
-                loadingMore={loading}
-                onLoadMore={() => void loadMore()}
-            />
-            {error ? <p className='text-sm text-danger'>{error}</p> : null}
-        </div>
+        <DataTable
+            title='Pages'
+            subtitle='Every page in the index, newest first.'
+            search={{ value: query, onChange: setQuery, placeholder: 'Search pages…' }}
+            columns={columns}
+            rows={items}
+            rowKey={(row) => row.id}
+            loading={!loaded}
+            emptyLabel={query ? 'No pages match your search' : 'No pages indexed yet'}
+            initialSort={{ key: 'created', dir: 'desc' }}
+            hasMore={hasMore}
+            loadingMore={loading}
+            onLoadMore={() => void loadMore()}
+            notice={error ? <p className='text-sm text-danger'>{error}</p> : null}
+        />
     );
 };
 

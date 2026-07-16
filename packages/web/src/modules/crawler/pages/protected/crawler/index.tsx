@@ -2,14 +2,15 @@ import { useEffect, useRef, useState } from 'react';
 import { useRequest } from 'alova/client';
 import { safeParse } from 'valibot';
 import { Button, Switch, Spinner } from '@heroui/react';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Activity, SlidersHorizontal, TriangleAlert } from 'lucide-react';
+import { Canvas, Row } from '@/shared/components/ui/Blueprint';
 import { Form } from '@/shared/components/forms/Form';
 import { Field } from '@/shared/components/forms/Field';
 import { useForm } from '@/shared/hooks/forms/useForm';
 import { crawlerApi } from '@/modules/crawler/api/api';
 import { useCrawlerControl } from '@/modules/crawler/hooks/useCrawlerControl';
 import { TuningSchema } from '@/modules/crawler/contracts/crawler';
-import type { ReactNode } from 'react';
+import type { ComponentType, ReactNode } from 'react';
 import type { FieldBinding } from '@/shared/contracts/form';
 import type { CrawlerControlApi } from '@/modules/crawler/hooks/useCrawlerControl';
 import type { Tuning, TuningInput } from '@/modules/crawler/contracts/crawler';
@@ -30,20 +31,19 @@ const NUMBER_FIELDS: NumberFieldSpec[] = [
     { name: 'timeoutMs', label: 'Timeout (ms)', hint: 'Per-request fetch timeout.', min: 1000, step: 500 }
 ];
 
-const cardClass = 'rounded-xl border border-hairline bg-surface p-6';
 const inputClass =
-    'w-full rounded-lg border border-hairline bg-background px-3 py-2 text-sm tabular-nums text-foreground placeholder:text-muted transition-colors focus:border-foreground/30 focus:outline-none disabled:opacity-60';
+    'w-full rounded-lg border border-hairline bg-surface px-3 py-2 text-sm tabular-nums text-foreground placeholder:text-muted transition-colors focus:border-accent/50 focus:outline-none disabled:opacity-60';
 
-// A section = bold heading (+ optional subtitle and right-aligned action) over a card.
-interface SectionProps{
+// A settings block: heading + optional subtitle and right-aligned action, then content.
+interface BlockProps{
     title: string;
     subtitle?: string;
     action?: ReactNode;
     children: ReactNode;
 }
 
-const Section = ({ title, subtitle, action, children }: SectionProps) => (
-    <section className='flex flex-col gap-4'>
+const Block = ({ title, subtitle, action, children }: BlockProps) => (
+    <section className='flex flex-col gap-5'>
         <div className='flex items-start justify-between gap-3'>
             <div className='flex flex-col gap-1'>
                 <h2 className='text-base font-semibold text-foreground'>{title}</h2>
@@ -51,7 +51,7 @@ const Section = ({ title, subtitle, action, children }: SectionProps) => (
             </div>
             {action ? <div className='flex shrink-0 items-center gap-1'>{action}</div> : null}
         </div>
-        <div className={cardClass}>{children}</div>
+        {children}
     </section>
 );
 
@@ -67,7 +67,7 @@ interface ToggleRowProps{
 const ToggleRow = ({ title, description, isSelected, onChange, disabled }: ToggleRowProps) => (
     <div className='flex items-center justify-between gap-4'>
         <div className='flex flex-col'>
-            <span className='text-sm font-semibold text-foreground'>{title}</span>
+            <span className='text-sm font-medium text-foreground'>{title}</span>
             <span className='text-xs text-muted'>{description}</span>
         </div>
         <Switch isSelected={isSelected} onChange={onChange} isDisabled={disabled} aria-label={title}>
@@ -89,7 +89,7 @@ const TuningField = ({ spec, binding }: TuningFieldProps) => {
     const value = typeof binding.value === 'number' && !Number.isNaN(binding.value) ? String(binding.value) : '';
     return (
         <div className='flex flex-col gap-1.5'>
-            <label htmlFor={spec.name} className='text-sm font-semibold text-foreground'>{spec.label}</label>
+            <label htmlFor={spec.name} className='text-sm font-medium text-foreground'>{spec.label}</label>
             <input
                 id={spec.name}
                 type='number'
@@ -122,7 +122,7 @@ const AUTOSAVE_MS = 800;
 
 const SAVE_HINTS: Partial<Record<SaveState, { className: string; text: string }>> = {
     saving: { className: 'text-muted', text: 'Saving…' },
-    saved: { className: 'text-success', text: 'Saved — applies next tick.' },
+    saved: { className: 'text-accent', text: 'Saved — applies next tick.' },
     error: { className: 'text-danger', text: 'Save failed.' }
 };
 
@@ -175,7 +175,7 @@ const TuningPanel = ({ tuning, onSave }: TuningPanelProps) => {
     const hint = SAVE_HINTS[saveState];
 
     return (
-        <Section
+        <Block
             title='Tuning'
             subtitle='Adjust the crawl profile. Changes save automatically and apply on the next tick.'
             action={hint ? <span className={`text-xs ${hint.className}`}>{hint.text}</span> : null}
@@ -189,18 +189,20 @@ const TuningPanel = ({ tuning, onSave }: TuningPanelProps) => {
                     ))}
                 </div>
 
-                <Field form={form} name='respectRobots'>
-                    {(binding) => (
-                        <ToggleRow
-                            title='Respect robots.txt'
-                            description="Honor each site's crawl directives."
-                            isSelected={Boolean(binding.value)}
-                            onChange={binding.onChange}
-                        />
-                    )}
-                </Field>
+                <div className='border-t border-hairline pt-5'>
+                    <Field form={form} name='respectRobots'>
+                        {(binding) => (
+                            <ToggleRow
+                                title='Respect robots.txt'
+                                description="Honor each site's crawl directives."
+                                isSelected={Boolean(binding.value)}
+                                onChange={binding.onChange}
+                            />
+                        )}
+                    </Field>
+                </div>
             </Form>
-        </Section>
+        </Block>
     );
 };
 
@@ -220,11 +222,11 @@ const DangerZone = () => {
     };
 
     return (
-        <Section title='Danger zone' subtitle='Destructive actions over the crawled index.'>
-            <div className='flex items-center justify-between gap-4'>
+        <Block title='Danger zone' subtitle='Destructive actions over the crawled index.'>
+            <div className='flex items-center justify-between gap-4 rounded-xl border border-danger/30 bg-danger/[0.03] px-5 py-4'>
                 <div className='flex flex-col'>
-                    <span className='text-sm font-semibold text-foreground'>Purge index</span>
-                    <span className={`text-xs ${outcome ? (outcome.tone === 'error' ? 'text-danger' : 'text-success') : 'text-muted'}`}>
+                    <span className='text-sm font-medium text-foreground'>Purge index</span>
+                    <span className={`text-xs ${outcome ? (outcome.tone === 'error' ? 'text-danger' : 'text-accent') : 'text-muted'}`}>
                         {outcome?.text ?? 'Delete every crawled page from the index.'}
                     </span>
                 </div>
@@ -232,64 +234,111 @@ const DangerZone = () => {
                     type='button'
                     onClick={() => void onPurge()}
                     disabled={purger.loading}
-                    className='inline-flex shrink-0 items-center gap-2 rounded-full border border-danger/30 px-5 py-2 text-sm font-semibold text-danger transition-colors hover:bg-danger/10 disabled:opacity-60'
+                    className='inline-flex shrink-0 items-center gap-2 rounded-lg border border-danger/40 px-4 py-2 text-sm font-medium text-danger transition-colors hover:bg-danger/10 disabled:opacity-60'
                 >
                     {purger.loading ? <Spinner size='sm' /> : null}
                     Purge all
                 </button>
             </div>
-        </Section>
+        </Block>
     );
 };
+
+type TabKey = 'general' | 'tuning' | 'danger';
+
+interface TabSpec{
+    key: TabKey;
+    label: string;
+    icon: ComponentType<{ className?: string }>;
+}
+
+const TABS: TabSpec[] = [
+    { key: 'general', label: 'General', icon: Activity },
+    { key: 'tuning', label: 'Tuning', icon: SlidersHorizontal },
+    { key: 'danger', label: 'Danger zone', icon: TriangleAlert }
+];
 
 const Crawler = () => {
     const control = useCrawlerControl();
     const { status, loading, error, refresh } = control;
-
-    if(!status){
-        if(loading){
-            return (
-                <div className='flex min-h-64 items-center justify-center gap-3 text-muted'>
-                    <Spinner />
-                    <span className='text-sm'>Loading crawler status…</span>
-                </div>
-            );
-        }
-
-        return (
-            <div className='mx-auto w-full max-w-3xl py-2'>
-                <div className={`${cardClass} flex flex-col items-start gap-3`}>
-                    <p className='text-sm text-danger'>{error?.message ?? 'Unable to load crawler status.'}</p>
-                    <Button variant='secondary' size='sm' onPress={refresh}>
-                        <RefreshCw className='size-4' />
-                        Retry
-                    </Button>
-                </div>
-            </div>
-        );
-    }
+    const [tab, setTab] = useState<TabKey>('general');
 
     return (
-        <div className='mx-auto flex w-full max-w-3xl flex-col gap-10 pt-10 pb-4'>
-            <header className='flex flex-col gap-2'>
+        <Canvas>
+            {/* Title band */}
+            <Row className='px-8 pt-16 pb-14'>
                 <h1 className='text-4xl font-semibold tracking-tight text-foreground'>Crawler</h1>
-                <p className='text-[15px] text-muted'>Control the crawl loop and tune its politeness profile.</p>
-            </header>
+                <p className='mt-3 text-[15px] text-muted'>
+                    Manage the crawl loop, tuning profile, and index maintenance
+                </p>
+            </Row>
 
-            <Section title='Crawl state' subtitle='Workers drain in-flight pages before halting.'>
-                <ToggleRow
-                    title={status.paused ? 'Crawl paused' : 'Crawl running'}
-                    description='Toggle the crawl on or off.'
-                    isSelected={!status.paused}
-                    onChange={(running) => (running ? control.resume() : control.pause())}
-                    disabled={control.toggling}
-                />
-            </Section>
+            {/* Settings body: side nav + content */}
+            <Row className='px-6 py-8'>
+                {!status ? (
+                    loading ? (
+                        <div className='flex min-h-48 items-center justify-center gap-3 text-muted'>
+                            <Spinner />
+                            <span className='text-sm'>Loading crawler status…</span>
+                        </div>
+                    ) : (
+                        <div className='flex flex-col items-start gap-3 rounded-xl border border-hairline bg-surface p-6'>
+                            <p className='text-sm text-danger'>{error?.message ?? 'Unable to load crawler status.'}</p>
+                            <Button variant='secondary' size='sm' onPress={refresh}>
+                                <RefreshCw className='size-4' />
+                                Retry
+                            </Button>
+                        </div>
+                    )
+                ) : (
+                    <div className='flex flex-col gap-8 md:flex-row'>
+                        <nav className='flex shrink-0 gap-1 self-start rounded-xl border border-hairline p-2 md:w-52 md:flex-col'>
+                            {TABS.map((entry) => {
+                                const Icon = entry.icon;
+                                const active = tab === entry.key;
+                                return (
+                                    <button
+                                        key={entry.key}
+                                        type='button'
+                                        onClick={() => setTab(entry.key)}
+                                        className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors md:w-full ${
+                                            active
+                                                ? 'bg-accent/10 font-medium text-accent'
+                                                : 'text-muted hover:bg-foreground/[0.04] hover:text-foreground'
+                                        }`}
+                                    >
+                                        <Icon className='size-4' />
+                                        {entry.label}
+                                    </button>
+                                );
+                            })}
+                        </nav>
 
-            <TuningPanel tuning={status.tuning} onSave={control.saveTuning} />
+                        <div className='min-w-0 flex-1'>
+                            {tab === 'general' ? (
+                                <Block title='Crawl state' subtitle='Workers drain in-flight pages before halting.'>
+                                    <div className='rounded-xl border border-hairline bg-surface px-5 py-4'>
+                                        <ToggleRow
+                                            title={status.paused ? 'Crawl paused' : 'Crawl running'}
+                                            description='Toggle the crawl on or off.'
+                                            isSelected={!status.paused}
+                                            onChange={(running) => (running ? control.resume() : control.pause())}
+                                            disabled={control.toggling}
+                                        />
+                                    </div>
+                                </Block>
+                            ) : null}
 
-            <DangerZone />
-        </div>
+                            {tab === 'tuning' ? <TuningPanel tuning={status.tuning} onSave={control.saveTuning} /> : null}
+
+                            {tab === 'danger' ? <DangerZone /> : null}
+                        </div>
+                    </div>
+                )}
+            </Row>
+
+            <Row grow />
+        </Canvas>
     );
 };
 

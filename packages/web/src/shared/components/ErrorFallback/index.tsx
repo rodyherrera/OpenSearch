@@ -1,4 +1,4 @@
-import { Button } from '@heroui/react';
+import { Button, ScrollShadow } from '@heroui/react';
 import { TriangleAlert } from 'lucide-react';
 import type { ErrorFallbackProps } from '@/shared/contracts/boundary';
 
@@ -16,10 +16,12 @@ const ErrorFallback = ({ error, reset }: ErrorFallbackProps) => {
                 </p>
 
                 {import.meta.env.DEV && (
-                    <pre className='mt-5 w-full overflow-auto rounded-md bg-surface p-3 text-left text-xs text-muted'>
-                        {error.message}
-                        {error.stack ? `\n\n${error.stack}` : ''}
-                    </pre>
+                    <ScrollShadow className='mt-5 max-h-64 w-full rounded-md bg-surface p-3'>
+                        <pre className='text-left text-xs text-muted'>
+                            {error.message}
+                            {error.stack ? `\n\n${error.stack}` : ''}
+                        </pre>
+                    </ScrollShadow>
                 )}
 
                 <div className='mt-7 flex w-full flex-col gap-2.5'>

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Trash2 } from 'lucide-react';
 import DataTable from '@/shared/components/DataTable';
 import { useDomains } from '@/modules/domains/hooks/useDomains';
@@ -15,7 +16,10 @@ const messageFrom = (error: unknown): string =>
 
 const Domains = () => {
     const { domains, loading, error, refresh, query, hasMore, loadMore, purging, purgeDomain } = useDomains();
+    const [, setSearchParams] = useSearchParams();
     const [notice, setNotice] = useState<Notice | null>(null);
+
+    const setQuery = (value: string) => setSearchParams(value ? { q: value } : {}, { replace: true });
 
     const onPurge = async (row: IndexedDomain) => {
         if(!window.confirm(`Purge every indexed page for “${row.domain}”? This cannot be undone.`)) return;
@@ -65,27 +69,26 @@ const Domains = () => {
     ];
 
     return (
-        <div className='flex flex-col gap-3'>
-            <DataTable
-                title='Domains'
-                subtitle='Registrable domains in the index, by page count.'
-                columns={columns}
-                rows={domains}
-                rowKey={(row) => row.domain}
-                loading={loading}
-                error={error}
-                onRefresh={refresh}
-                emptyLabel={query ? 'No domains match your filter' : 'No domains indexed yet'}
-                initialSort={{ key: 'pages', dir: 'desc' }}
-                hasMore={hasMore}
-                onLoadMore={loadMore}
-            />
-            {notice ? (
+        <DataTable
+            title='Domains'
+            subtitle='Registrable domains in the index, by page count.'
+            search={{ value: query, onChange: setQuery, placeholder: 'Filter domains…' }}
+            columns={columns}
+            rows={domains}
+            rowKey={(row) => row.domain}
+            loading={loading}
+            error={error}
+            onRefresh={refresh}
+            emptyLabel={query ? 'No domains match your filter' : 'No domains indexed yet'}
+            initialSort={{ key: 'pages', dir: 'desc' }}
+            hasMore={hasMore}
+            onLoadMore={loadMore}
+            notice={notice ? (
                 <p className={`text-sm ${notice.tone === 'error' ? 'text-danger' : 'text-muted'}`}>
                     {notice.text}
                 </p>
             ) : null}
-        </div>
+        />
     );
 };
 

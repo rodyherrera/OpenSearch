@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { ScrollShadow } from '@heroui/react';
 import type { ReactNode } from 'react';
 
 interface JsonViewProps{
@@ -42,15 +43,16 @@ const highlight = (source: string): ReactNode[] => {
 
 /**
  * Firecrawl-style JSON block: monospace, keys in soft foreground, string values
- * in the accent orange, punctuation muted.
+ * in the accent orange, punctuation muted. Scrolls inside a ScrollShadow, so
+ * clipped content fades at the edges; `className` sizes/pads the scroll area.
  */
 const JsonView = ({ value, className }: JsonViewProps) => {
     const nodes = useMemo(() => highlight(JSON.stringify(value, null, 2) ?? 'null'), [value]);
 
     return (
-        <pre className={`overflow-auto font-mono text-xs leading-relaxed whitespace-pre-wrap break-words ${className ?? ''}`}>
-            {nodes}
-        </pre>
+        <ScrollShadow className={className}>
+            <pre className='font-mono text-xs leading-relaxed whitespace-pre-wrap break-words'>{nodes}</pre>
+        </ScrollShadow>
     );
 };
 
