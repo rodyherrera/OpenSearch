@@ -26,3 +26,7 @@ export const publishPageEvent = async (
 export const publishControlEvent = async (paused: boolean, at: number): Promise<void> => {
     await publishCrawlEvent({ type: 'control', paused, at });
 };
+
+export const publishChangeEvent = async (workspaceId: string, urls: string[], at: number): Promise<void> => {
+    await publishCrawlEvent({ type: 'change', workspaceId, urls, count: urls.length, at });
+};

@@ -30,6 +30,22 @@ export default class HttpApplication{
             disableRequestLogging: true
         });
 
+        // Tolerate an empty body on application/json requests. Clients (and our fetch
+        // layer) tag every request as JSON, so a bodyless DELETE would otherwise be
+        // rejected with FST_ERR_CTP_EMPTY_JSON_BODY.
+        this.#app.addContentTypeParser('application/json', { parseAs: 'string' }, (_req, body, done) => {
+            if(!body){
+                done(null, undefined);
+                return;
+            }
+            try{
+                done(null, JSON.parse(body as string));
+            }catch(error){
+                (error as { statusCode?: number }).statusCode = 400;
+                done(error as Error, undefined);
+            }
+        });
+
         await this.#app.register(cors, {
             origin: config.corsOrigin,
             credentials: true

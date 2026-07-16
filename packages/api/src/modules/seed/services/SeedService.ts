@@ -33,7 +33,7 @@ export default class SeedService{
         await this.#frontier.registerWorkspaceDomains(workspaceId, domains);
         void this.#websites.stampWorkspaceByDomains(domains, workspaceId);
 
-        const enqueued = await this.#frontier.enqueue(normalized, workspaceId);
+        const enqueued = await this.#frontier.enqueueScoped(normalized, workspaceId);
 
         return { saved: result.upsertedCount ?? 0, enqueued };
     }

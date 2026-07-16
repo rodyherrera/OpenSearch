@@ -3,7 +3,7 @@ import pLimit from 'p-limit';
 import { config } from '@/shared/config';
 import { logger } from '@/core/utils/Logger';
 import CrawlFrontier, { domainOf } from '@/modules/crawler/services/CrawlFrontier';
-import { publishCrawlEvent, publishPageEvent } from '@/modules/crawler/services/CrawlEventPublisher';
+import { publishCrawlEvent, publishPageEvent, publishChangeEvent } from '@/modules/crawler/services/CrawlEventPublisher';
 import CrawlerControlService from '@/modules/crawler/services/CrawlerControlService';
 import WebsiteService from '@/modules/website/services/WebsiteService';
 import PageFetcher from '@/modules/extraction/services/PageFetcher';
@@ -74,17 +74,44 @@ export default class MassiveCrawler extends EventEmitter{
         return record;
     }
 
-    async #store(records: ParsedPage[], workspaceByUrl: Map<string, string | null>): Promise<number>{
-        if(!records.length) return 0;
-        const bulk: WebsitePageRecord[] = records.map(({ url, title, description, keywords, content, metaData }) => ({
+    // Global discovery pages stay insert-only for throughput; workspace pages go
+    // through the update-on-change path so continuous re-crawls refresh changed
+    // content and surface change events, bounded to workspace volume.
+    async #store(records: ParsedPage[], workspaceByUrl: Map<string, string | null>): Promise<{ stored: number; changed: string[] }>{
+        if(!records.length) return { stored: 0, changed: [] };
+        const toRecord = ({ url, title, description, keywords, content, metaData }: ParsedPage): WebsitePageRecord => ({
             url,
             title,
             description,
             keywords,
             content,
             metaData
-        }));
-        return this.#websites.bulkUpsert(bulk, workspaceByUrl);
+        });
+        const globalRecords: WebsitePageRecord[] = [];
+        const workspaceRecords: WebsitePageRecord[] = [];
+        for(const record of records){
+            (workspaceByUrl.get(record.url) ? workspaceRecords : globalRecords).push(toRecord(record));
+        }
+        await this.#websites.bulkUpsert(globalRecords);
+        const changed = workspaceRecords.length
+            ? await this.#websites.refreshUpsert(workspaceRecords, workspaceByUrl)
+            : [];
+        return { stored: globalRecords.length + workspaceRecords.length, changed };
+    }
+
+    async #publishChanges(changed: string[], workspaceByUrl: Map<string, string | null>, now: number): Promise<void>{
+        const byWorkspace = new Map<string, string[]>();
+        for(const url of changed){
+            const workspaceId = workspaceByUrl.get(url);
+            if(!workspaceId) continue;
+            const bucket = byWorkspace.get(workspaceId) ?? [];
+            bucket.push(url);
+            byWorkspace.set(workspaceId, bucket);
+        }
+        for(const [workspaceId, urls] of byWorkspace){
+            await this.#frontier.recordChanges(workspaceId, urls, now);
+            await publishChangeEvent(workspaceId, urls, now);
+        }
     }
 
     async #routeLinks(records: ParsedPage[], workspaceByUrl: Map<string, string | null>): Promise<number>{
@@ -101,7 +128,7 @@ export default class MassiveCrawler extends EventEmitter{
         }));
 
         const globalLinks: string[] = [];
-        const workspaceLinks = new Map<string, string[]>();
+        const scopedLinks = new Map<string, string[]>();
         const externalLinks = new Map<string, string[]>();
         const push = (map: Map<string, string[]>, workspaceId: string, link: string) => {
             const bucket = map.get(workspaceId) ?? [];
@@ -117,9 +144,8 @@ export default class MassiveCrawler extends EventEmitter{
 
             for(const link of record.links){
                 if(workspaceId && domains?.has(domainOf(link))){
-                    push(workspaceLinks, workspaceId, link);
+                    push(scopedLinks, workspaceId, link);
                 }else if(workspaceId && followExternal && onSeedDomain){
-                    push(workspaceLinks, workspaceId, link);
                     push(externalLinks, workspaceId, link);
                 }else{
                     globalLinks.push(link);
@@ -128,13 +154,16 @@ export default class MassiveCrawler extends EventEmitter{
         }
 
         let added = await this.#frontier.enqueue(globalLinks);
-        for(const [workspaceId, links] of workspaceLinks){
-            added += await this.#frontier.enqueue(links, workspaceId);
+        // Same-domain links deep-crawl the seeded site into the workspace, deduped
+        // against the workspace's own seen-set so global discovery can't starve it.
+        for(const [workspaceId, links] of scopedLinks){
+            added += await this.#frontier.enqueueScoped(links, workspaceId);
         }
-        // A one-hop external link is often already in the shared corpus, so the
-        // enqueue above dedupes it away. Adopt those existing pages into the
-        // workspace directly so followExternal actually widens the corpus.
+        // followExternal reaches one hop out: fresh external links crawl once via the
+        // global seen-set (no deep crawl), and any already-indexed external pages are
+        // adopted into the workspace so the corpus widens either way.
         for(const [workspaceId, links] of externalLinks){
+            added += await this.#frontier.enqueue(links, workspaceId);
             void this.#websites.stampWorkspaceByUrls(links, workspaceId);
         }
         return added;
@@ -152,11 +181,15 @@ export default class MassiveCrawler extends EventEmitter{
         );
         const records = results.filter((r): r is ParsedPage => r !== null);
 
-        const stored = await this.#store(records, workspaceByUrl);
+        const { stored, changed } = await this.#store(records, workspaceByUrl);
 
         void this.#frontier.recordDomainPages(records.map((r) => domainOf(r.url)), config.crawler.maxPagesPerDomain);
 
         const added = await this.#routeLinks(records, workspaceByUrl);
+
+        if(changed.length){
+            void this.#publishChanges(changed, workspaceByUrl, Date.now());
+        }
 
         if(stored > 0){
             const now = Date.now();

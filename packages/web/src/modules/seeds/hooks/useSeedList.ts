@@ -15,6 +15,8 @@ export interface UseSeedList{
     query: string;
     loadMore: () => Promise<void>;
     refresh: () => Promise<void>;
+    removing: boolean;
+    remove: (id: string) => Promise<void>;
 }
 
 export const useSeedList = (): UseSeedList => {
@@ -28,6 +30,7 @@ export const useSeedList = (): UseSeedList => {
     const [hasMore, setHasMore] = useState(true);
 
     const fetcher = useRequest((next: number, q: string) => seedsApi.list(next, LIMIT, q), { immediate: false, force: true });
+    const remover = useRequest((id: string) => seedsApi.remove(id), { immediate: false });
 
     const fetchPage = async (next: number, q: string) => {
         const data = (await fetcher.send(next, q)) ?? [];
@@ -52,6 +55,11 @@ export const useSeedList = (): UseSeedList => {
         await fetchPage(1, query);
     };
 
+    const remove = async (id: string) => {
+        await remover.send(id);
+        setItems((prev) => prev.filter((item) => item.id !== id));
+    };
+
     return {
         items,
         loading: fetcher.loading,
@@ -59,6 +67,8 @@ export const useSeedList = (): UseSeedList => {
         hasMore,
         query,
         loadMore,
-        refresh
+        refresh,
+        removing: remover.loading,
+        remove
     };
 };

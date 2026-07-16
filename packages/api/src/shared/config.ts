@@ -67,6 +67,17 @@ export const config = {
         maxInternalLinks: toInt(optional('CRAWLER_MAX_INTERNAL_LINKS', '5'), 5)
     },
 
+    // Continuous re-crawl for freshness (run by the standalone `sources` process).
+    // Periodically re-queues each workspace's seeds and owned pages into their
+    // Redis lane, bypassing the global seen-set so already-discovered pages get
+    // re-fetched and refreshed when their content changes.
+    refresh: {
+        enabled: toBool(optional('REFRESH_ENABLED', 'true'), true),
+        intervalMs: toInt(optional('REFRESH_INTERVAL_MS', '300000'), 300000),
+        batchPerWorkspace: toInt(optional('REFRESH_BATCH_PER_WORKSPACE', '100'), 100),
+        maxSeedsPerWorkspace: toInt(optional('REFRESH_MAX_SEEDS_PER_WORKSPACE', '200'), 200)
+    },
+
     // Public developer API (search/scrape/map/crawl authenticated by API key).
     publicApi: {
         // Requests per minute per API key. Fixed-window, enforced in Redis.

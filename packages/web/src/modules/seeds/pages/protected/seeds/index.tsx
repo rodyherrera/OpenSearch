@@ -1,5 +1,6 @@
 import { useSearchParams } from 'react-router-dom';
 import { Switch } from '@heroui/react';
+import { Trash2 } from 'lucide-react';
 import DataTable from '@/shared/components/DataTable';
 import AddSeedModal from '@/modules/seeds/components/AddSeedModal';
 import { useSeedList } from '@/modules/seeds/hooks/useSeedList';
@@ -13,36 +14,58 @@ const formatWhen = (iso: string): string =>
         timeStyle: 'short'
     });
 
-const columns: Column<PublicSeed>[] = [
-    {
-        key: 'url',
-        header: 'URL',
-        value: (row) => row.url,
-        cell: (row) => <span className='block max-w-md truncate text-foreground'>{row.url}</span>
-    },
-    {
-        key: 'domain',
-        header: 'Domain',
-        sortable: true,
-        value: (row) => row.domain,
-        cell: (row) => <span className='text-muted'>{row.domain}</span>
-    },
-    {
-        key: 'added',
-        header: 'Added',
-        align: 'right',
-        sortable: true,
-        value: (row) => row.createdAt,
-        cell: (row) => <span className='whitespace-nowrap text-muted'>{formatWhen(row.createdAt)}</span>
-    }
-];
-
 const Seeds = () => {
     const list = useSeedList();
     const { active, setFollowExternal } = useWorkspaces();
     const [, setSearchParams] = useSearchParams();
 
     const setQuery = (value: string) => setSearchParams(value ? { q: value } : {}, { replace: true });
+
+    const onDelete = async (row: PublicSeed) => {
+        if(!window.confirm(`Remove seed “${row.url}”? Pages already crawled from it stay indexed.`)) return;
+        await list.remove(row.id);
+    };
+
+    const columns: Column<PublicSeed>[] = [
+        {
+            key: 'url',
+            header: 'URL',
+            value: (row) => row.url,
+            cell: (row) => <span className='block max-w-md truncate text-foreground'>{row.url}</span>
+        },
+        {
+            key: 'domain',
+            header: 'Domain',
+            sortable: true,
+            value: (row) => row.domain,
+            cell: (row) => <span className='text-muted'>{row.domain}</span>
+        },
+        {
+            key: 'added',
+            header: 'Added',
+            align: 'right',
+            sortable: true,
+            value: (row) => row.createdAt,
+            cell: (row) => <span className='whitespace-nowrap text-muted'>{formatWhen(row.createdAt)}</span>
+        },
+        {
+            key: 'actions',
+            header: '',
+            width: 'w-16',
+            align: 'right',
+            cell: (row) => (
+                <button
+                    type='button'
+                    onClick={() => void onDelete(row)}
+                    disabled={list.removing}
+                    aria-label={`Remove ${row.url}`}
+                    className='text-muted transition-colors hover:text-danger disabled:opacity-50'
+                >
+                    <Trash2 className='size-4' />
+                </button>
+            )
+        }
+    ];
 
     const followExternalToggle = (
         <label className='flex items-center gap-2 text-xs text-muted'>

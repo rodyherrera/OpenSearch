@@ -31,4 +31,12 @@ export interface ControlEvent{
     at: number;
 }
 
-export type CrawlEvent = PageEvent | BatchEvent | ControlEvent;
+export interface ChangeEvent{
+    type: 'change';
+    workspaceId: string;
+    urls: string[];
+    count: number;
+    at: number;
+}
+
+export type CrawlEvent = PageEvent | BatchEvent | ControlEvent | ChangeEvent;

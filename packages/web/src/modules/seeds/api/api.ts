@@ -6,5 +6,6 @@ const BASE = '/seed';
 export const seedsApi = {
     add: (body: AddSeedsInput) => alova.Post<AddSeedsResult>(BASE, body),
     list: (page: number, limit: number, q?: string) =>
-        alova.Get<PublicSeed[]>(BASE, { params: { page, limit, ...(q ? { q } : {}) } })
+        alova.Get<PublicSeed[]>(BASE, { params: { page, limit, ...(q ? { q } : {}) } }),
+    remove: (id: string) => alova.Delete<void>(`${BASE}/${id}`)
 };

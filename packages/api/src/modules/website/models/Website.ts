@@ -11,6 +11,8 @@ export interface WebsiteDocument extends Document{
     markdown?: string;
     metaData?: Record<string, unknown>;
     workspaces?: Types.ObjectId[];
+    contentHash?: string;
+    lastCheckedAt?: Date;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -18,6 +20,7 @@ export interface WebsiteDocument extends Document{
 const configure = (schema: Schema<WebsiteDocument>): void => {
     schema.index({ createdAt: -1, updatedAt: -1 });
     schema.index({ workspaces: 1, createdAt: -1 });
+    schema.index({ workspaces: 1, lastCheckedAt: 1 });
     schema.index(
         { title: 'text', description: 'text', keywords: 'text', content: 'text', url: 'text' },
         { weights: { title: 10, description: 6, keywords: 6, content: 2, url: 1 }, name: 'website_text' }
@@ -61,5 +64,11 @@ export default defineModel<WebsiteDocument>('Website', {
     workspaces: {
         type: [{ type: Schema.Types.ObjectId, ref: 'Workspace' }],
         default: undefined
+    },
+    contentHash: {
+        type: String
+    },
+    lastCheckedAt: {
+        type: Date
     }
 }, configure);

@@ -18,7 +18,12 @@ export const alova = createAlova({
     beforeRequest(method){
         const token = useAuthStore.getState().token;
         const workspaceId = useWorkspaceStore.getState().activeId;
-        method.config.headers['Content-Type'] = 'application/json';
+        // Only advertise a JSON body when there actually is one. A bodyless request
+        // (GET, or DELETE without a payload) carrying Content-Type: application/json
+        // makes Fastify reject it with FST_ERR_CTP_EMPTY_JSON_BODY.
+        if(method.data !== undefined && method.data !== null){
+            method.config.headers['Content-Type'] = 'application/json';
+        }
         if(token) method.config.headers.Authorization = `Bearer ${token}`;
         if(workspaceId) method.config.headers['X-Workspace-Id'] = workspaceId;
     },

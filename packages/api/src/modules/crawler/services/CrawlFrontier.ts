@@ -17,7 +17,10 @@ const DOMPAGES_KEY = (domain: string) => `frontier:dompages:${domain}`;
 const WS_DOMAINS_KEY = (workspaceId: string) => `frontier:ws:${workspaceId}:domains`;
 const WS_QUEUE_KEY = (workspaceId: string) => `frontier:ws:${workspaceId}:queue`;
 const WS_FOLLOWEXT_KEY = (workspaceId: string) => `frontier:ws:${workspaceId}:followext`;
+const WS_CHANGES_KEY = (workspaceId: string) => `frontier:ws:${workspaceId}:changes`;
+const WS_SEEN_KEY = (workspaceId: string) => `frontier:ws:${workspaceId}:seen`;
 const WS_ACTIVE_KEY = 'frontier:ws:active';
+const CHANGES_MAX = 100;
 
 export interface FrontierItem{
     url: string;
@@ -131,6 +134,73 @@ export default class CrawlFrontier{
         await multi.exec();
 
         return seenToAdd.length;
+    }
+
+    // Deep-crawl a workspace's own domains: dedup against a per-workspace seen-set
+    // (not the global one) so a seeded site is fully explored into the workspace
+    // even when its pages were already globally discovered. Loop-safe via the
+    // workspace seen-set; also marks URLs globally seen so the global crawler
+    // doesn't redundantly re-fetch them. Bypasses global saturation caps.
+    async enqueueScoped(urls: string[], workspaceId: string): Promise<number>{
+        const normalized = [...new Set(
+            urls.map(normalizeUrl).filter((u): u is string => u !== null)
+        )];
+        if(!normalized.length) return 0;
+
+        const redis = await getRedis();
+        if((await redis.lLen(WS_QUEUE_KEY(workspaceId))) >= this.#maxFrontier) return 0;
+
+        const membership = await redis.smIsMember(WS_SEEN_KEY(workspaceId), normalized);
+        const fresh = normalized.filter((_, i) => !membership[i]);
+        if(!fresh.length) return 0;
+
+        const multi = redis.multi();
+        multi.sAdd(WS_SEEN_KEY(workspaceId), fresh);
+        multi.sAdd(SEEN_KEY, fresh);
+        multi.rPush(WS_QUEUE_KEY(workspaceId), fresh);
+        multi.sAdd(WS_ACTIVE_KEY, workspaceId);
+        await multi.exec();
+        return fresh.length;
+    }
+
+    // Push URLs straight onto a workspace lane, skipping the global seen-set and
+    // saturation caps. Used by the refresh scheduler to re-crawl a workspace's own
+    // seeds and pages for freshness even after they've been globally discovered.
+    async forceEnqueue(urls: string[], workspaceId: string): Promise<number>{
+        const normalized = [...new Set(
+            urls.map(normalizeUrl).filter((u): u is string => u !== null)
+        )];
+        if(!normalized.length) return 0;
+        const redis = await getRedis();
+        const multi = redis.multi();
+        multi.rPush(WS_QUEUE_KEY(workspaceId), normalized);
+        multi.sAdd(WS_ACTIVE_KEY, workspaceId);
+        await multi.exec();
+        return normalized.length;
+    }
+
+    async workspaceQueueLength(workspaceId: string): Promise<number>{
+        const redis = await getRedis();
+        return redis.lLen(WS_QUEUE_KEY(workspaceId));
+    }
+
+    async recordChanges(workspaceId: string, urls: string[], now: number): Promise<void>{
+        if(!urls.length) return;
+        const redis = await getRedis();
+        const multi = redis.multi();
+        multi.lPush(WS_CHANGES_KEY(workspaceId), urls.map((url) => JSON.stringify({ url, at: now })));
+        multi.lTrim(WS_CHANGES_KEY(workspaceId), 0, CHANGES_MAX - 1);
+        await multi.exec();
+    }
+
+    async getChanges(workspaceId: string, limit = CHANGES_MAX): Promise<Array<{ url: string; at: number }>>{
+        const redis = await getRedis();
+        const raw = await redis.lRange(WS_CHANGES_KEY(workspaceId), 0, limit - 1);
+        const changes: Array<{ url: string; at: number }> = [];
+        for(const value of raw){
+            try{ changes.push(JSON.parse(value) as { url: string; at: number }); }catch{ }
+        }
+        return changes;
     }
 
     async registerWorkspaceDomains(workspaceId: string, domains: string[]): Promise<void>{
