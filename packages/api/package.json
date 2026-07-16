@@ -16,6 +16,7 @@
         "start": "tsx src/server.ts",
         "worker": "tsx src/worker.ts",
         "sources": "tsx src/sources.ts",
+        "reindex": "tsx src/reindex.ts",
         "dev": "tsx watch src/server.ts",
         "dev:worker": "tsx watch src/worker.ts",
         "dev:sources": "tsx watch src/sources.ts"
@@ -34,7 +35,9 @@
         "fastify": "^5.10.0",
         "jsonwebtoken": "^9.0.3",
         "lodash": "^4.17.21",
+        "meilisearch": "^0.59.0",
         "mongoose": "^8.4.0",
+        "nodemailer": "^6.9.14",
         "p-limit": "^6.1.0",
         "pino": "^9.5.0",
         "pino-pretty": "^11.3.0",
@@ -47,6 +50,7 @@
         "@types/jsonwebtoken": "^9.0.10",
         "@types/lodash": "^4.17.4",
         "@types/node": "^20.12.12",
+        "@types/nodemailer": "^6.4.15",
         "tsx": "^4.10.5",
         "typescript": "^5.4.5"
     }

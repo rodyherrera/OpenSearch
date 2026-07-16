@@ -7,7 +7,7 @@ export interface Principal{
 export interface PublicAdmin{
     id: string;
     email: string;
-    role: 'admin';
+    role: 'admin' | 'member';
     createdAt?: string;
     updatedAt?: string;
 }

@@ -31,11 +31,27 @@ x-api-env: &api-env
   REFRESH_INTERVAL_MS: ${REFRESH_INTERVAL_MS:-300000}
   REFRESH_BATCH_PER_WORKSPACE: ${REFRESH_BATCH_PER_WORKSPACE:-100}
   REFRESH_MAX_SEEDS_PER_WORKSPACE: ${REFRESH_MAX_SEEDS_PER_WORKSPACE:-200}
+  MEILI_URL: http://meilisearch:7700
+  MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:-}
+  MEILI_INDEX: ${MEILI_INDEX:-websites}
+  MEILI_CONTENT_MAX_CHARS: "4000"
+  MEILI_MAX_TOTAL_HITS: "10000"
+  MEILI_BATCH_SIZE: "1000"
+  APP_URL: ${APP_URL:-http://localhost:${WEB_PORT:-8090}}
+  SMTP_HOST: ${SMTP_HOST:-}
+  SMTP_PORT: ${SMTP_PORT:-587}
+  SMTP_USER: ${SMTP_USER:-}
+  SMTP_PASS: ${SMTP_PASS:-}
+  SMTP_SECURE: ${SMTP_SECURE:-false}
+  MAIL_FROM: ${MAIL_FROM:-Crawlm <no-reply@crawlm.local>}
 
 services:
   mongo:
     image: mongo:7.0
     restart: unless-stopped
+    # Cap WiredTiger's cache (defaults to ~50% of RAM) so Mongo doesn't hog memory
+    # the search engine needs. Tune via MONGO_CACHE_GB.
+    command: ["mongod", "--bind_ip_all", "--wiredTigerCacheSizeGB", "${MONGO_CACHE_GB:-6}"]
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:-crawlm}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-crawlm}
@@ -64,6 +80,24 @@ services:
     networks:
       - crawlm
 
+  # Search engine. Indexes page metadata for fast, relevant, workspace-scoped search;
+  # Mongo stays the source of truth (results are hydrated from it). Internal only.
+  meilisearch:
+    image: getmeili/meilisearch:v1.15.2
+    restart: unless-stopped
+    environment:
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:-}
+      MEILI_ENV: production
+      MEILI_NO_ANALYTICS: "true"
+    volumes:
+      - meili_data:/meili_data
+    deploy:
+      resources:
+        limits:
+          memory: ${MEILI_MEMORY_LIMIT:-4096M}
+    networks:
+      - crawlm
+
   api:
     build: ./packages/api
     restart: unless-stopped
@@ -76,6 +110,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      meilisearch:
+        condition: service_started
     networks:
       - crawlm
 
@@ -94,6 +130,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      meilisearch:
+        condition: service_started
     networks:
       - crawlm
 
@@ -118,6 +156,8 @@ services:
         condition: service_healthy
       certstream:
         condition: service_started
+      meilisearch:
+        condition: service_started
     networks:
       - crawlm
 
@@ -137,6 +177,7 @@ services:
 volumes:
   mongo_data:
   redis_data:
+  meili_data:
 
 networks:
   crawlm:

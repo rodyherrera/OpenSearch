@@ -3,6 +3,7 @@ import { Route } from '@/shared/controllers/Route';
 import { Middleware } from '@/shared/middlewares/Middleware';
 import { Body } from '@/shared/controllers/RequestParams';
 import { AuthenticatedRoute } from '@/modules/auth/middlewares/AuthenticatedRoute';
+import { AdminRoute } from '@/modules/auth/middlewares/AdminRoute';
 import { getRedis } from '@/shared/redis/RedisClient';
 import CrawlerControlService from '@/modules/crawler/services/CrawlerControlService';
 import CrawlFrontier from '@/modules/crawler/services/CrawlFrontier';
@@ -23,7 +24,9 @@ const FRONTIER_COUNTER_KEYS = [
 // Per-domain keys (one per domain) cleared by pattern on reset.
 const FRONTIER_KEY_PATTERNS = ['frontier:dompages:*', 'frontier:cooldown:*'];
 
-@Middleware(AuthenticatedRoute)
+// Global crawl engine — operator-only. Tenants manage their workspace crawler,
+// not the shared fleet.
+@Middleware(AuthenticatedRoute, AdminRoute)
 export default class CrawlerController extends BaseController{
     #control = new CrawlerControlService();
     #frontier = new CrawlFrontier();

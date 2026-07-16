@@ -4,6 +4,7 @@ import { Status } from '@/shared/controllers/Status';
 import { Middleware } from '@/shared/middlewares/Middleware';
 import { Query, Param, Body } from '@/shared/controllers/RequestParams';
 import { AuthenticatedRoute } from '@/modules/auth/middlewares/AuthenticatedRoute';
+import { AdminRoute } from '@/modules/auth/middlewares/AdminRoute';
 import { CurrentWorkspace, CurrentWorkspaceId } from '@/modules/workspace/middlewares/CurrentWorkspace';
 import WebsiteSearchService from '@/modules/website/services/WebsiteSearchService';
 import WebsiteService from '@/modules/website/services/WebsiteService';
@@ -45,6 +46,7 @@ export default class WebsiteController extends BaseController{
     }
 
     @Route('/purge', 'POST')
+    @Middleware(AdminRoute)
     purge(@Body() body: { domain?: string; all?: boolean }){
         return this.#service.purge(body).then((deleted) => ({ deleted }));
     }

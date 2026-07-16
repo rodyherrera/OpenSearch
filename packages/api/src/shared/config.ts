@@ -30,6 +30,22 @@ export const config = {
     apiPrefix: optional('API_PREFIX', '/api/v1'),
     corsOrigin: optional('CORS_ORIGIN', '*'),
 
+    // Public web origin, used to build links in emails (e.g. password reset).
+    app: {
+        url: optional('APP_URL', optional('CORS_ORIGIN', 'http://localhost:8090'))
+    },
+
+    // Outbound email. When smtpHost is empty, mail is logged instead of sent, so the
+    // flows still work without an SMTP server configured.
+    mail: {
+        smtpHost: optional('SMTP_HOST', ''),
+        smtpPort: toInt(optional('SMTP_PORT', '587'), 587),
+        smtpUser: optional('SMTP_USER', ''),
+        smtpPass: optional('SMTP_PASS', ''),
+        smtpSecure: toBool(optional('SMTP_SECURE', 'false'), false),
+        from: optional('MAIL_FROM', 'Crawlm <no-reply@crawlm.local>')
+    },
+
     mongo: {
         uri: required('MONGO_URI'),
         db: optional('MONGO_DB', 'crawlm')
@@ -37,6 +53,19 @@ export const config = {
 
     redis: {
         uri: required('REDIS_URI')
+    },
+
+    // Search backend — Meilisearch is the sole engine (Mongo stays the source of
+    // truth that results are hydrated from).
+    search: {
+        meili: {
+            host: optional('MEILI_URL', 'http://meilisearch:7700'),
+            apiKey: optional('MEILI_MASTER_KEY', ''),
+            index: optional('MEILI_INDEX', 'websites'),
+            contentMaxChars: toInt(optional('MEILI_CONTENT_MAX_CHARS', '4000'), 4000),
+            maxTotalHits: toInt(optional('MEILI_MAX_TOTAL_HITS', '10000'), 10000),
+            batchSize: toInt(optional('MEILI_BATCH_SIZE', '1000'), 1000)
+        }
     },
 
     auth: {

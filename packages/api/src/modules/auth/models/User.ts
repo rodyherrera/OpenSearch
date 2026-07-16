@@ -2,10 +2,12 @@ import { defineModel } from '@/shared/models/BaseModel';
 import { hidden } from '@/shared/models/Hidden';
 import type { Document, Schema } from 'mongoose';
 
+export type UserRole = 'admin' | 'member';
+
 export interface UserDocument extends Document{
     email: string;
     passwordHash: string;
-    role: 'admin';
+    role: UserRole;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -18,5 +20,5 @@ const configure = (schema: Schema<UserDocument>): void => {
 export default defineModel<UserDocument>('User', {
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     passwordHash: { type: String, required: true },
-    role: { type: String, enum: ['admin'], default: 'admin' }
+    role: { type: String, enum: ['admin', 'member'], default: 'member' }
 }, configure);

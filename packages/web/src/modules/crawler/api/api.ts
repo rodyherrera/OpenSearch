@@ -1,15 +1,14 @@
 import { alova } from '@/app/alova';
-import type { Tuning, ControlState, CrawlerStatus } from '@/modules/crawler/contracts/crawler';
+import type { IndexedDomain } from '@/modules/domains/contracts/domain';
 
-const BASE = '/crawler';
+export interface WorkspaceChange{
+    url: string;
+    at: number;
+}
 
+// Workspace-scoped crawler view. Global crawl controls are operator-only and no
+// longer exposed in the dashboard.
 export const crawlerApi = {
-    status: () => alova.Get<CrawlerStatus>(`${BASE}/status`),
-    getControl: () => alova.Get<ControlState>(`${BASE}/control`),
-    patchControl: (body: Partial<Tuning> & { paused?: boolean }) =>
-        alova.Patch<ControlState>(`${BASE}/control`, body),
-    pause: () => alova.Post<{ paused: true }>(`${BASE}/pause`),
-    resume: () => alova.Post<{ paused: false }>(`${BASE}/resume`),
-    // Lives under /website, but surfaced here: wiping the index is a crawl-admin action.
-    purgeIndex: () => alova.Post<{ deleted: number }>('/website/purge', { all: true })
+    domains: () => alova.Get<{ domains: IndexedDomain[] }>('/website/domains', { params: { scope: 'workspace' } }),
+    changes: () => alova.Get<{ changes: WorkspaceChange[] }>('/website/changes')
 };

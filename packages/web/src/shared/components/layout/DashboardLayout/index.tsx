@@ -11,6 +11,7 @@ import {
     Search,
     Map,
     Network,
+    Activity,
     Flame,
     Sun,
     Moon,
@@ -21,6 +22,7 @@ import {
 import GlobalSearch from '@/shared/components/layout/GlobalSearch';
 import WorkspaceSwitcher from '@/modules/workspaces/components/WorkspaceSwitcher';
 import { useAuthStore } from '@/modules/auth/store/auth';
+import { useSession } from '@/shared/hooks/routing/useSession';
 import { applyTheme } from '@/shared/utils/theme';
 import type { ComponentType } from 'react';
 import type { Theme } from '@/shared/utils/theme';
@@ -37,6 +39,7 @@ interface NavItem{
 interface NavSection{
     label?: string;
     items: NavItem[];
+    admin?: boolean;
 }
 
 const SECTIONS: NavSection[] = [
@@ -57,14 +60,21 @@ const SECTIONS: NavSection[] = [
         items: [
             { to: '/pages', label: 'Pages', icon: FileText },
             { to: '/domains', label: 'Domains', icon: Globe },
-            { to: '/seeds', label: 'Seeds', icon: Sprout }
+            { to: '/seeds', label: 'Seeds', icon: Sprout },
+            { to: '/crawler', label: 'Crawler', icon: SlidersHorizontal }
         ]
     },
     {
         label: 'System',
         items: [
-            { to: '/crawler', label: 'Crawler', icon: SlidersHorizontal },
             { to: '/keys', label: 'API Keys', icon: KeyRound }
+        ]
+    },
+    {
+        label: 'Operator',
+        admin: true,
+        items: [
+            { to: '/system', label: 'Crawl engine', icon: Activity }
         ]
     }
 ];
@@ -80,7 +90,10 @@ const linkClass = (active: boolean, collapsed: boolean): string =>
 
 const DashboardLayout = () => {
     const navigate = useNavigate();
+    const { isAdmin, user } = useSession();
+    const initials = (user?.email ?? '?').slice(0, 2).toUpperCase();
     const { pathname, search } = useLocation();
+    const sections = SECTIONS.filter((section) => !section.admin || isAdmin);
     const [theme, setTheme] = useState<Theme>(() =>
         document.documentElement.classList.contains('dark') ? 'dark' : 'light'
     );
@@ -128,7 +141,7 @@ const DashboardLayout = () => {
                 </div>
 
                 <ScrollShadow hideScrollBar role='navigation' className='flex min-h-0 flex-1 flex-col overflow-x-hidden pt-1 pb-4'>
-                    {SECTIONS.map((section, index) => (
+                    {sections.map((section, index) => (
                         <div key={section.label ?? index} className='flex flex-col gap-0.5'>
                             {section.label ? (
                                 collapsed
@@ -162,9 +175,9 @@ const DashboardLayout = () => {
 
                 <div className={`flex items-center gap-2.5 border-t border-hairline py-3 ${collapsed ? 'justify-center px-0' : 'px-4'}`}>
                     <span className='grid size-7 shrink-0 place-items-center rounded-full bg-accent/15 font-mono text-[10px] font-semibold text-accent'>
-                        AD
+                        {initials}
                     </span>
-                    {collapsed ? null : <span className='truncate text-xs text-muted'>Administrator</span>}
+                    {collapsed ? null : <span className='truncate text-xs text-muted'>{user?.email ?? '—'}</span>}
                 </div>
 
                 <div className={`pb-3 ${collapsed ? 'px-2' : 'px-3'}`}>

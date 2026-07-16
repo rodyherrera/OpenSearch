@@ -1,50 +1,32 @@
-import _ from 'lodash';
 import Website from '@/modules/website/models/Website';
-import type { FilterQuery, SortOrder } from 'mongoose';
+import WebsiteService from '@/modules/website/services/WebsiteService';
+import SearchIndexService from '@/modules/search/services/SearchIndexService';
+import type { FilterQuery } from 'mongoose';
 import type { WebsiteDocument } from '@/modules/website/models/Website';
-
-type SortSpec = Record<string, SortOrder | { $meta: string }>;
 import type { SearchParams, SearchResponse, SearchResult } from '@/modules/search/contracts/domain/search';
 
 const DEFAULT_LIMIT = 10;
 const MAX_LIMIT = 100;
 
-// Searches the crawled index and returns results in a stable, Firecrawl-compatible
-// shape (url/title/description/position) so an agent can swap providers with no code
-// changes. The `newerThan` filter is the differentiator — query by index freshness.
+// Firecrawl-compatible search: url/title/description/position. Text queries use the
+// search engine; plain listing (optionally filtered by freshness) reads Mongo.
 export default class PublicSearchService{
+    #index = new SearchIndexService();
+    #websites = new WebsiteService();
+
     async search(params: SearchParams): Promise<SearchResponse>{
         const q = params.q?.trim() ?? '';
         const limit = Math.min(Math.max(parseInt(params.limit ?? '', 10) || DEFAULT_LIMIT, 1), MAX_LIMIT);
         const page = Math.max(parseInt(params.page ?? '', 10) || 1, 1);
         const skip = (page - 1) * limit;
         const withContent = params.content === 'true';
-
-        const filter: FilterQuery<WebsiteDocument> = {};
-        if(params.newerThan){
-            const since = new Date(params.newerThan);
-            if(!Number.isNaN(since.getTime())) filter.createdAt = { $gte: since };
-        }
-
-        // Text relevance when a query is present; otherwise newest-first over the
-        // (optionally freshness-filtered) index.
-        let sort: SortSpec = { createdAt: -1 };
-        if(q){
-            filter.$text = { $search: _.escapeRegExp(q) };
-            sort = { score: { $meta: 'textScore' } };
-        }
-
         const select = withContent ? '-markdown' : '-markdown -content';
-        const [docs, total] = await Promise.all([
-            Website.find(filter, q ? { score: { $meta: 'textScore' } } : {})
-                .select(select)
-                .sort(sort)
-                .skip(skip)
-                .limit(limit)
-                .lean<WebsiteDocument[]>(),
-            Website.countDocuments(filter)
-        ]);
 
+        const { urls, total } = q
+            ? await this.#index.query({ q, newerThan: params.newerThan, page, limit })
+            : await this.#listMongo(params.newerThan, skip, limit);
+
+        const docs = await this.#websites.findByUrlsOrdered(urls, select);
         const results: SearchResult[] = docs.map((doc, i) => ({
             url: doc.url,
             title: doc.title ?? '',
@@ -54,5 +36,18 @@ export default class PublicSearchService{
         }));
 
         return { query: q, total, results };
+    }
+
+    async #listMongo(newerThan: string | undefined, skip: number, limit: number): Promise<{ urls: string[]; total: number }>{
+        const filter: FilterQuery<WebsiteDocument> = {};
+        if(newerThan){
+            const since = new Date(newerThan);
+            if(!Number.isNaN(since.getTime())) filter.createdAt = { $gte: since };
+        }
+        const [docs, total] = await Promise.all([
+            Website.find(filter).select('url').sort({ createdAt: -1 }).skip(skip).limit(limit).lean<Array<{ url: string }>>(),
+            Website.countDocuments(filter)
+        ]);
+        return { urls: docs.map((doc) => doc.url), total };
     }
 }

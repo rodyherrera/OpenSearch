@@ -14,8 +14,7 @@ export const useSession = (): Session => {
     const isAuthenticated = !!token;
     const isLoading = isAuthenticated && loading && !user;
 
-    // Crawlm runs a single bootstrapped admin, so authentication is sufficient for the admin tier.
-    const isAdmin = isAuthenticated;
+    const isAdmin = isAuthenticated && user?.role === 'admin';
 
     return { token, user: user ?? null, isAuthenticated, isAdmin, isLoading };
 };

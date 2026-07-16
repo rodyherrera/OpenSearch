@@ -11,6 +11,7 @@ import { logger } from '@/core/utils/Logger';
 import AuthService from '@/modules/auth/services/AuthService';
 import WorkspaceService from '@/modules/workspace/services/WorkspaceService';
 import WebsiteService from '@/modules/website/services/WebsiteService';
+import SearchIndexService from '@/modules/search/services/SearchIndexService';
 import CrawlJobService from '@/modules/crawl/services/CrawlJobService';
 import RuntimeError from '@/shared/errors/RuntimeError';
 import { ApiError } from '@/shared/contracts/http';
@@ -63,6 +64,7 @@ export default class HttpApplication{
         await new AuthService().bootstrapAdmin();
         await new WorkspaceService().bootstrap();
         this.#backfillWebsiteDomains();
+        this.#ensureSearchIndex();
         await this.#failStaleCrawlJobs();
 
         await this.#app.listen({ port: config.server.port, host: config.server.host });
@@ -79,6 +81,11 @@ export default class HttpApplication{
                 if(updated) logger.info(`Backfilled domain on ${updated} website document(s)`, { scope: 'http' });
             })
             .catch((error) => logger.error('Website domain backfill failed', error, { scope: 'http' }));
+    }
+
+    #ensureSearchIndex(): void{
+        new SearchIndexService().ensureIndex()
+            .catch((error) => logger.error('Search index ensure failed', error, { scope: 'meili' }));
     }
 
     async #failStaleCrawlJobs(): Promise<void>{
