@@ -3,12 +3,9 @@ import { Copy, Check } from 'lucide-react';
 
 interface CopyBarProps{
     label: string;
-    // Lazily built so large payloads aren't serialized until the user asks.
     getText: () => string;
 }
 
-// Firecrawl-style footer strip: a hairline-topped row whose right cell (split off
-// by a vertical hairline) holds the "Copy as X" pill.
 const CopyBar = ({ label, getText }: CopyBarProps) => {
     const [copied, setCopied] = useState(false);
 

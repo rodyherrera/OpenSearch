@@ -53,8 +53,6 @@ export default class MassiveCrawler extends EventEmitter{
             respectRobots: this.#opts.respectRobots
         });
         if(!html) return null;
-        // Markdown is skipped here to preserve crawl throughput; the on-demand
-        // scrape endpoint fills it in for pages that are actually requested.
         const record = this.#parser.parse(html, url, {
             maxExternalLinks: this.#opts.maxLinksPerPage,
             maxInternalLinks: config.crawler.maxInternalLinks,
@@ -76,7 +74,7 @@ export default class MassiveCrawler extends EventEmitter{
         return record;
     }
 
-    async #store(records: ParsedPage[]): Promise<number>{
+    async #store(records: ParsedPage[], workspaceByUrl: Map<string, string | null>): Promise<number>{
         if(!records.length) return 0;
         const bulk: WebsitePageRecord[] = records.map(({ url, title, description, keywords, content, metaData }) => ({
             url,
@@ -86,28 +84,56 @@ export default class MassiveCrawler extends EventEmitter{
             content,
             metaData
         }));
-        return this.#websites.bulkUpsert(bulk);
+        return this.#websites.bulkUpsert(bulk, workspaceByUrl);
+    }
+
+    async #routeLinks(records: ParsedPage[], workspaceByUrl: Map<string, string | null>): Promise<number>{
+        const origins = [...new Set([...workspaceByUrl.values()].filter((id): id is string => Boolean(id)))];
+        const domainsByWorkspace = new Map<string, Set<string>>();
+        await Promise.all(origins.map(async (id) => {
+            domainsByWorkspace.set(id, await this.#frontier.getWorkspaceDomains(id));
+        }));
+
+        const globalLinks: string[] = [];
+        const workspaceLinks = new Map<string, string[]>();
+        for(const record of records){
+            const workspaceId = workspaceByUrl.get(record.url) ?? null;
+            const domains = workspaceId ? domainsByWorkspace.get(workspaceId) : undefined;
+            for(const link of record.links){
+                if(workspaceId && domains?.has(domainOf(link))){
+                    const bucket = workspaceLinks.get(workspaceId) ?? [];
+                    bucket.push(link);
+                    workspaceLinks.set(workspaceId, bucket);
+                }else{
+                    globalLinks.push(link);
+                }
+            }
+        }
+
+        let added = await this.#frontier.enqueue(globalLinks);
+        for(const [workspaceId, links] of workspaceLinks){
+            added += await this.#frontier.enqueue(links, workspaceId);
+        }
+        return added;
     }
 
     async #tick(): Promise<number>{
-        const urls = await this.#frontier.dequeue(this.#opts.batchSize);
-        if(!urls.length){
+        const items = await this.#frontier.dequeue(this.#opts.batchSize);
+        if(!items.length){
             return -1;
         }
 
+        const workspaceByUrl = new Map<string, string | null>(items.map((item) => [item.url, item.workspaceId]));
         const results = await Promise.all(
-            urls.map((url) => this.#limit(() => this.#crawlOne(url)))
+            items.map((item) => this.#limit(() => this.#crawlOne(item.url)))
         );
         const records = results.filter((r): r is ParsedPage => r !== null);
 
-        const stored = await this.#store(records);
+        const stored = await this.#store(records, workspaceByUrl);
 
-        // Count pages per domain so the frontier can saturate (and stop chasing) sites
-        // that have given up enough pages — pushing the crawl toward fresh domains.
         void this.#frontier.recordDomainPages(records.map((r) => domainOf(r.url)), config.crawler.maxPagesPerDomain);
 
-        const discovered = records.flatMap((r) => r.links);
-        const added = await this.#frontier.enqueue(discovered);
+        const added = await this.#routeLinks(records, workspaceByUrl);
 
         if(stored > 0){
             const now = Date.now();
@@ -199,8 +225,6 @@ export default class MassiveCrawler extends EventEmitter{
         this.#running = false;
     }
 
-    // Apply live tuning coming from CrawlerControlService. #opts doubles as the
-    // "current" snapshot we diff against to detect concurrency/delay changes.
     #applyTuning(t: Tuning): void{
         this.#opts.batchSize = t.batchSize;
         this.#opts.maxLinksPerPage = t.maxLinksPerPage;

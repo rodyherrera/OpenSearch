@@ -17,11 +17,6 @@ const hostOf = (url: string): string => {
     }
 };
 
-/**
- * Firecrawl-style ranked hits: favicon tile, "#N Title" with the rank in orange
- * mono, domain underneath, a "Scrape page" shortcut, then the raw JSON row as a
- * flat inset delimited by hairlines with a "Copy as JSON" strip below.
- */
 const SearchResults = ({ results, onScrape }: SearchResultsProps) => (
     <div className='flex flex-col'>
         {results.map((result) => (

@@ -1,9 +1,7 @@
 import { useState } from 'react';
 
 interface FaviconProps{
-    // Full URL or bare domain; the host is extracted either way.
     url: string;
-    // Tile size in Tailwind units (outer box); icon scales with it.
     className?: string;
 }
 
@@ -15,11 +13,6 @@ const hostOf = (url: string): string => {
     }
 };
 
-/**
- * Site favicon in a small bordered tile. The orange diamond (Firecrawl's fallback
- * mark) shows while the icon loads and stays if it never arrives, so the tile is
- * never an empty box.
- */
 const Favicon = ({ url, className = 'size-9' }: FaviconProps) => {
     const [loaded, setLoaded] = useState(false);
     const [failed, setFailed] = useState(false);

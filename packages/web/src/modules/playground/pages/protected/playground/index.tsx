@@ -136,7 +136,6 @@ const Playground = () => {
     const runStartRef = useRef(0);
     const wasRunning = useRef(false);
 
-    // Log each finished run into the Recent Runs history (running: true → false).
     useEffect(() => {
         if(wasRunning.current && !pg.running && submitted){
             record({
@@ -151,8 +150,6 @@ const Playground = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [pg.running]);
 
-    // The sidebar deep-links endpoints via ?endpoint=; keep the runner in sync.
-    // A shared ?q= prefills the input (without auto-running).
     useEffect(() => {
         pg.setEndpoint(endpoint);
         setView(DEFAULT_VIEW[endpoint]);
@@ -166,7 +163,6 @@ const Playground = () => {
     const selectEndpoint = (next: Endpoint) => setParams({ endpoint: next });
 
     const onChangeValue = (raw: string) => {
-        // The https:// chip already spells the scheme out; strip it from pasted URLs.
         pg.setUrl(meta.isUrl ? raw.replace(/^https:\/\//i, '') : raw);
     };
 
@@ -185,7 +181,6 @@ const Playground = () => {
         setTimeout(() => setCopiedCode(false), 1500);
     };
 
-    // Permalink to this run: endpoint + query, prefilled on load.
     const copyShare = async () => {
         if(!submitted) return;
         const share = new URLSearchParams({ endpoint: submitted.endpoint, q: submitted.value });
@@ -194,7 +189,6 @@ const Playground = () => {
         setTimeout(() => setCopiedShare(false), 1500);
     };
 
-    // Prefill the scrape playground from a search hit, Firecrawl-style.
     const scrapeFrom = (url: string) => {
         pg.setUrl(url.replace(/^https:\/\//i, ''));
         setSubmitted(null);
@@ -206,12 +200,10 @@ const Playground = () => {
 
     return (
         <Canvas>
-            {/* Endpoint picker band — narrow cell hugging the tab strip */}
             <Row max='max-w-xl' className='flex justify-center px-6 pt-7 pb-5'>
                 <EndpointPicker endpoint={endpoint} onSelect={selectEndpoint} />
             </Row>
 
-            {/* Request card — medium cell, card floats with soft elevation */}
             <Row max='max-w-2xl' className='px-6 py-12'>
                 <form
                     onSubmit={onSubmit}
@@ -264,7 +256,6 @@ const Playground = () => {
 
             {showResults ? (
                 <>
-                    {/* Query echo, with a Share permalink on the right */}
                     <Row className='flex items-center gap-2.5 px-6 py-5'>
                         <div className='flex-1' />
                         <meta.icon className='size-4 text-accent' />
@@ -309,7 +300,6 @@ const Playground = () => {
 
             <RecentRuns runs={runs} />
 
-            {/* Bottom filler so the rails run the full height of the canvas. */}
             <Row grow />
         </Canvas>
     );
@@ -480,7 +470,6 @@ const ResultBody = ({ endpoint, result, view, onView, onScrape }: ResultBodyProp
         );
     }
 
-    // Fallback for shapes we don't special-case (e.g. crawl job just created).
     return (
         <>
             <Row>

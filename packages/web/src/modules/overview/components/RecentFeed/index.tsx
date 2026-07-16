@@ -7,8 +7,6 @@ interface RecentFeedProps{
 
 const FEED_CAP = 15;
 
-// `items` arrives newest-first from the live store, so slicing keeps the most
-// recent pages.
 const RecentFeed = ({ items }: RecentFeedProps) => {
     const visible = items.slice(0, FEED_CAP);
 

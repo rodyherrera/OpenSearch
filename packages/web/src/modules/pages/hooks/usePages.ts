@@ -20,11 +20,8 @@ export interface UsePages{
 }
 
 export const usePages = (scope: Scope): UsePages => {
-    // The query lives in the URL (?q=), written by the layout-level search bar,
-    // so results are deep-linkable and survive navigation.
     const [searchParams] = useSearchParams();
     const query = (searchParams.get('q') ?? '').trim();
-    // A workspace switch re-scopes the workspace view, so re-fetch on it too.
     const activeWorkspace = useWorkspaceStore((state) => state.activeId);
 
     const [items, setItems] = useState<PublicWebsite[]>([]);
@@ -42,7 +39,6 @@ export const usePages = (scope: Scope): UsePages => {
             setPage(next);
             setHasMore(data.length === LIMIT);
         }catch{
-            // Over-paging (or a transient failure): stop paginating rather than surface a 404.
             if(next === 1) setItems([]);
             setHasMore(false);
         }finally{
@@ -50,8 +46,6 @@ export const usePages = (scope: Scope): UsePages => {
         }
     };
 
-    // Re-fetch from page 1 whenever the URL query or the scope changes; also runs
-    // once on mount. The search bar already debounces its URL writes, so no debounce here.
     const fetchPageRef = useRef(fetchPage);
     fetchPageRef.current = fetchPage;
     useEffect(() => {

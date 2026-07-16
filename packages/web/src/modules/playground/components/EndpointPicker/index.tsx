@@ -16,8 +16,6 @@ interface PickerGroup{
     items: PickerItem[];
 }
 
-// Firecrawl groups its endpoint tabs under tiny category headings, with pixel-dot
-// glyphs and hairline separators between every tab.
 const GROUPS: PickerGroup[] = [
     { label: 'Discover', items: [{ key: 'search', label: 'Search' }] },
     { label: 'Extract', items: [{ key: 'scrape', label: 'Scrape' }] },

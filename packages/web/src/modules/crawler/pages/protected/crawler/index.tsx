@@ -34,7 +34,6 @@ const NUMBER_FIELDS: NumberFieldSpec[] = [
 const inputClass =
     'w-full rounded-lg border border-hairline bg-surface px-3 py-2 text-sm tabular-nums text-foreground placeholder:text-muted transition-colors focus:border-accent/50 focus:outline-none disabled:opacity-60';
 
-// A settings block: heading + optional subtitle and right-aligned action, then content.
 interface BlockProps{
     title: string;
     subtitle?: string;
@@ -55,7 +54,6 @@ const Block = ({ title, subtitle, action, children }: BlockProps) => (
     </section>
 );
 
-// Settings-style toggle: label + description on the left, switch on the right.
 interface ToggleRowProps{
     title: string;
     description: string;
@@ -160,8 +158,6 @@ const TuningPanel = ({ tuning, onSave }: TuningPanelProps) => {
         onSubmit: persist
     });
 
-    // Autosave: once the edited values parse as a valid profile, push them shortly
-    // after the user stops typing. Invalid intermediates just wait for a fix.
     const persistRef = useRef(persist);
     persistRef.current = persist;
     const serializedValues = JSON.stringify(form.values);
@@ -265,7 +261,6 @@ const Crawler = () => {
 
     return (
         <Canvas>
-            {/* Title band */}
             <Row className='px-8 pt-16 pb-14'>
                 <h1 className='text-4xl font-semibold tracking-tight text-foreground'>Crawler</h1>
                 <p className='mt-3 text-[15px] text-muted'>
@@ -273,7 +268,6 @@ const Crawler = () => {
                 </p>
             </Row>
 
-            {/* Settings body: side nav + content */}
             <Row className='px-6 py-8'>
                 {!status ? (
                     loading ? (

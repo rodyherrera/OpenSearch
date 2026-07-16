@@ -20,11 +20,7 @@ export interface DomainsApi{
     purgeDomain: (domain: string) => Promise<number>;
 }
 
-// The API returns a bounded snapshot of indexed domains in one shot, so search and
-// pagination are handled client-side: filter the snapshot, then reveal it in chunks
-// as the user scrolls. The scope (workspace vs global) is fetched from the server.
 export const useDomains = (scope: Scope): DomainsApi => {
-    // force: true so a refresh always bypasses the shared 30s GET cache.
     const { data, loading, error, send } = useRequest((s: Scope) => domainsApi.list(s), { immediate: false, force: true });
     const purger = useRequest((domain: string) => domainsApi.purge(domain), { immediate: false });
     const [searchParams] = useSearchParams();
@@ -32,7 +28,6 @@ export const useDomains = (scope: Scope): DomainsApi => {
     const activeWorkspace = useWorkspaceStore((state) => state.activeId);
     const [visible, setVisible] = useState(PAGE_SIZE);
 
-    // Fetch on mount and whenever the scope or active workspace changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     useEffect(() => { void send(scope); }, [scope, activeWorkspace]);
 
@@ -42,7 +37,6 @@ export const useDomains = (scope: Scope): DomainsApi => {
         return term ? all.filter((entry) => entry.domain.toLowerCase().includes(term)) : all;
     }, [data, query]);
 
-    // Collapse the reveal window back to the first chunk whenever the filter/scope changes.
     useEffect(() => { setVisible(PAGE_SIZE); }, [query, scope]);
 
     const purgeDomain = async (domain: string): Promise<number> => {

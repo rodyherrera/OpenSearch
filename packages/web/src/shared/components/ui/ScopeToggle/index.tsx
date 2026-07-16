@@ -10,8 +10,6 @@ const OPTIONS: { key: Scope; label: string }[] = [
     { key: 'global', label: 'Global' }
 ];
 
-// Segmented switch between "this workspace's crawled slice" and "the whole shared
-// index". Used on the Pages and Domains listings.
 const ScopeToggle = ({ value, onChange }: ScopeToggleProps) => (
     <div className='inline-flex items-center rounded-lg border border-hairline p-0.5'>
         {OPTIONS.map((option) => (

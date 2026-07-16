@@ -21,7 +21,6 @@ const WorkspaceSwitcher = () => {
     const [name, setName] = useState('');
     const [creating, setCreating] = useState(false);
 
-    // Dismiss the dropdown on any outside click.
     useEffect(() => {
         const onDown = (event: MouseEvent) => {
             if(ref.current && !ref.current.contains(event.target as Node)) setOpen(false);

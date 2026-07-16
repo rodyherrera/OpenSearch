@@ -16,8 +16,6 @@ export interface WorkspaceDocument extends Document{
 }
 
 const configure = (schema: Schema<WorkspaceDocument>): void => {
-    // The membership array is the access-control anchor: every "my workspaces"
-    // query filters on it.
     schema.index({ 'members.userId': 1 });
     schema.index({ createdAt: 1 });
 };

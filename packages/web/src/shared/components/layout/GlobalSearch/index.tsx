@@ -2,8 +2,6 @@ import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SearchField } from '@heroui/react';
 
-// The index lives on /pages; the header bar is a global jump into it. Per-listing
-// filtering is handled by each table's own toolbar search (bound to ?q=).
 const INDEX_PATH = '/pages';
 
 const isTypingTarget = (target: EventTarget | null): boolean => {
@@ -15,7 +13,6 @@ const GlobalSearch = () => {
     const navigate = useNavigate();
     const inputRef = useRef<HTMLInputElement>(null);
 
-    // "/" or ⌘/Ctrl-K focuses the bar from anywhere outside a text field.
     useEffect(() => {
         const onKeyDown = (event: KeyboardEvent) => {
             const palette = (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k';

@@ -5,7 +5,6 @@ interface FeedItemProps{
     item: RecentItem;
 }
 
-// "42s ago"-style relative stamp, coarse on purpose — the feed refreshes live.
 const ago = (at: number): string => {
     const seconds = Math.max(0, Math.round((Date.now() - at) / 1000));
     if(seconds < 60) return `${seconds}s ago`;

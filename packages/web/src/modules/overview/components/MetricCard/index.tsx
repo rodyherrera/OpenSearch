@@ -11,8 +11,6 @@ interface MetricCardProps{
     variant?: MetricVariant;
 }
 
-// Numbers get thousands separators; pre-composed strings (e.g. `${perMin}/min`)
-// pass through untouched.
 const format = (value: number | string): string =>
     typeof value === 'number' ? value.toLocaleString() : value;
 
@@ -21,13 +19,6 @@ const STYLES: Record<MetricVariant, { pad: string; value: string; chart: number 
     compact: { pad: 'p-5', value: 'text-3xl', chart: 88 }
 };
 
-/**
- * Polar-style stat tile: a muted label, a large value, a context line with an
- * optional live dot, and a full-bleed sparkline anchored to the tile's bottom edge.
- * Rendered as a bare cell (no border/rounding) — the surrounding grid frames it
- * with hairline dividers. `tabular-nums` on the value keeps live counters from
- * jittering horizontally as digits change each tick.
- */
 const MetricCard = ({ label, value, context, series, live, variant = 'compact' }: MetricCardProps) => {
     const style = STYLES[variant];
 

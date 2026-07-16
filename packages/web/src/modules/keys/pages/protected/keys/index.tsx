@@ -9,7 +9,6 @@ import type { ApiKey, CreatedApiKey } from '@/modules/keys/contracts/key';
 const formatWhen = (iso?: string): string =>
     iso ? new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : 'Never';
 
-// The API stores only prefix + last4; the plaintext key exists once, at creation.
 const masked = (key: ApiKey): string => `${key.prefix}••••••••••••••••••${key.last4}`;
 
 const SKELETON_ROWS = Array.from({ length: 2 });
@@ -55,7 +54,6 @@ const Keys = () => {
     return (
         <>
             <Canvas>
-                {/* Title band */}
                 <Row className='px-8 pt-16 pb-14'>
                     <h1 className='text-4xl font-semibold tracking-tight text-foreground'>API Keys</h1>
                     <p className='mt-3 text-[15px] text-muted'>
@@ -63,7 +61,6 @@ const Keys = () => {
                     </p>
                 </Row>
 
-                {/* List header band */}
                 <Row className='flex flex-wrap items-center justify-between gap-3 px-8 py-5'>
                     <h2 className='text-lg font-semibold tracking-tight text-foreground'>Your API Keys</h2>
                     <form onSubmit={onCreate} className='flex items-center gap-2'>
@@ -85,7 +82,6 @@ const Keys = () => {
                     </form>
                 </Row>
 
-                {/* Key blocks */}
                 <Row className='flex flex-col'>
                     {!loaded ? (
                         SKELETON_ROWS.map((_, index) => (

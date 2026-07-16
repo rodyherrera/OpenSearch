@@ -1,4 +1,4 @@
-import { type Document, type Schema } from 'mongoose';
+import { Schema, type Document, type Types } from 'mongoose';
 import { defineModel } from '@/shared/models/BaseModel';
 
 export interface WebsiteDocument extends Document{
@@ -10,12 +10,14 @@ export interface WebsiteDocument extends Document{
     content?: string;
     markdown?: string;
     metaData?: Record<string, unknown>;
+    workspaces?: Types.ObjectId[];
     createdAt: Date;
     updatedAt: Date;
 }
 
 const configure = (schema: Schema<WebsiteDocument>): void => {
     schema.index({ createdAt: -1, updatedAt: -1 });
+    schema.index({ workspaces: 1, createdAt: -1 });
     schema.index(
         { title: 'text', description: 'text', keywords: 'text', content: 'text', url: 'text' },
         { weights: { title: 10, description: 6, keywords: 6, content: 2, url: 1 }, name: 'website_text' }
@@ -29,8 +31,6 @@ export default defineModel<WebsiteDocument>('Website', {
         unique: true,
         trim: true
     },
-    // Registrable domain (eTLD+1) of the URL, set at write time. Powers the
-    // Domains view via aggregation, so it must stay consistent with the index.
     domain: {
         type: String,
         trim: true,
@@ -52,12 +52,14 @@ export default defineModel<WebsiteDocument>('Website', {
         type: String,
         trim: true
     },
-    // Full page as clean Markdown (LLM-ready). Populated lazily by the on-demand
-    // scrape endpoint; the massive crawler leaves it empty for throughput.
     markdown: {
         type: String
     },
     metaData: {
         type: Object
+    },
+    workspaces: {
+        type: [{ type: Schema.Types.ObjectId, ref: 'Workspace' }],
+        default: undefined
     }
 }, configure);

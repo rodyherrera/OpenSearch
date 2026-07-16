@@ -15,9 +15,6 @@ const ACTIONS: Action[] = [
     { key: 'crawl', label: 'Crawl', description: 'Walk a whole site into the index.' }
 ];
 
-// Flat endpoint tiles for the Overview blueprint band: pixel-dot glyph, label,
-// one-liner, and an arrow that lights up on hover. The 1px gap over the hairline
-// background draws the dividers; the surrounding Row frames it.
 const QuickActions = () => (
     <div className='grid grid-cols-2 gap-px bg-[var(--hairline)] xl:grid-cols-4'>
         {ACTIONS.map((action) => (

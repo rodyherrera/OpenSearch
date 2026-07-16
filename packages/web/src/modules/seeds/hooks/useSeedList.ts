@@ -18,10 +18,8 @@ export interface UseSeedList{
 }
 
 export const useSeedList = (): UseSeedList => {
-    // The filter lives in the URL (?q=), written by the layout-level search bar.
     const [searchParams] = useSearchParams();
     const query = (searchParams.get('q') ?? '').trim();
-    // Seeds are workspace-scoped, so a workspace switch must re-fetch the list.
     const activeWorkspace = useWorkspaceStore((state) => state.activeId);
 
     const [items, setItems] = useState<PublicSeed[]>([]);
@@ -29,7 +27,6 @@ export const useSeedList = (): UseSeedList => {
     const [loaded, setLoaded] = useState(false);
     const [hasMore, setHasMore] = useState(true);
 
-    // force: true so a refresh after adding seeds bypasses the shared 30s GET cache.
     const fetcher = useRequest((next: number, q: string) => seedsApi.list(next, LIMIT, q), { immediate: false, force: true });
 
     const fetchPage = async (next: number, q: string) => {
@@ -40,8 +37,6 @@ export const useSeedList = (): UseSeedList => {
         setLoaded(true);
     };
 
-    // Re-fetch from page 1 whenever the URL query changes; also runs once on mount.
-    // The search bar already debounces its URL writes, so no debounce here.
     const fetchPageRef = useRef(fetchPage);
     fetchPageRef.current = fetchPage;
     useEffect(() => {

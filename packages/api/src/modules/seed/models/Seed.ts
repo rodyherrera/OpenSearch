@@ -10,8 +10,6 @@ export interface SeedDocument extends Document{
 const configure = (schema: Schema<SeedDocument>): void => {
     schema.index({ createdAt: -1 });
     schema.index({ domain: 1 });
-    // Seeds are scoped per workspace, so the same URL can be seeded by different
-    // workspaces — uniqueness is on the (workspace, url) pair, not url alone.
     schema.index({ workspaceId: 1, url: 1 }, { unique: true });
 };
 

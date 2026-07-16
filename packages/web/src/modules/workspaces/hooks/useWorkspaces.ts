@@ -14,19 +14,15 @@ export interface UseWorkspaces{
     create: (name: string) => Promise<Workspace>;
 }
 
-// Loads the user's workspaces into the shared store, keeps a valid active
-// selection, and busts the request cache whenever the active workspace changes so
-// scoped listings re-fetch for the new scope.
 export const useWorkspaces = (): UseWorkspaces => {
     const { workspaces, activeId, setWorkspaces, setActive } = useWorkspaceStore();
     const { data, loading } = useRequest(workspacesApi.list, { initialData: [] as Workspace[] });
 
     useEffect(() => {
-        if(!data) return;
+        if(!data?.length) return;
         setWorkspaces(data);
-        // Default to the first workspace when the persisted selection is gone/invalid.
         if(!data.some((workspace) => workspace.id === activeId)){
-            setActive(data[0]?.id ?? null);
+            setActive(data[0].id);
             void invalidateCache();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps

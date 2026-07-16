@@ -5,7 +5,6 @@ import type { Endpoint } from '@/modules/playground/contracts/playground';
 export interface RecentRun{
     id: string;
     endpoint: Endpoint;
-    // Search query or target URL, as the user typed it.
     query: string;
     status: 'success' | 'failed';
     startedAt: number;
@@ -19,8 +18,6 @@ interface RunsState{
 
 const CAP = 12;
 
-// Client-side run history for the playground's "Recent Runs" grid. Persisted to
-// localStorage — the API has no run-log endpoint, and this is per-operator anyway.
 export const useRecentRuns = create<RunsState>()(
     persist(
         (set) => ({

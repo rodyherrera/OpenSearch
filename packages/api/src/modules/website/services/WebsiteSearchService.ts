@@ -1,4 +1,5 @@
 import _ from 'lodash';
+import mongoose from 'mongoose';
 import Website from '@/modules/website/models/Website';
 import RuntimeError from '@/shared/errors/RuntimeError';
 import { SearchError } from '@/shared/errors/SearchError';
@@ -19,12 +20,9 @@ interface QueryBuffer{
 }
 
 export default class WebsiteSearchService{
-    // `domains` scopes the result to a set of registrable domains — used to serve a
-    // workspace only the pages under the sites it seeded. An empty array means "no
-    // seeded domains yet", which correctly yields no results.
-    async search(query: SearchQuery, domains?: string[]): Promise<PublicWebsite[]>{
+    async search(query: SearchQuery, workspaceId?: string): Promise<PublicWebsite[]>{
         const buffer: QueryBuffer = { find: {}, sort: {}, select: '', skip: 0, limit: 0 };
-        if(domains) buffer.find.domain = { $in: domains };
+        if(workspaceId) buffer.find.workspaces = new mongoose.Types.ObjectId(workspaceId);
         this.#filter(query, buffer);
         this.#sort(query, buffer);
         this.#limitFields(query, buffer);
@@ -54,8 +52,6 @@ export default class WebsiteSearchService{
             buffer.select = query.fields.split(',').join(' ');
             return;
         }
-        // markdown can be large; never ship it in list/search responses unless the
-        // caller explicitly asks for it. The scrape endpoint reads it directly.
         buffer.select = '-markdown';
     }
 
@@ -75,8 +71,6 @@ export default class WebsiteSearchService{
         buffer.skip = skip;
         buffer.limit = limit;
         const recordsCount = await Website.countDocuments(buffer.find);
-        // Only reject genuine over-paging (page 2+ past the end). Page 1 with no matches
-        // is a valid empty result, not an error — infinite-scroll listings rely on this.
         if(page > 1 && skip >= recordsCount){
             throw new RuntimeError(SearchError.PageOutOfRange, 404);
         }

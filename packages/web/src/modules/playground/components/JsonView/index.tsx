@@ -7,10 +7,8 @@ interface JsonViewProps{
     className?: string;
 }
 
-// Above this size highlighting stops paying for itself; render plain text.
 const MAX_HIGHLIGHT = 300_000;
 
-// Key strings (lookahead for ":") first so they win over plain string values.
 const TOKEN = /"(?:[^"\\]|\\.)*"(?=\s*:)|"(?:[^"\\]|\\.)*"|\b(?:true|false|null)\b|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/g;
 
 const classOf = (token: string, source: string, end: number): string => {
@@ -41,11 +39,6 @@ const highlight = (source: string): ReactNode[] => {
     return out;
 };
 
-/**
- * Firecrawl-style JSON block: monospace, keys in soft foreground, string values
- * in the accent orange, punctuation muted. Scrolls inside a ScrollShadow, so
- * clipped content fades at the edges; `className` sizes/pads the scroll area.
- */
 const JsonView = ({ value, className }: JsonViewProps) => {
     const nodes = useMemo(() => highlight(JSON.stringify(value, null, 2) ?? 'null'), [value]);
 

@@ -5,10 +5,6 @@ import { AuthError } from '@/modules/auth/contracts/domain/errors';
 import { WorkspaceError } from '@/modules/workspace/contracts/domain/workspace';
 import WorkspaceService from '@/modules/workspace/services/WorkspaceService';
 
-// Resolves the active workspace for the request. Reads the X-Workspace-Id header
-// and confirms the authenticated user belongs to it; if the header is absent or
-// invalid, falls back to the user's default (oldest) workspace. Must run after
-// AuthenticatedRoute so req.principal is set.
 export const CurrentWorkspace: MiddlewareFn = async (req) => {
     const userId = req.principal?.userId;
     if(!userId) throw new RuntimeError(AuthError.Unauthorized, 401);

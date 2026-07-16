@@ -4,14 +4,11 @@ interface WorkersPanelProps{
     workers: WorkerInfo[];
 }
 
-// Trailing hex chunk of the worker id — enough to tell replicas apart.
 const shortId = (id: string): string => {
     const tail = id.split(/[-:]/).pop() ?? id;
     return tail.length > 6 ? tail.slice(-6) : tail;
 };
 
-// Live crawler fleet as flat band content: a header row, then one row per worker
-// with an online dot and its page count. No card wrapper — the Row frames it.
 const WorkersPanel = ({ workers }: WorkersPanelProps) => (
     <div className='flex flex-col'>
         <header className='flex items-center justify-between border-b border-hairline px-6 py-4'>

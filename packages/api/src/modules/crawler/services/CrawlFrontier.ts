@@ -14,6 +14,13 @@ const RECENT_KEY = 'frontier:recent';
 const WORKERS_KEY = 'frontier:workers';
 const DOMAIN_KEY = (domain: string) => `frontier:cooldown:${domain}`;
 const DOMPAGES_KEY = (domain: string) => `frontier:dompages:${domain}`;
+const ORIGIN_KEY = 'frontier:origin';
+const WS_DOMAINS_KEY = (workspaceId: string) => `frontier:ws:${workspaceId}:domains`;
+
+export interface FrontierItem{
+    url: string;
+    workspaceId: string | null;
+}
 
 const RECENT_MAX = 30;
 const MAX_PATH_SEGMENTS = 8;
@@ -27,11 +34,9 @@ export const normalizeUrl = (raw: string): string | null => {
         const url = new URL(raw);
         if(url.protocol !== 'http:' && url.protocol !== 'https:') return null;
         if(BINARY_EXT.test(url.pathname)) return null;
-        // Trap guard: skip very deep paths (infinite-space traps live down there).
         if(url.pathname.split('/').filter(Boolean).length > MAX_PATH_SEGMENTS) return null;
         url.hash = '';
         TRACKING_PARAMS.forEach((p) => url.searchParams.delete(p));
-        // Trap guard: skip over-parameterised URLs (faceted search / calendars).
         if(url.searchParams.size > MAX_QUERY_PARAMS) return null;
         url.hostname = url.hostname.toLowerCase();
         if(url.pathname.length > 1 && url.pathname.endsWith('/')){
@@ -43,9 +48,6 @@ export const normalizeUrl = (raw: string): string | null => {
     }
 };
 
-// Registrable domain (eTLD+1) via the Public Suffix List, so every subdomain of a
-// site collapses to one domain — blog.x.com and x.com are the SAME domain. This is
-// what makes "new domain" discovery, per-domain politeness and saturation meaningful.
 export const domainOf = (url: string): string => {
     return getDomain(url) ?? '';
 };
@@ -63,7 +65,7 @@ export default class CrawlFrontier{
         this.#domainDelayMs = ms;
     }
 
-    async enqueue(urls: string[]): Promise<number>{
+    async enqueue(urls: string[], workspaceId?: string | null): Promise<number>{
         const redis = await getRedis();
         const queueSize = await redis.lLen(QUEUE_KEY);
         if(queueSize >= this.#maxFrontier) return 0;
@@ -80,8 +82,6 @@ export default class CrawlFrontier{
         const freshDomains = fresh.map(domainOf);
         const distinctDomains = [...new Set(freshDomains.filter(Boolean))];
 
-        // One round trip each: which domains are already known, and which have hit the
-        // per-domain page cap (saturated → drop their URLs so the crawl fans outward).
         const [domainMembership, saturatedMembership] = distinctDomains.length
             ? await Promise.all([
                 redis.smIsMember(DOMAINS_KEY, distinctDomains),
@@ -102,7 +102,6 @@ export default class CrawlFrontier{
             const domain = freshDomains[i];
             if(domain && saturatedDomain.has(domain)) continue;
             seenToAdd.push(fresh[i]);
-            // URLs to never-seen domains jump the priority queue (discover-new bias).
             if(domain && !knownDomain.get(domain)){
                 priorityUrls.push(fresh[i]);
             }else{
@@ -122,12 +121,35 @@ export default class CrawlFrontier{
         }
         if(priorityUrls.length) multi.rPush(PRIORITY_KEY, priorityUrls);
         if(normalUrls.length) multi.rPush(QUEUE_KEY, normalUrls);
+        if(workspaceId && seenToAdd.length){
+            multi.hSet(ORIGIN_KEY, Object.fromEntries(seenToAdd.map((url) => [url, workspaceId])));
+        }
         await multi.exec();
 
         return seenToAdd.length;
     }
 
-    async dequeue(count: number): Promise<string[]>{
+    async #attachOrigins(urls: string[]): Promise<FrontierItem[]>{
+        if(!urls.length) return [];
+        const redis = await getRedis();
+        const origins = await redis.hmGet(ORIGIN_KEY, urls);
+        void redis.hDel(ORIGIN_KEY, urls);
+        return urls.map((url, i) => ({ url, workspaceId: (origins[i] as string) || null }));
+    }
+
+    async registerWorkspaceDomains(workspaceId: string, domains: string[]): Promise<void>{
+        const clean = [...new Set(domains.filter(Boolean))];
+        if(!clean.length) return;
+        const redis = await getRedis();
+        await redis.sAdd(WS_DOMAINS_KEY(workspaceId), clean);
+    }
+
+    async getWorkspaceDomains(workspaceId: string): Promise<Set<string>>{
+        const redis = await getRedis();
+        return new Set(await redis.sMembers(WS_DOMAINS_KEY(workspaceId)));
+    }
+
+    async dequeue(count: number): Promise<FrontierItem[]>{
         const redis = await getRedis();
 
         const popFromBoth = async (n: number): Promise<string[]> => {
@@ -138,7 +160,7 @@ export default class CrawlFrontier{
         };
 
         if(this.#domainDelayMs <= 0){
-            return await popFromBoth(count);
+            return this.#attachOrigins(await popFromBoth(count));
         }
 
         const window = count * 4;
@@ -180,7 +202,7 @@ export default class CrawlFrontier{
 
         if(leftovers.length) await redis.rPush(QUEUE_KEY, leftovers);
 
-        return ready;
+        return this.#attachOrigins(ready);
     }
 
     async size(): Promise<number>{
@@ -224,8 +246,6 @@ export default class CrawlFrontier{
         return total;
     }
 
-    // Count crawled pages per domain; once a domain reaches the cap it is marked
-    // saturated, so enqueue() stops feeding it and the crawl moves to fresh domains.
     async recordDomainPages(domains: string[], cap: number): Promise<void>{
         if(!domains.length || cap <= 0) return;
         const counts = new Map<string, number>();
@@ -248,8 +268,6 @@ export default class CrawlFrontier{
         if(saturated.length) await redis.sAdd(SATURATED_KEY, saturated);
     }
 
-    // New distinct domains discovered in the trailing 60s — the metric that matters
-    // when the goal is coverage, not raw page throughput.
     async domainsPerMin(now: number): Promise<number>{
         const redis = await getRedis();
         const events = await redis.zRangeByScore(DOMRATE_KEY, now - 60000, now);

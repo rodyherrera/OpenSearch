@@ -20,8 +20,6 @@ export const alova = createAlova({
         const workspaceId = useWorkspaceStore.getState().activeId;
         method.config.headers['Content-Type'] = 'application/json';
         if(token) method.config.headers.Authorization = `Bearer ${token}`;
-        // Scopes every request to the active workspace; the API falls back to the
-        // user's default workspace when it's absent.
         if(workspaceId) method.config.headers['X-Workspace-Id'] = workspaceId;
     },
 

@@ -4,7 +4,6 @@ interface LinkListProps{
     links: string[];
 }
 
-// Numbered monospace link listing, like Firecrawl's Map "Links" tab.
 const LinkList = ({ links }: LinkListProps) => (
     <ScrollShadow className='max-h-96'>
         <ol className='py-3 font-mono text-xs leading-6'>

@@ -12,7 +12,6 @@ export interface PlaygroundRun{
     running: boolean;
     result: unknown;
     error: string | null;
-    // Live status line while a crawl job is polling.
     note: string | null;
     setUrl: (value: string) => void;
     setLimit: (value: number) => void;
@@ -23,7 +22,6 @@ export interface PlaygroundRun{
 const messageFrom = (error: unknown): string =>
     error instanceof Error ? error.message : 'Request failed';
 
-// URL endpoints accept scheme-less input (the playground UI shows an https:// chip).
 const normalize = (endpoint: Endpoint, value: string): string =>
     endpoint === 'search' || !value || /^[a-z][a-z0-9+.-]*:\/\//i.test(value)
         ? value
@@ -39,8 +37,6 @@ export const usePlayground = (): PlaygroundRun => {
     const [note, setNote] = useState<string | null>(null);
     const cancelled = useRef(false);
 
-    // Poll a created crawl job to a terminal state, then resolve its results. Kept
-    // here (not in the component) so the page stays declarative.
     const pollCrawl = async (id: string): Promise<void> => {
         for(;;){
             if(cancelled.current) return;

@@ -5,7 +5,6 @@ import { useSeeds } from '@/modules/seeds/hooks/useSeeds';
 import type { ChangeEvent, FormEvent } from 'react';
 
 interface AddSeedModalProps{
-    // Called after seeds are successfully added, so the listing can refresh.
     onAdded?: () => void;
 }
 

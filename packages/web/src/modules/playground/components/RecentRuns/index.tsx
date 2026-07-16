@@ -19,7 +19,6 @@ interface MetaRowProps{
     children: ReactNode;
 }
 
-// Label/value line inside a run card, hairline-separated like Firecrawl's.
 const MetaRow = ({ label, children }: MetaRowProps) => (
     <div className='grid grid-cols-[88px_1fr] items-center gap-3 border-t border-hairline px-4 py-3'>
         <span className='text-sm text-muted'>{label}</span>
@@ -92,7 +91,6 @@ interface RecentRunsProps{
     runs: RecentRun[];
 }
 
-// "Recent Runs" grid under the playground — two blueprint bands: heading + cards.
 const RecentRuns = ({ runs }: RecentRunsProps) => {
     if(!runs.length) return null;
 

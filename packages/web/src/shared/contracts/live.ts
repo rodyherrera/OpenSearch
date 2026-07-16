@@ -1,6 +1,3 @@
-// Frozen wire shapes for the Crawlm `/ws` live feed. The server sends FLAT frames
-// (top-level `type` plus fields); SocketChannel unwraps them to the whole object.
-
 export interface SnapshotFrame{
     type: 'snapshot';
     ts: number;

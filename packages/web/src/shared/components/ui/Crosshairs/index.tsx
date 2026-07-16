@@ -1,7 +1,5 @@
 import type { CSSProperties } from 'react';
 
-// Blueprint-style "+" registration marks pinned to the four corners of the nearest
-// positioned ancestor. Purely decorative; parent must be `relative`.
 const OFFSET = -4.5;
 
 const POSITIONS: CSSProperties[] = [

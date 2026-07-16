@@ -16,8 +16,6 @@ export interface CrawlMetrics{
     seen: number;
 }
 
-// One rolling series per headline metric, so every stat card can render its own
-// sparkline. Sampled once per tick (snapshot + batch), never per page event.
 export interface CrawlHistory{
     stored: number[];
     domains: number[];
@@ -54,7 +52,6 @@ const cap = (series: number[], value: number): number[] => {
     return next.length > SERIES_CAP ? next.slice(next.length - SERIES_CAP) : next;
 };
 
-// Append the current value of every headline metric to its rolling window.
 const pushHistory = (history: CrawlHistory, metrics: CrawlMetrics): CrawlHistory => ({
     stored: cap(history.stored, metrics.stored),
     domains: cap(history.domains, metrics.domains),
@@ -64,11 +61,6 @@ const pushHistory = (history: CrawlHistory, metrics: CrawlMetrics): CrawlHistory
     domainsPerMin: cap(history.domainsPerMin, metrics.domainsPerMin)
 });
 
-/**
- * Module-singleton store holding the merged crawl feed. Merge logic mirrors the
- * original vanilla dashboard (applySnapshot / applyPage / applyBatch): the page
- * stream ticks counters up live, batches reconcile to authoritative totals.
- */
 const useCrawlStore = create<CrawlLiveState>((set) => ({
     metrics: EMPTY_METRICS,
     history: EMPTY_HISTORY,
@@ -119,8 +111,6 @@ const useCrawlStore = create<CrawlLiveState>((set) => ({
             domains: frame.domains,
             websites: Math.max(state.metrics.websites, frame.totalStored)
         };
-        // Batches identify their worker, so its counters can tick without waiting
-        // for the next snapshot.
         const workers = state.workers.map((worker) =>
             worker.id === frame.worker
                 ? { ...worker, stored: frame.workerStored, lastBatch: frame.stored, lastSeen: frame.at, online: true }
@@ -134,11 +124,6 @@ const useCrawlStore = create<CrawlLiveState>((set) => ({
     })
 }));
 
-/**
- * Subscribes to the shared `/ws` channel (one pooled socket for the whole app)
- * and returns the live crawl slices plus the connection status. Store actions are
- * stable, so the handlers passed to useChannel keep a constant identity.
- */
 export const useCrawlLive = (): CrawlLive => {
     const applySnapshot = useCrawlStore((state) => state.applySnapshot);
     const applyPage = useCrawlStore((state) => state.applyPage);

@@ -39,8 +39,6 @@ interface NavSection{
     items: NavItem[];
 }
 
-// Firecrawl-style grouped sidebar: the playground endpoints are first-class
-// destinations, deep-linked through the ?endpoint= param.
 const SECTIONS: NavSection[] = [
     {
         items: [{ to: '/', label: 'Overview', icon: LayoutDashboard, end: true }]
@@ -105,8 +103,6 @@ const DashboardLayout = () => {
         navigate('/sign-in');
     };
 
-    // NavLink can't see query strings, so playground links resolve their own active
-    // state: same path + same ?endpoint= (absent param defaults to "search").
     const isItemActive = (item: NavItem, routeActive: boolean): boolean => {
         const [path, query] = item.to.split('?');
         if(!query) return routeActive;

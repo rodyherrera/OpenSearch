@@ -11,20 +11,14 @@ export interface Column<T>{
     key: string;
     header: string;
     align?: 'left' | 'right';
-    // Optional fixed width (any Tailwind width class, e.g. 'w-44'). Columns without one
-    // share the remaining space equally (the table uses a fixed layout).
     width?: string;
     sortable?: boolean;
-    // Value used for default cell text and client-side sorting.
     value?: (row: T) => string | number;
-    // Custom cell renderer; falls back to value() when omitted.
     cell?: (row: T) => ReactNode;
 }
 
 export interface TableSearch{
-    // Committed value (usually the URL ?q=); the box mirrors it.
     value: string;
-    // Called (debounced) with the trimmed term when the user types.
     onChange: (value: string) => void;
     placeholder?: string;
 }
@@ -35,14 +29,10 @@ export interface DataTableProps<T>{
     rowKey: (row: T) => string;
     title?: string;
     subtitle?: string;
-    // Firecrawl-style toolbar controls.
     search?: TableSearch;
-    // Extra toolbar controls rendered next to the search (left group).
     filters?: ReactNode;
     onRefresh?: () => void;
-    // Controls rendered on the right side of the toolbar (e.g. an "Add" button).
     actions?: ReactNode;
-    // A line rendered in its own band below the table (delete/purge feedback).
     notice?: ReactNode;
     loading?: boolean;
     error?: Error;
@@ -56,13 +46,10 @@ export interface DataTableProps<T>{
 const SKELETON_ROWS = Array.from({ length: 8 });
 const DEBOUNCE_MS = 300;
 
-// Toolbar search (HeroUI SearchField): mirrors the committed value, debounces the
-// outgoing onChange so the listing refetches only after the user pauses.
 const ToolbarSearch = ({ value, onChange, placeholder }: TableSearch) => {
     const [local, setLocal] = useState(value);
     const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
-    // Follow external changes (back/forward, cleared filter).
     useEffect(() => { setLocal(value); }, [value]);
     useEffect(() => () => clearTimeout(debounceRef.current), []);
 
@@ -142,7 +129,6 @@ function DataTable<T>({
     const hasToolbar = Boolean(search || filters || onRefresh || actions);
     const showFooter = !loading && !error && sortedRows.length > 0;
 
-    // Shared band width — wide enough for data columns, with blueprint gutters.
     const MAX = 'max-w-6xl';
 
     return (

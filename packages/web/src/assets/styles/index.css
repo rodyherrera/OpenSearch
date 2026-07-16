@@ -2,13 +2,7 @@
 @import "@fontsource-variable/inter";
 @import "@fontsource-variable/jetbrains-mono";
 
-/* Apple-inspired theme over HeroUI: system-blue accent, layered neutrals, subtle
-   separators, and continuous-feeling rounded corners. HeroUI derives its whole
-   colour + radius scale from these tokens (--accent, --background, --radius, …),
-   so overriding them here reskins the entire component kit at once. */
-
 @theme {
-    /* SF Pro on Apple platforms, Inter as the cross-platform stand-in. */
     --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter Variable', system-ui, sans-serif;
     --font-mono: 'SF Mono', 'JetBrains Mono Variable', ui-monospace, monospace;
 }
@@ -29,14 +23,11 @@ body {
     --accent-soft-foreground: var(--accent);
     --chart: var(--accent);
 
-    /* HIG-style rounding: one base, everything scales off it. lg 10 / xl 15 /
-       2xl 20 / 3xl 30 px — controls sit around lg–xl, cards around 2xl. */
     --radius: 0.625rem;
 }
 
 .light,
 [data-theme="light"] {
-    /* systemGroupedBackground light: gray canvas, white elevated surfaces. */
     --background: #f5f5f7;
     --dashboard-surface: #f5f5f7;
     --surface: #ffffff;
@@ -56,9 +47,6 @@ body {
 
 .dark,
 [data-theme="dark"] {
-    /* Deep near-black base with clearly-lifted surfaces stacking above it. A
-       mid-gray base washed everything out; the deep anchor makes cards read as
-       real elevation and gives the dark its richness back. */
     --background: #0c0c0e;
     --dashboard-surface: #0c0c0e;
     --surface: #17171b;
@@ -76,7 +64,6 @@ body {
     --hairline: rgba(255, 255, 255, 0.08);
 }
 
-/* Tiny uppercase monospace label — section headers, table headers, stat labels. */
 @utility mono-label {
     font-family: var(--font-mono);
     font-size: 0.6875rem;
@@ -85,12 +72,10 @@ body {
     text-transform: uppercase;
 }
 
-/* Hairline border colour that stays consistent across surfaces. */
 @utility border-hairline {
     border-color: var(--hairline);
 }
 
-/* Blueprint grid backdrop (sign-in, empty states). */
 @utility bg-blueprint {
     background-image:
         linear-gradient(var(--grid-line) 1px, transparent 1px),

@@ -5,39 +5,30 @@ import { Middleware } from '@/shared/middlewares/Middleware';
 import { Query, Param, Body } from '@/shared/controllers/RequestParams';
 import { AuthenticatedRoute } from '@/modules/auth/middlewares/AuthenticatedRoute';
 import { CurrentWorkspace, CurrentWorkspaceId } from '@/modules/workspace/middlewares/CurrentWorkspace';
-import WorkspaceService from '@/modules/workspace/services/WorkspaceService';
 import WebsiteSearchService from '@/modules/website/services/WebsiteSearchService';
 import WebsiteService from '@/modules/website/services/WebsiteService';
 import type { SearchQuery } from '@/modules/website/contracts/http/search';
 import type { PublicWebsite } from '@/modules/website/contracts/domain/website';
 
-// A dashboard listing can look at just the active workspace's slice of the index
-// or at the whole shared corpus. Everything defaults to the workspace scope.
 type Scope = 'workspace' | 'global';
 
 @Middleware(AuthenticatedRoute, CurrentWorkspace)
 export default class WebsiteController extends BaseController{
     #search = new WebsiteSearchService();
     #service = new WebsiteService();
-    #workspaces = new WorkspaceService();
 
-    // Resolve the domain filter for a request: the workspace's seeded domains, or
-    // undefined for global scope (no filter).
-    async #scopeDomains(workspaceId: string, scope?: string): Promise<string[] | undefined>{
-        if((scope as Scope) === 'global') return undefined;
-        return this.#workspaces.seedDomains(workspaceId);
+    #scope(workspaceId: string, scope?: string): string | undefined{
+        return (scope as Scope) === 'global' ? undefined : workspaceId;
     }
 
     @Route('/', 'GET')
     async search(@CurrentWorkspaceId() workspaceId: string, @Query() query: SearchQuery & { scope?: string }): Promise<PublicWebsite[]>{
-        const domains = await this.#scopeDomains(workspaceId, query.scope);
-        return this.#search.search(query, domains);
+        return this.#search.search(query, this.#scope(workspaceId, query.scope));
     }
 
     @Route('/domains', 'GET')
     async domains(@CurrentWorkspaceId() workspaceId: string, @Query('scope') scope?: string){
-        const domains = await this.#scopeDomains(workspaceId, scope);
-        return { domains: await this.#service.listDomains(1000, domains) };
+        return { domains: await this.#service.listDomains(1000, this.#scope(workspaceId, scope)) };
     }
 
     @Route('/:id', 'DELETE')

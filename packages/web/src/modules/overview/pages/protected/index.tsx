@@ -7,7 +7,6 @@ import TopDomains from '@/modules/overview/components/TopDomains';
 
 const fmt = (value: number): string => value.toLocaleString();
 
-// Coarse relative stamp for the live feed ("42s ago").
 const ago = (at: number): string => {
     const seconds = Math.max(0, Math.round((Date.now() - at) / 1000));
     if(seconds < 60) return `${seconds}s ago`;
@@ -34,13 +33,11 @@ const Overview = () => {
 
     return (
         <Canvas>
-            {/* Title */}
             <Row className='px-8 pt-14 pb-12'>
                 <h1 className='text-4xl font-semibold tracking-tight text-foreground'>Overview</h1>
                 <p className='mt-3 text-[15px] text-muted'>Live crawl metrics, streaming as pages land.</p>
             </Row>
 
-            {/* Metrics — flat numeric grid, hairline dividers, no charts */}
             <Row>
                 <div className='grid grid-cols-2 gap-px bg-[var(--hairline)] md:grid-cols-3'>
                     {stats.map((stat) => (
@@ -53,12 +50,10 @@ const Overview = () => {
                 </div>
             </Row>
 
-            {/* Jump into an endpoint */}
             <Row>
                 <QuickActions />
             </Row>
 
-            {/* Recently indexed */}
             <Row>
                 <header className='flex items-center justify-between px-8 py-4'>
                     <h2 className='text-sm font-medium text-foreground'>Recently indexed</h2>
@@ -88,7 +83,6 @@ const Overview = () => {
                 </div>
             </Row>
 
-            {/* Fleet + leaderboard, split by a hairline */}
             <Row>
                 <div className='grid md:grid-cols-2'>
                     <div className='border-b border-hairline md:border-r md:border-b-0'>

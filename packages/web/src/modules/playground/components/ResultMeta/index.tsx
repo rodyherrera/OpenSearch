@@ -16,9 +16,6 @@ const STATUS: Record<RunState, { label: string; className: string; icon: Compone
     error: { label: 'Failed', className: 'text-danger', icon: XCircle }
 };
 
-// Firecrawl's "Endpoint | Status" cells: plain muted labels, a pixel-dot glyph for
-// the endpoint, and the status check in orange. Framing hairlines come from the
-// surrounding blueprint row.
 const ResultMeta = ({ endpoint, endpointLabel, state }: ResultMetaProps) => {
     const status = STATUS[state];
     const StatusIcon = status.icon;

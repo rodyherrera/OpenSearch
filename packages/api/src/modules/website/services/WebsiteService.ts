@@ -7,26 +7,33 @@ import { RequestError } from '@/shared/errors/RequestError';
 import type { WebsitePageRecord, ScrapedRecord } from '@/modules/website/contracts/domain/website';
 
 export default class WebsiteService{
-    async bulkUpsert(records: WebsitePageRecord[]): Promise<number>{
+    async bulkUpsert(records: WebsitePageRecord[], workspaceByUrl?: Map<string, string | null | undefined>): Promise<number>{
         if(!records.length) return 0;
-        const bulkOps = records.map(({ url, title, description, keywords, content, metaData }) => ({
-            updateOne: {
-                filter: { url },
-                update: { $setOnInsert: { url, domain: getDomain(url) ?? '', title, description, keywords, content, metaData } },
-                upsert: true
-            }
-        }));
+        const bulkOps = records.map(({ url, title, description, keywords, content, metaData }) => {
+            const workspaceId = workspaceByUrl?.get(url);
+            const update: Record<string, unknown> = {
+                $setOnInsert: { url, domain: getDomain(url) ?? '', title, description, keywords, content, metaData }
+            };
+            if(workspaceId) update.$addToSet = { workspaces: workspaceId };
+            return { updateOne: { filter: { url }, update, upsert: true } };
+        });
         await Website.bulkWrite(bulkOps, { ordered: false });
         return bulkOps.length;
+    }
+
+    async stampWorkspaceByDomains(domains: string[], workspaceId: string): Promise<number>{
+        if(!domains.length) return 0;
+        const result = await Website.updateMany(
+            { domain: { $in: domains } },
+            { $addToSet: { workspaces: workspaceId } }
+        );
+        return result.modifiedCount ?? 0;
     }
 
     async estimatedCount(): Promise<number>{
         return Website.estimatedDocumentCount();
     }
 
-    // Upsert a fully-scraped page. Unlike bulkUpsert (discovery: $setOnInsert only),
-    // this refreshes content/markdown/metadata on every call so a re-scrape updates
-    // the cached copy and bumps updatedAt — that timestamp is the cache clock.
     async saveScraped(page: ScrapedRecord): Promise<void>{
         await Website.updateOne(
             { url: page.url },
@@ -45,14 +52,10 @@ export default class WebsiteService{
         );
     }
 
-    // Read a single indexed page by exact URL, including markdown (which list/search
-    // responses omit). Returns null when the page isn't in the index.
     async findByUrl(url: string): Promise<WebsiteDocument | null>{
         return Website.findOne({ url }).lean<WebsiteDocument>();
     }
 
-    // Every indexed URL for a registrable domain, newest first. Feeds the /map
-    // endpoint the pages we already know about without touching the network.
     async listUrlsByDomain(domain: string, limit = 5000): Promise<string[]>{
         const docs = await Website.find({ domain })
             .select('url')
@@ -71,14 +74,9 @@ export default class WebsiteService{
         return known.map((doc) => doc.url);
     }
 
-    // Registrable domains actually present in the index with their page counts,
-    // busiest first. Documents that predate the domain field are excluded until
-    // the boot-time backfill reaches them.
-    async listDomains(limit = 1000, domains?: string[]): Promise<{ domain: string; pages: number }[]>{
-        // `domains` scopes the aggregation to a workspace's seeded domains; omitted
-        // means the whole index (global scope).
+    async listDomains(limit = 1000, workspaceId?: string): Promise<{ domain: string; pages: number }[]>{
         const match: Record<string, unknown> = { domain: { $exists: true, $ne: '' } };
-        if(domains) match.domain = { $in: domains };
+        if(workspaceId) match.workspaces = new mongoose.Types.ObjectId(workspaceId);
         return Website.aggregate<{ domain: string; pages: number }>([
             { $match: match },
             { $group: { _id: '$domain', pages: { $sum: 1 } } },
@@ -88,9 +86,6 @@ export default class WebsiteService{
         ]);
     }
 
-    // One-shot migration for documents written before the domain field existed.
-    // Batched so a large index is never loaded into memory at once. URLs with no
-    // registrable domain get '' so they are never re-scanned on the next boot.
     async backfillDomains(batchSize = 1000): Promise<number>{
         let updated = 0;
         for(;;){
@@ -111,7 +106,6 @@ export default class WebsiteService{
     }
 
     async deleteById(id: string): Promise<boolean>{
-        // Reject anything that isn't a valid ObjectId before hitting mongo
         if(!mongoose.isValidObjectId(id)){
             throw new RuntimeError(RequestError.InvalidId ?? 'Request::InvalidId', 400);
         }
@@ -120,12 +114,10 @@ export default class WebsiteService{
     }
 
     async purge({ domain, all }: { domain?: string; all?: boolean }): Promise<number>{
-        // Wipe the whole index when explicitly requested
         if(all){
             const result = await Website.deleteMany({});
             return result.deletedCount ?? 0;
         }
-        // Otherwise scope the delete to a single domain (and its subdomains)
         if(domain){
             const pattern = new RegExp('^https?://([a-z0-9-]+\\.)*' + _.escapeRegExp(domain) + '(/|$)', 'i');
             const result = await Website.deleteMany({ url: pattern });

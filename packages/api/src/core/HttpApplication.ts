@@ -57,8 +57,6 @@ export default class HttpApplication{
         await this.#bootstrap.shutdown();
     }
 
-    // Fire-and-forget: stamp Website.domain on documents that predate the field,
-    // so the /website/domains aggregation covers the whole index.
     #backfillWebsiteDomains(): void{
         new WebsiteService().backfillDomains()
             .then((updated) => {
@@ -67,8 +65,6 @@ export default class HttpApplication{
             .catch((error) => logger.error('Website domain backfill failed', error, { scope: 'http' }));
     }
 
-    // In-process crawl jobs can't survive a restart; mark any left mid-flight as
-    // failed so they don't sit forever in a running state.
     async #failStaleCrawlJobs(): Promise<void>{
         try{
             const failed = await new CrawlJobService().failStaleJobs();
