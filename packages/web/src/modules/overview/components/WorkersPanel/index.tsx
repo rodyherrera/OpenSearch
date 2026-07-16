@@ -1,4 +1,3 @@
-import Crosshairs from '@/shared/components/ui/Crosshairs';
 import type { WorkerInfo } from '@/shared/contracts/live';
 
 interface WorkersPanelProps{
@@ -13,8 +12,7 @@ const shortId = (id: string): string => {
 
 // Live crawler fleet: one row per worker with an online dot and its page count.
 const WorkersPanel = ({ workers }: WorkersPanelProps) => (
-    <section className='relative border border-hairline'>
-        <Crosshairs />
+    <section className='overflow-hidden rounded-2xl border border-hairline bg-surface shadow-sm'>
         <header className='flex items-center justify-between border-b border-hairline px-5 py-4'>
             <h2 className='text-sm font-medium text-foreground'>Workers</h2>
             <span className='mono-label text-muted/70'>

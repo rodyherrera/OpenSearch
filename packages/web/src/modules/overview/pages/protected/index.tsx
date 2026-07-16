@@ -4,7 +4,6 @@ import RecentFeed from '@/modules/overview/components/RecentFeed';
 import QuickActions from '@/modules/overview/components/QuickActions';
 import WorkersPanel from '@/modules/overview/components/WorkersPanel';
 import TopDomains from '@/modules/overview/components/TopDomains';
-import Crosshairs from '@/shared/components/ui/Crosshairs';
 
 const Overview = () => {
     const { metrics, history, recent, workers } = useCrawlLive();
@@ -16,10 +15,9 @@ const Overview = () => {
                 <p className='text-[15px] text-muted'>Live crawl metrics, streaming as pages land.</p>
             </header>
 
-            {/* Firecrawl-style stat band: one bordered container, hairline dividers drawn
-                by the 1px gap over the container's divider-coloured background. */}
-            <div className='relative border border-hairline bg-[var(--hairline)]'>
-                <Crosshairs />
+            {/* Grouped stat card: elevated cells over a hairline-coloured background,
+                the 1px gap drawing the dividers. Rounded, Apple grouped-list style. */}
+            <div className='overflow-hidden rounded-2xl border border-hairline bg-[var(--hairline)] shadow-sm'>
                 <div className='grid grid-cols-1 gap-px md:grid-cols-2 xl:grid-cols-4'>
                     <div className='md:col-span-2 xl:col-span-2'>
                         <MetricCard
@@ -78,9 +76,8 @@ const Overview = () => {
 
             {/* Live activity: the feed carries the width; the fleet + leaderboard
                 stack on the right. */}
-            <div className='grid grid-cols-1 items-start gap-8 xl:grid-cols-3'>
-                <section className='relative border border-hairline xl:col-span-2'>
-                    <Crosshairs />
+            <div className='grid grid-cols-1 items-start gap-6 xl:grid-cols-3'>
+                <section className='overflow-hidden rounded-2xl border border-hairline bg-surface shadow-sm xl:col-span-2'>
                     <header className='flex items-center justify-between border-b border-hairline px-5 py-4'>
                         <h2 className='text-sm font-medium text-foreground'>Recently indexed</h2>
                         <span className='mono-label text-muted/70'>{recent.length} pages</span>
@@ -88,7 +85,7 @@ const Overview = () => {
                     <RecentFeed items={recent} />
                 </section>
 
-                <div className='flex flex-col gap-8'>
+                <div className='flex flex-col gap-6'>
                     <WorkersPanel workers={workers} />
                     <TopDomains />
                 </div>

@@ -1,7 +1,6 @@
 import { Link } from 'react-router-dom';
 import { ArrowUpRight } from 'lucide-react';
 import DotGlyph from '@/shared/components/ui/DotGlyph';
-import Crosshairs from '@/shared/components/ui/Crosshairs';
 
 interface Action{
     key: string;
@@ -16,17 +15,16 @@ const ACTIONS: Action[] = [
     { key: 'crawl', label: 'Crawl', description: 'Walk a whole site into the index.' }
 ];
 
-// Firecrawl-style endpoint tiles: pixel-dot glyph, label, one-liner, and an
-// arrow that lights up on hover. Hairline dividers between cells.
+// Endpoint tiles: pixel-dot glyph, label, one-liner, and an arrow that lights up
+// on hover. Elevated cells over a hairline background draw the dividers.
 const QuickActions = () => (
-    <div className='relative border border-hairline bg-[var(--hairline)]'>
-        <Crosshairs />
+    <div className='overflow-hidden rounded-2xl border border-hairline bg-[var(--hairline)] shadow-sm'>
         <div className='grid grid-cols-1 gap-px sm:grid-cols-2 xl:grid-cols-4'>
             {ACTIONS.map((action) => (
                 <Link
                     key={action.key}
                     to={`/playground?endpoint=${action.key}`}
-                    className='group flex flex-col gap-3 bg-background p-5 transition-colors hover:bg-foreground/[0.02]'
+                    className='group flex flex-col gap-3 bg-surface p-5 transition-colors hover:bg-foreground/[0.04]'
                 >
                     <div className='flex items-start justify-between'>
                         <DotGlyph pattern={action.key} className='size-4 text-muted/70 transition-colors group-hover:text-accent' />

@@ -2,7 +2,6 @@ import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useRequest } from 'alova/client';
 import { ArrowUpRight } from 'lucide-react';
-import Crosshairs from '@/shared/components/ui/Crosshairs';
 import Favicon from '@/shared/components/ui/Favicon';
 import { domainsApi } from '@/modules/domains/api/api';
 
@@ -19,8 +18,7 @@ const TopDomains = () => {
     );
 
     return (
-        <section className='relative border border-hairline'>
-            <Crosshairs />
+        <section className='overflow-hidden rounded-2xl border border-hairline bg-surface shadow-sm'>
             <header className='flex items-center justify-between border-b border-hairline px-5 py-4'>
                 <h2 className='text-sm font-medium text-foreground'>Top domains</h2>
                 <Link

@@ -2,18 +2,21 @@
 @import "@fontsource-variable/inter";
 @import "@fontsource-variable/jetbrains-mono";
 
-/* Firecrawl-inspired theme: warm neutrals, heat-orange accent, hairline borders,
-   monospace metadata labels. HeroUI derives hover/soft/focus tokens from --accent
-   via color-mix, so overriding the base tokens recolours the whole component kit. */
+/* Apple-inspired theme over HeroUI: system-blue accent, layered neutrals, subtle
+   separators, and continuous-feeling rounded corners. HeroUI derives its whole
+   colour + radius scale from these tokens (--accent, --background, --radius, …),
+   so overriding them here reskins the entire component kit at once. */
 
 @theme {
-    --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
-    --font-mono: 'JetBrains Mono Variable', ui-monospace, 'SF Mono', monospace;
+    /* SF Pro on Apple platforms, Inter as the cross-platform stand-in. */
+    --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter Variable', system-ui, sans-serif;
+    --font-mono: 'SF Mono', 'JetBrains Mono Variable', ui-monospace, monospace;
 }
 
 body {
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
+    letter-spacing: -0.01em;
 }
 
 :root,
@@ -21,49 +24,64 @@ body {
 [data-theme="light"],
 .dark,
 [data-theme="dark"] {
-    --accent: #ff4e10;
     --accent-foreground: #ffffff;
     --focus: var(--accent);
     --accent-soft-foreground: var(--accent);
     --chart: var(--accent);
+
+    /* HIG-style rounding: one base, everything scales off it. lg 10 / xl 15 /
+       2xl 20 / 3xl 30 px — controls sit around lg–xl, cards around 2xl. */
+    --radius: 0.625rem;
 }
 
 .light,
 [data-theme="light"] {
-    /* Warm paper, like the Firecrawl landing. */
-    --background: #f7f6f3;
-    --dashboard-surface: #f7f6f3;
+    /* systemGroupedBackground light: gray canvas, white elevated surfaces. */
+    --background: #f5f5f7;
+    --dashboard-surface: #f5f5f7;
     --surface: #ffffff;
-    --surface-secondary: #f1f0ec;
-    --surface-tertiary: #eae8e3;
-    --grid-line: rgba(20, 16, 12, 0.06);
-    --hairline: rgba(20, 16, 12, 0.1);
+    --surface-secondary: #f0f0f3;
+    --surface-tertiary: #e9e9ee;
+    --foreground: #1d1d1f;
+    --muted: #6e6e73;
+
+    --accent: #5856d6;
+    --danger: #ff3b30;
+    --success: #34c759;
+    --warning: #ff9500;
+
+    --grid-line: rgba(0, 0, 0, 0.04);
+    --hairline: rgba(0, 0, 0, 0.09);
 }
 
 .dark,
 [data-theme="dark"] {
-    /* Near-black with a faint warm cast. */
-    --background: #0a0a0a;
-    --dashboard-surface: #0a0a0a;
-    --surface: #141414;
-    --surface-secondary: #171717;
-    --surface-tertiary: #1f1f1f;
-    --muted: #9a9a9a;
-    --grid-line: rgba(255, 255, 255, 0.055);
-    --hairline: rgba(255, 255, 255, 0.09);
+    /* Deep near-black base with clearly-lifted surfaces stacking above it. A
+       mid-gray base washed everything out; the deep anchor makes cards read as
+       real elevation and gives the dark its richness back. */
+    --background: #0c0c0e;
+    --dashboard-surface: #0c0c0e;
+    --surface: #17171b;
+    --surface-secondary: #202027;
+    --surface-tertiary: #2a2a32;
+    --foreground: #f5f5f7;
+    --muted: #8e8e96;
+
+    --accent: #6e6bf6;
+    --danger: #ff453a;
+    --success: #30d158;
+    --warning: #ff9f0a;
+
+    --grid-line: rgba(255, 255, 255, 0.05);
+    --hairline: rgba(255, 255, 255, 0.08);
 }
 
-.button {
-    --spacing: 0.3rem;
-}
-
-/* Tiny uppercase monospace label — used for section headers, table headers,
-   stat labels ("ENDPOINT", "STATUS", "PAGES INDEXED"). */
+/* Tiny uppercase monospace label — section headers, table headers, stat labels. */
 @utility mono-label {
     font-family: var(--font-mono);
     font-size: 0.6875rem;
     font-weight: 500;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
 }
 

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowDown, ArrowUp, Search as SearchIcon } from 'lucide-react';
+import { ArrowDown, ArrowUp } from 'lucide-react';
+import { SearchField } from '@heroui/react';
 import { useInfiniteScroll } from '@/shared/hooks/useInfiniteScroll';
 import { Canvas, Row } from '@/shared/components/ui/Blueprint';
 import type { ReactNode } from 'react';
@@ -55,8 +56,8 @@ export interface DataTableProps<T>{
 const SKELETON_ROWS = Array.from({ length: 8 });
 const DEBOUNCE_MS = 300;
 
-// Toolbar search: mirrors the committed value, debounces the outgoing onChange so
-// the listing refetches only after the user pauses.
+// Toolbar search (HeroUI SearchField): mirrors the committed value, debounces the
+// outgoing onChange so the listing refetches only after the user pauses.
 const ToolbarSearch = ({ value, onChange, placeholder }: TableSearch) => {
     const [local, setLocal] = useState(value);
     const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -72,17 +73,18 @@ const ToolbarSearch = ({ value, onChange, placeholder }: TableSearch) => {
     };
 
     return (
-        <div className='relative w-full sm:w-72'>
-            <SearchIcon className='pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted' />
-            <input
-                type='search'
-                value={local}
-                onChange={(event) => handle(event.target.value)}
-                placeholder={placeholder ?? 'Search…'}
-                aria-label={placeholder ?? 'Search'}
-                className='w-full rounded-lg border border-hairline bg-surface py-2 pr-3 pl-9 text-sm text-foreground transition-colors placeholder:text-muted focus:border-accent/50 focus:outline-none'
-            />
-        </div>
+        <SearchField
+            aria-label={placeholder ?? 'Search'}
+            value={local}
+            onChange={handle}
+            className='w-full sm:w-72'
+        >
+            <SearchField.Group>
+                <SearchField.SearchIcon />
+                <SearchField.Input placeholder={placeholder ?? 'Search…'} />
+                <SearchField.ClearButton />
+            </SearchField.Group>
+        </SearchField>
     );
 };
 

@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { Chip } from '@heroui/react';
 import { ArrowUpRight, CheckCircle2, XCircle, Search, ScrollText } from 'lucide-react';
 import { Row } from '@/shared/components/ui/Blueprint';
 import Favicon from '@/shared/components/ui/Favicon';
@@ -31,7 +32,7 @@ const RunCard = ({ run }: { run: RecentRun }) => {
     const failed = run.status === 'failed';
 
     return (
-        <article className='flex flex-col border border-hairline bg-background'>
+        <article className='flex flex-col overflow-hidden rounded-2xl border border-hairline bg-surface shadow-sm'>
             <header className='flex items-center gap-3 px-4 py-3'>
                 {run.endpoint === 'search' ? (
                     <span className='grid size-7 shrink-0 place-items-center'>
@@ -74,13 +75,10 @@ const RunCard = ({ run }: { run: RecentRun }) => {
             <MetaRow label='Formats'>
                 {run.formats.length ? (
                     run.formats.map((format) => (
-                        <span
-                            key={format}
-                            className='inline-flex items-center gap-1.5 rounded-md bg-foreground/[0.06] px-2 py-1 text-xs text-foreground'
-                        >
+                        <Chip key={format} size='sm' variant='soft' className='gap-1.5'>
                             <ScrollText className='size-3 text-accent' />
                             {format}
-                        </span>
+                        </Chip>
                     ))
                 ) : (
                     <span className='text-muted'>No formats selected</span>
