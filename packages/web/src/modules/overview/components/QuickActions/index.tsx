@@ -15,28 +15,27 @@ const ACTIONS: Action[] = [
     { key: 'crawl', label: 'Crawl', description: 'Walk a whole site into the index.' }
 ];
 
-// Endpoint tiles: pixel-dot glyph, label, one-liner, and an arrow that lights up
-// on hover. Elevated cells over a hairline background draw the dividers.
+// Flat endpoint tiles for the Overview blueprint band: pixel-dot glyph, label,
+// one-liner, and an arrow that lights up on hover. The 1px gap over the hairline
+// background draws the dividers; the surrounding Row frames it.
 const QuickActions = () => (
-    <div className='overflow-hidden rounded-2xl border border-hairline bg-[var(--hairline)] shadow-sm'>
-        <div className='grid grid-cols-1 gap-px sm:grid-cols-2 xl:grid-cols-4'>
-            {ACTIONS.map((action) => (
-                <Link
-                    key={action.key}
-                    to={`/playground?endpoint=${action.key}`}
-                    className='group flex flex-col gap-3 bg-surface p-5 transition-colors hover:bg-foreground/[0.04]'
-                >
-                    <div className='flex items-start justify-between'>
-                        <DotGlyph pattern={action.key} className='size-4 text-muted/70 transition-colors group-hover:text-accent' />
-                        <ArrowUpRight className='size-4 text-muted/40 transition-colors group-hover:text-accent' />
-                    </div>
-                    <div className='flex flex-col gap-1'>
-                        <span className='text-sm font-medium text-foreground'>{action.label}</span>
-                        <span className='text-xs text-muted'>{action.description}</span>
-                    </div>
-                </Link>
-            ))}
-        </div>
+    <div className='grid grid-cols-2 gap-px bg-[var(--hairline)] xl:grid-cols-4'>
+        {ACTIONS.map((action) => (
+            <Link
+                key={action.key}
+                to={`/playground?endpoint=${action.key}`}
+                className='group flex flex-col gap-3 bg-background px-6 py-5 transition-colors hover:bg-foreground/[0.02]'
+            >
+                <div className='flex items-start justify-between'>
+                    <DotGlyph pattern={action.key} className='size-4 text-muted/70 transition-colors group-hover:text-accent' />
+                    <ArrowUpRight className='size-4 text-muted/40 transition-colors group-hover:text-accent' />
+                </div>
+                <div className='flex flex-col gap-1'>
+                    <span className='text-sm font-medium text-foreground'>{action.label}</span>
+                    <span className='text-xs text-muted'>{action.description}</span>
+                </div>
+            </Link>
+        ))}
     </div>
 );
 

@@ -16,9 +16,9 @@ interface MetricCardProps{
 const format = (value: number | string): string =>
     typeof value === 'number' ? value.toLocaleString() : value;
 
-const STYLES: Record<MetricVariant, { pad: string; value: string; chart: number; gridlines: number }> = {
-    hero: { pad: 'p-6', value: 'text-4xl', chart: 104, gridlines: 5 },
-    compact: { pad: 'p-5', value: 'text-2xl', chart: 52, gridlines: 0 }
+const STYLES: Record<MetricVariant, { pad: string; value: string; chart: number }> = {
+    hero: { pad: 'p-6', value: 'text-4xl', chart: 140 },
+    compact: { pad: 'p-5', value: 'text-3xl', chart: 88 }
 };
 
 /**
@@ -49,7 +49,7 @@ const MetricCard = ({ label, value, context, series, live, variant = 'compact' }
             </div>
             {series ? (
                 <div className='mt-auto'>
-                    <Sparkline data={series} height={style.chart} gridlines={style.gridlines} />
+                    <Sparkline data={series} height={style.chart} />
                 </div>
             ) : null}
         </div>
