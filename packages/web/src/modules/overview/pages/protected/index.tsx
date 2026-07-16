@@ -1,6 +1,7 @@
 import { useCrawlLive } from '@/shared/hooks/live/useCrawlLive';
 import MetricCard from '@/modules/overview/components/MetricCard';
 import RecentFeed from '@/modules/overview/components/RecentFeed';
+import Crosshairs from '@/shared/components/ui/Crosshairs';
 import type { ChannelStatus } from '@/shared/contracts/channel';
 
 const STATUS_LABEL: Record<ChannelStatus, string> = {
@@ -15,24 +16,25 @@ const Overview = () => {
     const live = status === 'open';
 
     return (
-        <div className='flex flex-col gap-6 pt-2'>
+        <div className='flex flex-col gap-8 pt-10'>
             <header className='flex items-end justify-between gap-4'>
-                <div className='flex flex-col gap-1'>
-                    <h1 className='text-2xl font-semibold text-foreground'>Overview</h1>
-                    <p className='text-sm text-muted'>Live crawl metrics, streaming as pages land.</p>
+                <div className='flex flex-col gap-2'>
+                    <h1 className='text-4xl font-semibold tracking-tight text-foreground'>Overview</h1>
+                    <p className='text-[15px] text-muted'>Live crawl metrics, streaming as pages land.</p>
                 </div>
-                <span className='inline-flex shrink-0 items-center gap-2 rounded-full border border-foreground/10 px-3 py-1.5 text-xs text-muted'>
+                <span className='mono-label inline-flex shrink-0 items-center gap-2 rounded-full border border-hairline px-3 py-1.5 text-muted'>
                     <span
-                        className={`size-1.5 rounded-full ${live ? 'bg-[var(--chart)]' : 'bg-danger'}`}
+                        className={`size-1.5 rounded-full ${live ? 'animate-pulse bg-accent' : 'bg-danger'}`}
                         aria-hidden='true'
                     />
                     {STATUS_LABEL[status]}
                 </span>
             </header>
 
-            {/* Polar-style KPI grid: one bordered container, hairline dividers drawn by the
-                1px gap over the container's divider-coloured background. */}
-            <div className='overflow-hidden rounded-2xl border border-foreground/10 bg-foreground/10'>
+            {/* Firecrawl-style stat band: one bordered container, hairline dividers drawn
+                by the 1px gap over the container's divider-coloured background. */}
+            <div className='relative border border-hairline bg-[var(--hairline)]'>
+                <Crosshairs />
                 <div className='grid grid-cols-1 gap-px md:grid-cols-2 xl:grid-cols-4'>
                     <div className='md:col-span-2 xl:col-span-2'>
                         <MetricCard
@@ -86,10 +88,11 @@ const Overview = () => {
                 </div>
             </div>
 
-            <section className='overflow-hidden rounded-2xl border border-foreground/10'>
-                <header className='flex items-center justify-between border-b border-foreground/10 px-5 py-4'>
+            <section className='relative border border-hairline'>
+                <Crosshairs />
+                <header className='flex items-center justify-between border-b border-hairline px-5 py-4'>
                     <h2 className='text-sm font-medium text-foreground'>Recently indexed</h2>
-                    <span className='text-xs text-muted'>{recent.length} pages</span>
+                    <span className='mono-label text-muted/70'>{recent.length} pages</span>
                 </header>
                 <div className='px-5 py-2'>
                     <RecentFeed items={recent} />

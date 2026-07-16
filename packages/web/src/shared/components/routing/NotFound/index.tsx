@@ -8,7 +8,7 @@ const NotFound = () => {
     return (
         <main className='flex min-h-dvh items-center justify-center bg-background p-4'>
             <section className='flex w-full max-w-sm flex-col items-center text-center'>
-                <span className='flex size-12 items-center justify-center rounded-full bg-surface-secondary text-muted'>
+                <span className='flex size-12 items-center justify-center rounded-full bg-surface text-muted'>
                     <Compass className='size-6' aria-hidden='true' />
                 </span>
 
@@ -18,7 +18,7 @@ const NotFound = () => {
                 </p>
 
                 <Button
-                    className='mt-7 bg-foreground text-background hover:bg-foreground/90'
+                    className='mt-7 bg-accent text-accent-foreground hover:bg-accent-hover'
                     fullWidth
                     size='md'
                     onPress={() => navigate('/')}

@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { ArrowDown, ArrowUp } from 'lucide-react';
 import { useInfiniteScroll } from '@/shared/hooks/useInfiniteScroll';
+import Crosshairs from '@/shared/components/ui/Crosshairs';
 import type { ReactNode } from 'react';
 
 export type SortDir = 'asc' | 'desc';
@@ -92,10 +93,10 @@ function DataTable<T>({
     return (
         <div className='flex w-full flex-col gap-4'>
             {hasHeader ? (
-                <header className='flex items-start justify-between gap-4'>
+                <header className='flex items-end justify-between gap-4 pt-10 pb-2'>
                     <div className='flex flex-col'>
-                        {title ? <h1 className='text-lg font-medium text-foreground'>{title}</h1> : null}
-                        {subtitle ? <p className='mt-1 text-sm text-muted'>{subtitle}</p> : null}
+                        {title ? <h1 className='text-4xl font-semibold tracking-tight text-foreground'>{title}</h1> : null}
+                        {subtitle ? <p className='mt-2 text-[15px] text-muted'>{subtitle}</p> : null}
                     </div>
                     <div className='flex shrink-0 items-center gap-3'>
                         {onRefresh ? (
@@ -112,10 +113,11 @@ function DataTable<T>({
                 </header>
             ) : null}
 
-            <div className='overflow-hidden rounded-2xl border border-foreground/10'>
+            <div className='relative border border-hairline'>
+                <Crosshairs />
                 <table className='w-full table-fixed border-collapse text-sm'>
                     <thead>
-                        <tr className='border-b border-foreground/10 bg-foreground/[0.02]'>
+                        <tr className='border-b border-hairline bg-foreground/[0.02]'>
                             {columns.map((column) => {
                                 const active = sort?.key === column.key;
                                 return (
@@ -124,7 +126,7 @@ function DataTable<T>({
                                         scope='col'
                                         onClick={() => toggleSort(column)}
                                         className={[
-                                            'px-6 py-3 font-medium whitespace-nowrap',
+                                            'mono-label px-6 py-3 whitespace-nowrap',
                                             column.width ?? '',
                                             column.align === 'right' ? 'text-right' : 'text-left',
                                             active ? 'text-foreground' : 'text-muted',
@@ -172,7 +174,7 @@ function DataTable<T>({
                             sortedRows.map((row) => (
                                 <tr
                                     key={rowKey(row)}
-                                    className='border-b border-foreground/5 transition-colors last:border-b-0 hover:bg-foreground/[0.02]'
+                                    className='border-b border-foreground/5 transition-colors last:border-b-0 hover:bg-foreground/[0.03]'
                                 >
                                     {columns.map((column) => (
                                         <td
@@ -198,7 +200,7 @@ function DataTable<T>({
                 {infiniteEnabled && !loading ? (
                     <div
                         ref={sentinelRef}
-                        className='border-t border-foreground/10 px-6 py-3 text-center text-xs text-muted'
+                        className='border-t border-hairline px-6 py-3 text-center font-mono text-xs text-muted'
                     >
                         {loadingMore ? 'Loading…' : ' '}
                     </div>

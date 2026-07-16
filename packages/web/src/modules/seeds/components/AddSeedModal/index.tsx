@@ -50,7 +50,7 @@ const AddSeedModal = ({ onAdded }: AddSeedModalProps) => {
             <Button
                 onPress={modal.open}
                 size='sm'
-                className='inline-flex items-center gap-1.5 bg-foreground text-background hover:bg-foreground/90'
+                className='inline-flex items-center gap-1.5 bg-accent text-accent-foreground hover:bg-accent-hover'
             >
                 <Plus className='size-4' />
                 Add seed
@@ -78,7 +78,7 @@ const AddSeedModal = ({ onAdded }: AddSeedModalProps) => {
                                         onChange={handleChange}
                                         disabled={adding}
                                         placeholder='https://example.com'
-                                        className='w-full rounded-lg border border-foreground/10 bg-surface-secondary p-3 text-sm'
+                                        className='w-full rounded-lg border border-hairline bg-surface p-3 text-sm'
                                     />
 
                                     {emptyError ? (
@@ -103,7 +103,7 @@ const AddSeedModal = ({ onAdded }: AddSeedModalProps) => {
                                     <Button
                                         type='submit'
                                         size='md'
-                                        className='bg-foreground text-background hover:bg-foreground/90'
+                                        className='bg-accent text-accent-foreground hover:bg-accent-hover'
                                         isPending={adding}
                                     >
                                         Add seeds

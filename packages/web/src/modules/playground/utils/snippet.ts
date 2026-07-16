@@ -7,7 +7,9 @@ const base = `${env.apiUrl}${env.apiPrefix}`;
 // is obvious without leaking a real one.
 export const buildCurl = (endpoint: Endpoint, url: string, limit: number): string => {
     const auth = `-H "Authorization: Bearer os-YOUR_API_KEY"`;
-    const value = url.trim() || (endpoint === 'search' ? 'your query' : 'https://example.com');
+    let value = url.trim() || (endpoint === 'search' ? 'your query' : 'https://example.com');
+    // URL endpoints accept scheme-less input in the playground; the API wants a full URL.
+    if(endpoint !== 'search' && !/^[a-z][a-z0-9+.-]*:\/\//i.test(value)) value = `https://${value}`;
 
     if(endpoint === 'search'){
         const qs = `q=${encodeURIComponent(value)}&limit=${limit}`;

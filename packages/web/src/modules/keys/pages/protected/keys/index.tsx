@@ -116,13 +116,13 @@ const Keys = () => {
                             value={name}
                             onChange={(event) => setName(event.target.value)}
                             placeholder='Key name'
-                            className='w-40 rounded-lg border border-foreground/10 bg-surface-secondary px-3 py-1.5 text-sm placeholder:text-muted focus:border-foreground/30 focus:outline-none'
+                            className='w-40 rounded-lg border border-hairline bg-surface px-3 py-1.5 text-sm placeholder:text-muted focus:border-foreground/30 focus:outline-none'
                         />
                         <Button
                             type='submit'
                             size='sm'
                             isPending={creating}
-                            className='inline-flex items-center gap-1.5 bg-foreground text-background hover:bg-foreground/90'
+                            className='inline-flex items-center gap-1.5 bg-accent text-accent-foreground hover:bg-accent-hover'
                         >
                             <Plus className='size-4' />
                             Create
@@ -145,7 +145,7 @@ const Keys = () => {
                                 </p>
                             </Modal.Header>
                             <Modal.Body className='flex flex-col gap-3'>
-                                <div className='flex items-center gap-2 rounded-lg border border-foreground/10 bg-surface-secondary p-3'>
+                                <div className='flex items-center gap-2 rounded-lg border border-hairline bg-surface p-3'>
                                     <code className='flex-1 truncate font-mono text-sm text-foreground'>{created?.key}</code>
                                     <button
                                         type='button'
@@ -161,7 +161,7 @@ const Keys = () => {
                                 <Button
                                     type='button'
                                     size='md'
-                                    className='bg-foreground text-background hover:bg-foreground/90'
+                                    className='bg-accent text-accent-foreground hover:bg-accent-hover'
                                     onPress={modal.close}
                                 >
                                     Done

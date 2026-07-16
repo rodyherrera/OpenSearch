@@ -34,7 +34,7 @@ const MetricCard = ({ label, value, context, series, live, variant = 'compact' }
     return (
         <div className='flex min-h-full flex-col bg-background'>
             <div className={`flex flex-col gap-2.5 ${style.pad}`}>
-                <span className='text-xs font-medium text-muted'>{label}</span>
+                <span className='mono-label text-muted/80'>{label}</span>
                 <span className={`${style.value} font-semibold tabular-nums text-foreground`}>
                     {format(value)}
                 </span>

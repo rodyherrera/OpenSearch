@@ -18,7 +18,7 @@ const Forbidden = () => {
                 </p>
 
                 <Button
-                    className='mt-7 bg-foreground text-background hover:bg-foreground/90'
+                    className='mt-7 bg-accent text-accent-foreground hover:bg-accent-hover'
                     fullWidth
                     size='md'
                     onPress={() => navigate('/')}

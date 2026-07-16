@@ -30,9 +30,9 @@ const NUMBER_FIELDS: NumberFieldSpec[] = [
     { name: 'timeoutMs', label: 'Timeout (ms)', hint: 'Per-request fetch timeout.', min: 1000, step: 500 }
 ];
 
-const cardClass = 'rounded-xl border border-foreground/10 p-6';
+const cardClass = 'rounded-xl border border-hairline bg-surface p-6';
 const inputClass =
-    'w-full rounded-lg border border-foreground/10 bg-background px-3 py-2 text-sm tabular-nums text-foreground placeholder:text-muted transition-colors focus:border-foreground/30 focus:outline-none disabled:opacity-60';
+    'w-full rounded-lg border border-hairline bg-background px-3 py-2 text-sm tabular-nums text-foreground placeholder:text-muted transition-colors focus:border-foreground/30 focus:outline-none disabled:opacity-60';
 
 // A section = bold heading (+ optional subtitle and right-aligned action) over a card.
 interface SectionProps{
@@ -270,7 +270,12 @@ const Crawler = () => {
     }
 
     return (
-        <div className='mx-auto flex w-full max-w-3xl flex-col gap-10 py-2'>
+        <div className='mx-auto flex w-full max-w-3xl flex-col gap-10 pt-10 pb-4'>
+            <header className='flex flex-col gap-2'>
+                <h1 className='text-4xl font-semibold tracking-tight text-foreground'>Crawler</h1>
+                <p className='text-[15px] text-muted'>Control the crawl loop and tune its politeness profile.</p>
+            </header>
+
             <Section title='Crawl state' subtitle='Workers drain in-flight pages before halting.'>
                 <ToggleRow
                     title={status.paused ? 'Crawl paused' : 'Crawl running'}

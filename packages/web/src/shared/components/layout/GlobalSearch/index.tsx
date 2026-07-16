@@ -71,7 +71,7 @@ const GlobalSearch = () => {
     };
 
     return (
-        <form onSubmit={onSubmit} role='search' className='relative w-full max-w-xl'>
+        <form onSubmit={onSubmit} role='search' className='relative w-64 shrink-0'>
             <Search className='pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted' />
             <input
                 ref={inputRef}
@@ -81,9 +81,9 @@ const GlobalSearch = () => {
                 onKeyDown={(event) => { if(event.key === 'Escape') inputRef.current?.blur(); }}
                 placeholder={listing ?? 'Search the index…'}
                 aria-label={listing ?? 'Search the index'}
-                className='w-full rounded-lg border border-foreground/10 bg-surface-secondary py-1.5 pr-10 pl-8 text-sm text-foreground transition-colors placeholder:text-muted focus:border-foreground/30 focus:outline-none'
+                className='w-full rounded-lg border border-hairline bg-surface py-1.5 pr-10 pl-8 text-sm text-foreground transition-colors placeholder:text-muted focus:border-accent/50 focus:outline-none'
             />
-            <kbd className='pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 rounded border border-foreground/10 px-1.5 font-sans text-[10px] text-muted'>/</kbd>
+            <kbd className='pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 rounded border border-hairline px-1.5 font-mono text-[10px] text-muted'>/</kbd>
         </form>
     );
 };

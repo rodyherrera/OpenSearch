@@ -6,12 +6,12 @@ interface FeedItemProps{
 
 const FeedItem = ({ item }: FeedItemProps) => {
     return (
-        <li className='flex flex-col gap-0.5 border-b border-foreground/10 py-2 last:border-b-0'>
+        <li className='flex flex-col gap-0.5 border-b border-hairline py-2 last:border-b-0'>
             <a
                 href={item.url}
                 target='_blank'
                 rel='noopener noreferrer'
-                className='truncate text-sm text-foreground hover:text-primary'
+                className='truncate text-sm text-foreground hover:text-accent'
             >
                 {item.title || item.url}
             </a>

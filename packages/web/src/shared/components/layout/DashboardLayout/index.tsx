@@ -1,22 +1,30 @@
 import { useState } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
     LayoutDashboard,
     FileText,
     Globe,
     Sprout,
     SlidersHorizontal,
-    TerminalSquare,
     KeyRound,
+    Search,
+    Map,
+    Network,
+    Flame,
     Sun,
     Moon,
-    LogOut
+    LogOut,
+    ChevronsLeft,
+    ChevronsRight,
+    ChevronDown
 } from 'lucide-react';
 import GlobalSearch from '@/shared/components/layout/GlobalSearch';
 import { useAuthStore } from '@/modules/auth/store/auth';
 import { applyTheme } from '@/shared/utils/theme';
 import type { ComponentType } from 'react';
 import type { Theme } from '@/shared/utils/theme';
+
+const SIDEBAR_KEY = 'crawlm.sidebar';
 
 interface NavItem{
     to: string;
@@ -25,27 +33,59 @@ interface NavItem{
     end?: boolean;
 }
 
-const NAV_ITEMS: NavItem[] = [
-    { to: '/', label: 'Overview', icon: LayoutDashboard, end: true },
-    { to: '/playground', label: 'Playground', icon: TerminalSquare },
-    { to: '/pages', label: 'Pages', icon: FileText },
-    { to: '/domains', label: 'Domains', icon: Globe },
-    { to: '/seeds', label: 'Seeds', icon: Sprout },
-    { to: '/crawler', label: 'Crawler', icon: SlidersHorizontal },
-    { to: '/keys', label: 'API Keys', icon: KeyRound }
+interface NavSection{
+    label?: string;
+    items: NavItem[];
+}
+
+// Firecrawl-style grouped sidebar: the playground endpoints are first-class
+// destinations, deep-linked through the ?endpoint= param.
+const SECTIONS: NavSection[] = [
+    {
+        items: [{ to: '/', label: 'Overview', icon: LayoutDashboard, end: true }]
+    },
+    {
+        label: 'Playground',
+        items: [
+            { to: '/playground?endpoint=search', label: 'Search the index', icon: Search },
+            { to: '/playground?endpoint=scrape', label: 'Scrape a web page', icon: FileText },
+            { to: '/playground?endpoint=map', label: 'Map website links', icon: Map },
+            { to: '/playground?endpoint=crawl', label: 'Crawl entire website', icon: Network }
+        ]
+    },
+    {
+        label: 'Index',
+        items: [
+            { to: '/pages', label: 'Pages', icon: FileText },
+            { to: '/domains', label: 'Domains', icon: Globe },
+            { to: '/seeds', label: 'Seeds', icon: Sprout }
+        ]
+    },
+    {
+        label: 'System',
+        items: [
+            { to: '/crawler', label: 'Crawler', icon: SlidersHorizontal },
+            { to: '/keys', label: 'API Keys', icon: KeyRound }
+        ]
+    }
 ];
 
-// Borderless nav row, Pollium style: active = weight + full-strength ink, no pill.
-const linkClass = (isActive: boolean): string =>
-    `flex h-8 items-center gap-2.5 px-2 text-sm transition-colors ${
-        isActive ? 'font-medium text-foreground' : 'text-muted hover:text-foreground'
+const linkClass = (active: boolean, collapsed: boolean): string =>
+    `mx-2 flex h-8 items-center gap-2.5 rounded-md text-[13px] transition-colors ${
+        collapsed ? 'justify-center px-0' : 'px-2'
+    } ${
+        active
+            ? 'bg-accent/10 font-medium text-accent'
+            : 'text-muted hover:bg-foreground/[0.04] hover:text-foreground'
     }`;
 
 const DashboardLayout = () => {
     const navigate = useNavigate();
+    const { pathname, search } = useLocation();
     const [theme, setTheme] = useState<Theme>(() =>
         document.documentElement.classList.contains('dark') ? 'dark' : 'light'
     );
+    const [collapsed, setCollapsed] = useState(() => localStorage.getItem(SIDEBAR_KEY) === 'collapsed');
 
     const toggleTheme = () => {
         const next: Theme = theme === 'dark' ? 'light' : 'dark';
@@ -53,52 +93,115 @@ const DashboardLayout = () => {
         setTheme(next);
     };
 
+    const toggleCollapsed = () => {
+        const next = !collapsed;
+        setCollapsed(next);
+        localStorage.setItem(SIDEBAR_KEY, next ? 'collapsed' : 'open');
+    };
+
     const signOut = () => {
         useAuthStore.getState().clear();
         navigate('/sign-in');
     };
 
-    const iconButton = 'grid size-7 place-items-center rounded-md text-muted transition-colors hover:bg-foreground/10 hover:text-foreground';
+    // NavLink can't see query strings, so playground links resolve their own active
+    // state: same path + same ?endpoint= (absent param defaults to "search").
+    const isItemActive = (item: NavItem, routeActive: boolean): boolean => {
+        const [path, query] = item.to.split('?');
+        if(!query) return routeActive;
+        if(pathname !== path) return false;
+        const want = new URLSearchParams(query).get('endpoint') ?? 'search';
+        const got = new URLSearchParams(search).get('endpoint') ?? 'search';
+        return want === got;
+    };
+
+    const iconButton = 'grid size-8 place-items-center rounded-lg border border-hairline text-muted transition-colors hover:bg-foreground/5 hover:text-foreground';
+    const CollapseIcon = collapsed ? ChevronsRight : ChevronsLeft;
 
     return (
-        <div className='flex h-dvh gap-1 bg-background p-2 text-foreground'>
-            <aside className='flex w-56 shrink-0 flex-col px-2 py-2'>
-                <nav className='mt-2 flex flex-col gap-0.5'>
-                    {NAV_ITEMS.map((item) => {
-                        const Icon = item.icon;
-                        return (
-                            <NavLink key={item.to} to={item.to} end={item.end} className={({ isActive }) => linkClass(isActive)}>
-                                <span className='flex size-6 shrink-0 items-center justify-center'>
-                                    <Icon className='size-[18px]' />
-                                </span>
-                                {item.label}
-                            </NavLink>
-                        );
-                    })}
+        <div className='flex h-dvh bg-background text-foreground'>
+            <aside
+                className={`flex shrink-0 flex-col border-r border-hairline transition-[width] duration-200 ${
+                    collapsed ? 'w-[64px]' : 'w-60'
+                }`}
+            >
+                <div className={`flex h-14 items-center gap-2 ${collapsed ? 'justify-center px-0' : 'px-4'}`}>
+                    <Flame className='size-5 shrink-0 text-accent' fill='currentColor' />
+                    {collapsed ? null : <span className='text-[15px] font-semibold tracking-tight'>Crawlm</span>}
+                </div>
+
+                <nav className='flex flex-1 flex-col overflow-x-hidden overflow-y-auto pt-1 pb-4'>
+                    {SECTIONS.map((section, index) => (
+                        <div key={section.label ?? index} className='flex flex-col gap-0.5'>
+                            {section.label ? (
+                                collapsed
+                                    ? <div className='mx-3 mt-3 mb-2 border-t border-hairline' aria-hidden='true' />
+                                    : (
+                                        <span className='px-4 pt-5 pb-1.5 text-[10px] font-medium tracking-[0.1em] text-muted/60 uppercase'>
+                                            {section.label}
+                                        </span>
+                                    )
+                            ) : null}
+                            {section.items.map((item) => {
+                                const Icon = item.icon;
+                                return (
+                                    <NavLink
+                                        key={item.to}
+                                        to={item.to}
+                                        end={item.end}
+                                        title={collapsed ? item.label : undefined}
+                                        className={({ isActive }) => linkClass(isItemActive(item, isActive), collapsed)}
+                                    >
+                                        <span className='flex size-5 shrink-0 items-center justify-center'>
+                                            <Icon className='size-4' />
+                                        </span>
+                                        {collapsed ? null : <span className='truncate'>{item.label}</span>}
+                                    </NavLink>
+                                );
+                            })}
+                        </div>
+                    ))}
                 </nav>
 
-                <div className='mt-auto flex items-center gap-2 px-1 pt-3'>
-                    <span className='grid size-6 place-items-center rounded-full bg-foreground/10 text-[11px] font-medium text-foreground'>
-                        A
+                <div className={`flex items-center gap-2.5 border-t border-hairline py-3 ${collapsed ? 'justify-center px-0' : 'px-4'}`}>
+                    <span className='grid size-7 shrink-0 place-items-center rounded-full bg-accent/15 font-mono text-[10px] font-semibold text-accent'>
+                        AD
                     </span>
-                    <span className='text-xs text-muted'>Administrator</span>
+                    {collapsed ? null : <span className='truncate text-xs text-muted'>Administrator</span>}
+                </div>
+
+                <div className={`pb-3 ${collapsed ? 'px-2' : 'px-3'}`}>
+                    <button
+                        type='button'
+                        onClick={toggleCollapsed}
+                        aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                        className='flex h-9 w-full items-center justify-center gap-2 rounded-xl border border-hairline text-[13px] text-muted transition-colors hover:bg-foreground/5 hover:text-foreground'
+                    >
+                        <CollapseIcon className='size-4' />
+                        {collapsed ? null : 'Collapse'}
+                    </button>
                 </div>
             </aside>
 
-            <div className='flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl'>
-                <header className='flex h-14 shrink-0 items-center gap-3 px-6'>
+            <div className='flex min-h-0 min-w-0 flex-1 flex-col'>
+                <header className='flex h-14 shrink-0 items-center gap-2 border-b border-hairline px-4'>
+                    <span className='inline-flex items-center gap-2 rounded-lg border border-hairline px-2.5 py-1.5 text-[13px] text-foreground'>
+                        <span className='grid size-[18px] shrink-0 place-items-center rounded bg-accent font-mono text-[10px] font-bold text-accent-foreground'>
+                            P
+                        </span>
+                        Personal
+                        <ChevronDown className='size-3.5 text-muted' />
+                    </span>
                     <div className='min-w-0 flex-1' />
                     <GlobalSearch />
-                    <div className='flex min-w-0 flex-1 items-center justify-end gap-0.5'>
-                        <button type='button' onClick={toggleTheme} aria-label='Toggle theme' className={iconButton}>
-                            {theme === 'dark' ? <Sun className='size-4' /> : <Moon className='size-4' />}
-                        </button>
-                        <button type='button' onClick={signOut} aria-label='Sign out' className={iconButton}>
-                            <LogOut className='size-4' />
-                        </button>
-                    </div>
+                    <button type='button' onClick={toggleTheme} aria-label='Toggle theme' className={iconButton}>
+                        {theme === 'dark' ? <Sun className='size-4' /> : <Moon className='size-4' />}
+                    </button>
+                    <button type='button' onClick={signOut} aria-label='Sign out' className={iconButton}>
+                        <LogOut className='size-4' />
+                    </button>
                 </header>
-                <main className='relative min-h-0 flex-1 overflow-y-scroll px-6 pb-8'>
+                <main className='relative min-h-0 flex-1 overflow-y-scroll px-8 pb-10'>
                     <Outlet />
                 </main>
             </div>

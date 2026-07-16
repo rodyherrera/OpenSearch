@@ -10,6 +10,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@fontsource-variable/inter": "^5.2.8",
+    "@fontsource-variable/jetbrains-mono": "^5.2.8",
     "@heroui/react": "^3.2.2",
     "@tailwindcss/vite": "^4.3.2",
     "alova": "^3.5.2",

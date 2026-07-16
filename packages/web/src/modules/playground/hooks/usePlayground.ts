@@ -23,6 +23,12 @@ export interface PlaygroundRun{
 const messageFrom = (error: unknown): string =>
     error instanceof Error ? error.message : 'Request failed';
 
+// URL endpoints accept scheme-less input (the playground UI shows an https:// chip).
+const normalize = (endpoint: Endpoint, value: string): string =>
+    endpoint === 'search' || !value || /^[a-z][a-z0-9+.-]*:\/\//i.test(value)
+        ? value
+        : `https://${value}`;
+
 export const usePlayground = (): PlaygroundRun => {
     const [endpoint, setEndpoint] = useState<Endpoint>('search');
     const [url, setUrl] = useState('');
@@ -56,7 +62,7 @@ export const usePlayground = (): PlaygroundRun => {
         setError(null);
         setResult(null);
         setNote(null);
-        const value = url.trim();
+        const value = normalize(endpoint, url.trim());
         try{
             if(endpoint === 'search'){
                 setResult(await playgroundApi.search(value, limit));

@@ -47,7 +47,7 @@ const Pages = () => {
                     href={row.url}
                     target='_blank'
                     rel='noreferrer'
-                    className='block truncate text-primary hover:underline'
+                    className='block truncate text-accent hover:underline'
                 >
                     {row.url}
                 </a>

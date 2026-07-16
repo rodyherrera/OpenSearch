@@ -16,7 +16,7 @@ const ErrorFallback = ({ error, reset }: ErrorFallbackProps) => {
                 </p>
 
                 {import.meta.env.DEV && (
-                    <pre className='mt-5 w-full overflow-auto rounded-md bg-surface-secondary p-3 text-left text-xs text-muted'>
+                    <pre className='mt-5 w-full overflow-auto rounded-md bg-surface p-3 text-left text-xs text-muted'>
                         {error.message}
                         {error.stack ? `\n\n${error.stack}` : ''}
                     </pre>
@@ -26,7 +26,7 @@ const ErrorFallback = ({ error, reset }: ErrorFallbackProps) => {
                     <Button
                         fullWidth
                         size='md'
-                        className='bg-foreground text-background hover:bg-foreground/90'
+                        className='bg-accent text-accent-foreground hover:bg-accent-hover'
                         onPress={reset}
                     >
                         Try again

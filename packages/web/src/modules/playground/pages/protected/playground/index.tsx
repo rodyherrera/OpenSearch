@@ -1,22 +1,52 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Button } from '@heroui/react';
-import { Play, Copy, Check } from 'lucide-react';
+import { Search, FileText, Map, Network, Code2, Check, Braces, Link2, ScrollText, Download, Share2 } from 'lucide-react';
+import Crosshairs from '@/shared/components/ui/Crosshairs';
+import EndpointPicker from '@/modules/playground/components/EndpointPicker';
+import ResultMeta from '@/modules/playground/components/ResultMeta';
+import SearchResults from '@/modules/playground/components/SearchResults';
+import LinkList from '@/modules/playground/components/LinkList';
+import JsonView from '@/modules/playground/components/JsonView';
+import CopyBar from '@/modules/playground/components/CopyBar';
 import { usePlayground } from '@/modules/playground/hooks/usePlayground';
 import { buildCurl } from '@/modules/playground/utils/snippet';
-import type { FormEvent } from 'react';
-import type { Endpoint } from '@/modules/playground/contracts/playground';
+import type { ComponentType, FormEvent, ReactNode } from 'react';
+import type {
+    Endpoint,
+    SearchResponse,
+    MapResponse,
+    CrawlResults
+} from '@/modules/playground/contracts/playground';
 
-const ENDPOINTS: { key: Endpoint; label: string; hint: string }[] = [
-    { key: 'search', label: 'Search', hint: 'Query the crawled index.' },
-    { key: 'scrape', label: 'Scrape', hint: 'Fetch one URL as clean markdown.' },
-    { key: 'map', label: 'Map', hint: 'Enumerate a site’s URLs.' },
-    { key: 'crawl', label: 'Crawl', hint: 'Crawl a whole site into markdown.' }
-];
+interface EndpointMeta{
+    label: string;
+    action: string;
+    placeholder: string;
+    icon: ComponentType<{ className?: string }>;
+    isUrl: boolean;
+    hasLimit: boolean;
+}
 
-const inputClass = 'w-full rounded-lg border border-foreground/10 bg-surface-secondary px-3 py-2 text-sm text-foreground placeholder:text-muted focus:border-foreground/30 focus:outline-none';
+const ENDPOINTS: Record<Endpoint, EndpointMeta> = {
+    search: { label: 'Search', action: 'Start searching', placeholder: 'Search the index…', icon: Search, isUrl: false, hasLimit: true },
+    scrape: { label: 'Scrape', action: 'Start scraping', placeholder: 'example.com', icon: FileText, isUrl: true, hasLimit: false },
+    map: { label: 'Map', action: 'Start mapping', placeholder: 'example.com', icon: Map, isUrl: true, hasLimit: false },
+    crawl: { label: 'Crawl', action: 'Start crawling', placeholder: 'example.com', icon: Network, isUrl: true, hasLimit: true }
+};
 
-// Pull a markdown string out of whichever result shape we got, so the panel can offer
-// a rendered-markdown view when there is one.
+const isEndpoint = (value: string | null): value is Endpoint =>
+    value === 'search' || value === 'scrape' || value === 'map' || value === 'crawl';
+
+const isSearchResponse = (result: unknown): result is SearchResponse =>
+    Boolean(result) && typeof result === 'object' && Array.isArray((result as SearchResponse).results);
+
+const isMapResponse = (result: unknown): result is MapResponse =>
+    Boolean(result) && typeof result === 'object' && Array.isArray((result as MapResponse).links);
+
+const isCrawlResults = (result: unknown): result is CrawlResults =>
+    Boolean(result) && typeof result === 'object' && Array.isArray((result as CrawlResults).data);
+
 const markdownOf = (result: unknown): string | null => {
     if(result && typeof result === 'object' && 'markdown' in result){
         const value = (result as { markdown: unknown }).markdown;
@@ -25,135 +55,442 @@ const markdownOf = (result: unknown): string | null => {
     return null;
 };
 
+const metadataOf = (result: unknown, key: string): string | null => {
+    if(result && typeof result === 'object' && 'metadata' in result){
+        const metadata = (result as { metadata: unknown }).metadata;
+        if(metadata && typeof metadata === 'object'){
+            const value = (metadata as Record<string, unknown>)[key];
+            if(typeof value === 'string' && value.length) return value;
+        }
+    }
+    return null;
+};
+
+const download = (filename: string, text: string, type = 'application/json'): void => {
+    const url = URL.createObjectURL(new Blob([text], { type }));
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = filename;
+    anchor.click();
+    URL.revokeObjectURL(url);
+};
+
+const ghostButton = 'inline-flex items-center gap-1.5 rounded-lg border border-hairline px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-foreground/5';
+
+interface RowProps{
+    children?: ReactNode;
+    className?: string;
+    grow?: boolean;
+    // Band width: Firecrawl's blueprint steps — narrow picker, medium request
+    // card, wide results — so the rails shift per band.
+    max?: string;
+}
+
+/**
+ * One band of the blueprint grid: the horizontal hairline spans the full content
+ * width while the centered column's rails and corner crosshairs mark the cell —
+ * the signature Firecrawl playground framing.
+ */
+const Row = ({ children, className = '', grow = false, max = 'max-w-4xl' }: RowProps) => (
+    <div className={`relative border-b border-hairline ${grow ? 'flex-1' : ''}`}>
+        <div className={`relative mx-auto h-full w-full border-x border-hairline ${max} ${className}`}>
+            <Crosshairs />
+            {children}
+        </div>
+    </div>
+);
+
+interface TabSpec{
+    key: string;
+    label: string;
+    icon: ComponentType<{ className?: string }>;
+}
+
+interface TabsProps{
+    tabs: TabSpec[];
+    active: string;
+    onChange: (key: string) => void;
+}
+
+const Tabs = ({ tabs, active, onChange }: TabsProps) => (
+    <div className='flex border-b border-hairline'>
+        {tabs.map((tab) => {
+            const Icon = tab.icon;
+            const on = tab.key === active;
+            return (
+                <button
+                    key={tab.key}
+                    type='button'
+                    onClick={() => onChange(tab.key)}
+                    className={`flex items-center gap-2 border-r border-hairline px-6 py-3.5 text-sm transition-colors ${
+                        on ? 'font-medium text-foreground' : 'text-muted hover:text-foreground'
+                    }`}
+                >
+                    <Icon className={`size-4 ${on ? 'text-accent' : ''}`} />
+                    {tab.label}
+                </button>
+            );
+        })}
+    </div>
+);
+
+const DEFAULT_VIEW: Record<Endpoint, string> = {
+    search: 'results',
+    scrape: 'markdown',
+    map: 'links',
+    crawl: 'pages'
+};
+
 const Playground = () => {
     const pg = usePlayground();
-    const [view, setView] = useState<'json' | 'markdown'>('json');
-    const [copied, setCopied] = useState(false);
+    const [params, setParams] = useSearchParams();
+    const endpointParam = params.get('endpoint');
+    const endpoint: Endpoint = isEndpoint(endpointParam) ? endpointParam : 'search';
+    const meta = ENDPOINTS[endpoint];
 
-    const curl = useMemo(() => buildCurl(pg.endpoint, pg.url, pg.limit), [pg.endpoint, pg.url, pg.limit]);
-    const markdown = markdownOf(pg.result);
-    const isSearch = pg.endpoint === 'search';
+    const [submitted, setSubmitted] = useState<{ endpoint: Endpoint; value: string } | null>(null);
+    const [view, setView] = useState(DEFAULT_VIEW[endpoint]);
+    const [copiedCode, setCopiedCode] = useState(false);
+    const [copiedShare, setCopiedShare] = useState(false);
+
+    // The sidebar deep-links endpoints via ?endpoint=; keep the runner in sync.
+    // A shared ?q= prefills the input (without auto-running).
+    useEffect(() => {
+        pg.setEndpoint(endpoint);
+        setView(DEFAULT_VIEW[endpoint]);
+        const q = params.get('q');
+        if(q) pg.setUrl(q);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [endpoint]);
+
+    const curl = useMemo(() => buildCurl(endpoint, pg.url, pg.limit), [endpoint, pg.url, pg.limit]);
+
+    const selectEndpoint = (next: Endpoint) => setParams({ endpoint: next });
+
+    const onChangeValue = (raw: string) => {
+        // The https:// chip already spells the scheme out; strip it from pasted URLs.
+        pg.setUrl(meta.isUrl ? raw.replace(/^https:\/\//i, '') : raw);
+    };
 
     const onSubmit = (event: FormEvent) => {
         event.preventDefault();
+        if(!pg.url.trim()) return;
+        setSubmitted({ endpoint, value: pg.url.trim() });
+        setView(DEFAULT_VIEW[endpoint]);
         void pg.run();
     };
 
-    const copyCurl = async () => {
+    const copyCode = async () => {
         await navigator.clipboard.writeText(curl);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 1500);
+        setCopiedCode(true);
+        setTimeout(() => setCopiedCode(false), 1500);
     };
 
+    // Permalink to this run: endpoint + query, prefilled on load.
+    const copyShare = async () => {
+        if(!submitted) return;
+        const share = new URLSearchParams({ endpoint: submitted.endpoint, q: submitted.value });
+        await navigator.clipboard.writeText(`${window.location.origin}/playground?${share.toString()}`);
+        setCopiedShare(true);
+        setTimeout(() => setCopiedShare(false), 1500);
+    };
+
+    // Prefill the scrape playground from a search hit, Firecrawl-style.
+    const scrapeFrom = (url: string) => {
+        pg.setUrl(url.replace(/^https:\/\//i, ''));
+        setSubmitted(null);
+        setParams({ endpoint: 'scrape' });
+    };
+
+    const state = pg.running ? 'running' : pg.error ? 'error' : 'success';
+    const showResults = submitted !== null;
+
     return (
-        <div className='mx-auto flex w-full max-w-4xl flex-col gap-6 py-2'>
-            <header className='flex flex-col gap-1'>
-                <h1 className='text-lg font-medium text-foreground'>Playground</h1>
-                <p className='text-sm text-muted'>Try the developer API. Authenticated with your session — mint a key on the API Keys page.</p>
-            </header>
+        <div className='-mx-8 -mb-10 flex min-h-full flex-col'>
+            {/* Endpoint picker band — narrow cell hugging the tab strip */}
+            <Row max='max-w-xl' className='flex justify-center px-6 pt-7 pb-5'>
+                <EndpointPicker endpoint={endpoint} onSelect={selectEndpoint} />
+            </Row>
 
-            <nav className='flex gap-1 border-b border-foreground/10'>
-                {ENDPOINTS.map((item) => (
-                    <button
-                        key={item.key}
-                        type='button'
-                        onClick={() => pg.setEndpoint(item.key)}
-                        className={`-mb-px border-b-2 px-3 py-2 text-sm transition-colors ${
-                            pg.endpoint === item.key
-                                ? 'border-foreground font-medium text-foreground'
-                                : 'border-transparent text-muted hover:text-foreground'
-                        }`}
-                    >
-                        {item.label}
-                    </button>
-                ))}
-            </nav>
-
-            <form onSubmit={onSubmit} className='flex flex-col gap-3'>
-                <p className='text-sm text-muted'>{ENDPOINTS.find((e) => e.key === pg.endpoint)?.hint}</p>
-                <div className='flex items-center gap-2'>
-                    <input
-                        value={pg.url}
-                        onChange={(event) => pg.setUrl(event.target.value)}
-                        placeholder={isSearch ? 'Search the index…' : 'https://example.com'}
-                        className={inputClass}
-                    />
-                    {(isSearch || pg.endpoint === 'crawl') ? (
+            {/* Request card — medium cell, card floats with soft elevation */}
+            <Row max='max-w-2xl' className='px-6 py-12'>
+                <form
+                    onSubmit={onSubmit}
+                    className='overflow-hidden rounded-xl border border-foreground/[0.05] bg-surface shadow-[0_16px_50px_-16px_rgba(0,0,0,0.65)]'
+                >
+                    <div className='flex items-center gap-1 px-4 py-1.5'>
+                        {meta.isUrl ? (
+                            <span className='shrink-0 rounded-md bg-foreground/[0.05] px-2 py-1 font-mono text-xs text-muted'>
+                                https://
+                            </span>
+                        ) : null}
                         <input
-                            type='number'
-                            min={1}
-                            value={pg.limit}
-                            onChange={(event) => pg.setLimit(Number(event.target.value))}
-                            aria-label='Limit'
-                            className='w-24 rounded-lg border border-foreground/10 bg-surface-secondary px-3 py-2 text-sm tabular-nums text-foreground focus:border-foreground/30 focus:outline-none'
+                            value={pg.url}
+                            onChange={(event) => onChangeValue(event.target.value)}
+                            placeholder={meta.placeholder}
+                            spellCheck={false}
+                            className='w-full bg-transparent px-2 py-3.5 text-[15px] text-foreground placeholder:text-muted/70 focus:outline-none'
+                        />
+                    </div>
+                    <div className='flex flex-wrap items-center gap-2 border-t border-foreground/[0.05] px-3 py-2.5'>
+                        {meta.hasLimit ? (
+                            <label className='flex items-center gap-1.5 rounded-lg border border-hairline px-2.5 py-1.5 text-[13px] text-muted'>
+                                Limit:
+                                <input
+                                    type='number'
+                                    min={1}
+                                    value={pg.limit}
+                                    onChange={(event) => pg.setLimit(Number(event.target.value))}
+                                    aria-label='Limit'
+                                    className='w-10 bg-transparent font-mono text-xs tabular-nums text-foreground focus:outline-none'
+                                />
+                            </label>
+                        ) : null}
+                        <div className='flex-1' />
+                        <button type='button' onClick={() => void copyCode()} className={`${ghostButton} px-3 py-2`}>
+                            {copiedCode ? <Check className='size-3.5 text-accent' /> : <Code2 className='size-3.5' />}
+                            {copiedCode ? 'Copied' : 'Get code'}
+                        </button>
+                        <Button
+                            type='submit'
+                            size='sm'
+                            isPending={pg.running}
+                            className='inline-flex shrink-0 items-center rounded-lg bg-accent px-4 text-xs font-medium text-accent-foreground hover:bg-accent-hover'
+                        >
+                            {meta.action}
+                        </Button>
+                    </div>
+                </form>
+            </Row>
+
+            {showResults ? (
+                <>
+                    {/* Query echo, with a Share permalink on the right */}
+                    <Row className='flex items-center gap-2.5 px-6 py-5'>
+                        <div className='flex-1' />
+                        <meta.icon className='size-4 text-accent' />
+                        <span className='truncate text-[15px] font-medium text-foreground'>
+                            {submitted.value.replace(/^https?:\/\//i, '')}
+                        </span>
+                        <div className='flex flex-1 justify-end'>
+                            <button type='button' onClick={() => void copyShare()} className={ghostButton}>
+                                {copiedShare ? <Check className='size-3.5 text-accent' /> : <Share2 className='size-3.5' />}
+                                {copiedShare ? 'Copied' : 'Share'}
+                            </button>
+                        </div>
+                    </Row>
+
+                    <Row>
+                        <ResultMeta endpoint={submitted.endpoint} endpointLabel={meta.label} state={state} />
+                    </Row>
+
+                    {pg.error ? (
+                        <Row className='px-8 py-6'>
+                            <p className='rounded-xl border border-danger/30 bg-danger/5 px-4 py-3 text-sm text-danger'>{pg.error}</p>
+                        </Row>
+                    ) : null}
+
+                    {pg.note ? (
+                        <Row className='px-8 py-4'>
+                            <p className='font-mono text-xs text-muted'>{pg.note}</p>
+                        </Row>
+                    ) : null}
+
+                    {!pg.error && pg.result != null ? (
+                        <ResultBody
+                            endpoint={submitted.endpoint}
+                            result={pg.result}
+                            view={view}
+                            onView={setView}
+                            onScrape={scrapeFrom}
                         />
                     ) : null}
-                    <Button
-                        type='submit'
-                        size='md'
-                        isPending={pg.running}
-                        className='inline-flex shrink-0 items-center gap-1.5 bg-foreground text-background hover:bg-foreground/90'
-                    >
-                        <Play className='size-4' />
-                        Run
-                    </Button>
-                </div>
-            </form>
-
-            <section className='flex flex-col gap-2'>
-                <div className='flex items-center justify-between'>
-                    <span className='text-xs font-medium text-muted'>cURL</span>
-                    <button
-                        type='button'
-                        onClick={() => void copyCurl()}
-                        className='inline-flex items-center gap-1.5 text-xs text-muted transition-colors hover:text-foreground'
-                    >
-                        {copied ? <Check className='size-3.5 text-success' /> : <Copy className='size-3.5' />}
-                        {copied ? 'Copied' : 'Copy'}
-                    </button>
-                </div>
-                <pre className='overflow-x-auto rounded-lg border border-foreground/10 bg-surface-secondary p-3 font-mono text-xs text-foreground'>{curl}</pre>
-            </section>
-
-            {pg.error ? <p className='text-sm text-danger'>{pg.error}</p> : null}
-            {pg.note ? <p className='text-sm text-muted'>{pg.note}</p> : null}
-
-            {pg.result != null ? (
-                <section className='flex flex-col gap-2'>
-                    <div className='flex items-center gap-1'>
-                        <span className='mr-2 text-xs font-medium text-muted'>Result</span>
-                        {markdown ? (
-                            <>
-                                <ViewTab active={view === 'markdown'} onClick={() => setView('markdown')} label='Markdown' />
-                                <ViewTab active={view === 'json'} onClick={() => setView('json')} label='JSON' />
-                            </>
-                        ) : null}
-                    </div>
-                    <pre className='max-h-[28rem] overflow-auto rounded-lg border border-foreground/10 bg-surface-secondary p-4 font-mono text-xs leading-relaxed text-foreground'>
-                        {markdown && view === 'markdown' ? markdown : JSON.stringify(pg.result, null, 2)}
-                    </pre>
-                </section>
+                </>
             ) : null}
+
+            {/* Bottom filler so the rails run the full height of the canvas. */}
+            <Row grow />
         </div>
     );
 };
 
-interface ViewTabProps{
-    active: boolean;
-    onClick: () => void;
-    label: string;
+interface ResultBodyProps{
+    endpoint: Endpoint;
+    result: unknown;
+    view: string;
+    onView: (view: string) => void;
+    onScrape: (url: string) => void;
 }
 
-const ViewTab = ({ active, onClick, label }: ViewTabProps) => (
-    <button
-        type='button'
-        onClick={onClick}
-        className={`rounded-md px-2 py-1 text-xs transition-colors ${
-            active ? 'bg-foreground/10 font-medium text-foreground' : 'text-muted hover:text-foreground'
-        }`}
-    >
-        {label}
-    </button>
+interface ResultsHeaderProps{
+    count?: number;
+    subtitle?: string;
+    children?: ReactNode;
+}
+
+const ResultsHeader = ({ count, subtitle, children }: ResultsHeaderProps) => (
+    <header className='flex items-end justify-between gap-4 px-8 pt-8 pb-6'>
+        <div className='flex flex-col gap-1'>
+            <h2 className='text-xl font-semibold tracking-tight text-foreground'>
+                Results
+                {typeof count === 'number' ? <span className='ml-2 font-normal text-muted'>({count.toLocaleString()})</span> : null}
+            </h2>
+            {subtitle ? <p className='text-sm text-muted'>{subtitle}</p> : null}
+        </div>
+        {children ? <div className='flex shrink-0 items-center gap-2'>{children}</div> : null}
+    </header>
 );
+
+const ResultBody = ({ endpoint, result, view, onView, onScrape }: ResultBodyProps) => {
+    const asJson = () => JSON.stringify(result, null, 2);
+
+    if(endpoint === 'search' && isSearchResponse(result)){
+        return (
+            <>
+                <Row>
+                    <ResultsHeader count={result.results.length} subtitle='Top hits from the crawled index.'>
+                        <button type='button' onClick={() => download('search-results.json', asJson())} className={ghostButton}>
+                            <Download className='size-3.5' />
+                            JSON
+                        </button>
+                    </ResultsHeader>
+                </Row>
+                <Row>
+                    <SearchResults results={result.results} onScrape={onScrape} />
+                </Row>
+            </>
+        );
+    }
+
+    if(endpoint === 'map' && isMapResponse(result)){
+        return (
+            <>
+                <Row>
+                    <ResultsHeader count={result.total} subtitle='Every URL discovered on the site.'>
+                        <button type='button' onClick={() => download('map-links.json', asJson())} className={ghostButton}>
+                            <Download className='size-3.5' />
+                            JSON
+                        </button>
+                    </ResultsHeader>
+                </Row>
+                <Row>
+                    <Tabs
+                        tabs={[
+                            { key: 'links', label: 'Links', icon: Link2 },
+                            { key: 'json', label: 'JSON', icon: Braces }
+                        ]}
+                        active={view}
+                        onChange={onView}
+                    />
+                    <div className='bg-foreground/[0.02]'>
+                        {view === 'links' ? <LinkList links={result.links} /> : <JsonView value={result} className='max-h-96 px-8 py-5' />}
+                    </div>
+                    <CopyBar
+                        label={view === 'links' ? 'Copy as string' : 'Copy as JSON'}
+                        getText={() => (view === 'links' ? result.links.join('\n') : asJson())}
+                    />
+                </Row>
+            </>
+        );
+    }
+
+    if(endpoint === 'crawl' && isCrawlResults(result)){
+        const pageLinks = result.data.map((page) => page.url);
+        return (
+            <>
+                <Row>
+                    <ResultsHeader count={result.total} subtitle='Pages captured by the crawl job.'>
+                        <button type='button' onClick={() => download('crawl-results.json', asJson())} className={ghostButton}>
+                            <Download className='size-3.5' />
+                            JSON
+                        </button>
+                    </ResultsHeader>
+                </Row>
+                <Row>
+                    <Tabs
+                        tabs={[
+                            { key: 'pages', label: 'Pages', icon: Link2 },
+                            { key: 'json', label: 'JSON', icon: Braces }
+                        ]}
+                        active={view}
+                        onChange={onView}
+                    />
+                    <div className='bg-foreground/[0.02]'>
+                        {view === 'pages' ? <LinkList links={pageLinks} /> : <JsonView value={result} className='max-h-96 px-8 py-5' />}
+                    </div>
+                    <CopyBar label='Copy as JSON' getText={asJson} />
+                </Row>
+            </>
+        );
+    }
+
+    const markdown = markdownOf(result);
+    if(endpoint === 'scrape' && markdown){
+        const title = metadataOf(result, 'title');
+        const sourceUrl = metadataOf(result, 'sourceURL') ?? (result && typeof result === 'object' && 'url' in result ? String((result as { url: unknown }).url) : '');
+        return (
+            <>
+                <Row>
+                    <header className='flex items-end justify-between gap-4 px-8 pt-8 pb-6'>
+                        <div className='flex min-w-0 flex-col gap-1.5'>
+                            <h2 className='truncate text-2xl font-semibold tracking-tight text-foreground'>
+                                {title ?? 'Scraped page'}
+                            </h2>
+                            <p className='truncate text-sm text-muted'>{sourceUrl.replace(/^https?:\/\//i, '')}</p>
+                        </div>
+                        <div className='flex shrink-0 items-center gap-2'>
+                            <button type='button' onClick={() => download('scrape.json', asJson())} className={ghostButton}>
+                                <Download className='size-3.5' />
+                                JSON
+                            </button>
+                            <button type='button' onClick={() => download('scrape.md', markdown, 'text/markdown')} className={ghostButton}>
+                                <Download className='size-3.5' />
+                                Markdown
+                            </button>
+                        </div>
+                    </header>
+                </Row>
+                <Row>
+                    <Tabs
+                        tabs={[
+                            { key: 'markdown', label: 'Markdown', icon: ScrollText },
+                            { key: 'json', label: 'JSON', icon: Braces }
+                        ]}
+                        active={view}
+                        onChange={onView}
+                    />
+                    <div className='bg-foreground/[0.02]'>
+                        {view === 'markdown' ? (
+                            <pre className='max-h-[32rem] overflow-auto px-8 py-5 font-mono text-xs leading-relaxed whitespace-pre-wrap break-words text-foreground/90'>
+                                {markdown}
+                            </pre>
+                        ) : (
+                            <JsonView value={result} className='max-h-[32rem] px-8 py-5' />
+                        )}
+                    </div>
+                    <CopyBar
+                        label={view === 'markdown' ? 'Copy as Markdown' : 'Copy as JSON'}
+                        getText={() => (view === 'markdown' ? markdown : asJson())}
+                    />
+                </Row>
+            </>
+        );
+    }
+
+    // Fallback for shapes we don't special-case (e.g. crawl job just created).
+    return (
+        <>
+            <Row>
+                <ResultsHeader />
+            </Row>
+            <Row>
+                <div className='bg-foreground/[0.02]'>
+                    <JsonView value={result} className='max-h-96 px-8 py-5' />
+                </div>
+                <CopyBar label='Copy as JSON' getText={asJson} />
+            </Row>
+        </>
+    );
+};
 
 export default Playground;
