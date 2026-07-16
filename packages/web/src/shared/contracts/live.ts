@@ -58,3 +58,4 @@ export interface ControlFrame{
 }
 
 export type RecentItem = SnapshotFrame['recent'][number];
+export type WorkerInfo = SnapshotFrame['workers'][number];

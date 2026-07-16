@@ -1,4 +1,4 @@
-import DotGlyph from '@/modules/playground/components/DotGlyph';
+import DotGlyph from '@/shared/components/ui/DotGlyph';
 import type { Endpoint } from '@/modules/playground/contracts/playground';
 
 interface EndpointPickerProps{

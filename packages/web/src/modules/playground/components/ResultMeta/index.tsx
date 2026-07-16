@@ -1,5 +1,5 @@
 import { CheckCircle2, XCircle, LoaderCircle } from 'lucide-react';
-import DotGlyph from '@/modules/playground/components/DotGlyph';
+import DotGlyph from '@/shared/components/ui/DotGlyph';
 import type { ComponentType } from 'react';
 
 type RunState = 'running' | 'success' | 'error';

@@ -1,0 +1,44 @@
+import { useState } from 'react';
+
+interface FaviconProps{
+    // Full URL or bare domain; the host is extracted either way.
+    url: string;
+    // Tile size in Tailwind units (outer box); icon scales with it.
+    className?: string;
+}
+
+const hostOf = (url: string): string => {
+    try{
+        return new URL(url.includes('://') ? url : `https://${url}`).host;
+    }catch{
+        return url;
+    }
+};
+
+/**
+ * Site favicon in a small bordered tile. The orange diamond (Firecrawl's fallback
+ * mark) shows while the icon loads and stays if it never arrives, so the tile is
+ * never an empty box.
+ */
+const Favicon = ({ url, className = 'size-9' }: FaviconProps) => {
+    const [loaded, setLoaded] = useState(false);
+    const [failed, setFailed] = useState(false);
+
+    return (
+        <span className={`relative grid shrink-0 place-items-center rounded-lg border border-hairline bg-surface ${className}`}>
+            {!loaded ? <span className='size-2.5 rotate-45 rounded-[2px] bg-accent' aria-hidden='true' /> : null}
+            {!failed ? (
+                <img
+                    src={`https://icons.duckduckgo.com/ip3/${hostOf(url)}.ico`}
+                    onLoad={() => setLoaded(true)}
+                    onError={() => setFailed(true)}
+                    alt=''
+                    loading='lazy'
+                    className={`absolute size-4 ${loaded ? '' : 'opacity-0'}`}
+                />
+            ) : null}
+        </span>
+    );
+};
+
+export default Favicon;

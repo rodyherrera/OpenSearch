@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { useChannel } from '@/shared/hooks/socket/useChannel';
 import type { ChannelStatus } from '@/shared/contracts/channel';
-import type { SnapshotFrame, PageFrame, BatchFrame, RecentItem } from '@/shared/contracts/live';
+import type { SnapshotFrame, PageFrame, BatchFrame, RecentItem, WorkerInfo } from '@/shared/contracts/live';
 
 const RECENT_CAP = 30;
 const SERIES_CAP = 60;
@@ -31,6 +31,7 @@ export interface CrawlLive{
     metrics: CrawlMetrics;
     history: CrawlHistory;
     recent: RecentItem[];
+    workers: WorkerInfo[];
     series: number[];
     status: ChannelStatus;
 }
@@ -39,6 +40,7 @@ interface CrawlLiveState{
     metrics: CrawlMetrics;
     history: CrawlHistory;
     recent: RecentItem[];
+    workers: WorkerInfo[];
     applySnapshot: (frame: SnapshotFrame) => void;
     applyPage: (frame: PageFrame) => void;
     applyBatch: (frame: BatchFrame) => void;
@@ -71,6 +73,7 @@ const useCrawlStore = create<CrawlLiveState>((set) => ({
     metrics: EMPTY_METRICS,
     history: EMPTY_HISTORY,
     recent: [],
+    workers: [],
 
     applySnapshot: (frame) => set((state) => {
         const metrics: CrawlMetrics = {
@@ -85,7 +88,8 @@ const useCrawlStore = create<CrawlLiveState>((set) => ({
         return {
             metrics,
             history: pushHistory(state.history, metrics),
-            recent: frame.recent.slice(0, RECENT_CAP)
+            recent: frame.recent.slice(0, RECENT_CAP),
+            workers: frame.workers
         };
     }),
 
@@ -115,9 +119,17 @@ const useCrawlStore = create<CrawlLiveState>((set) => ({
             domains: frame.domains,
             websites: Math.max(state.metrics.websites, frame.totalStored)
         };
+        // Batches identify their worker, so its counters can tick without waiting
+        // for the next snapshot.
+        const workers = state.workers.map((worker) =>
+            worker.id === frame.worker
+                ? { ...worker, stored: frame.workerStored, lastBatch: frame.stored, lastSeen: frame.at, online: true }
+                : worker
+        );
         return {
             metrics,
-            history: pushHistory(state.history, metrics)
+            history: pushHistory(state.history, metrics),
+            workers
         };
     })
 }));
@@ -135,8 +147,9 @@ export const useCrawlLive = (): CrawlLive => {
     const metrics = useCrawlStore((state) => state.metrics);
     const history = useCrawlStore((state) => state.history);
     const recent = useCrawlStore((state) => state.recent);
+    const workers = useCrawlStore((state) => state.workers);
 
     const { status } = useChannel('/ws', { snapshot: applySnapshot, page: applyPage, batch: applyBatch });
 
-    return { metrics, history, recent, series: history.perMin, status };
+    return { metrics, history, recent, workers, series: history.perMin, status };
 };

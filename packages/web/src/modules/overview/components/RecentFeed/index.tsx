@@ -13,7 +13,7 @@ const RecentFeed = ({ items }: RecentFeedProps) => {
     const visible = items.slice(0, FEED_CAP);
 
     if(!visible.length){
-        return <p className='text-sm text-muted'>Waiting for pages…</p>;
+        return <p className='px-5 py-6 text-sm text-muted'>Waiting for pages…</p>;
     }
 
     return (

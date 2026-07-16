@@ -1,5 +1,5 @@
-import { useState } from 'react';
 import { FileText } from 'lucide-react';
+import Favicon from '@/shared/components/ui/Favicon';
 import JsonView from '@/modules/playground/components/JsonView';
 import CopyBar from '@/modules/playground/components/CopyBar';
 import type { SearchResult } from '@/modules/playground/contracts/playground';
@@ -15,27 +15,6 @@ const hostOf = (url: string): string => {
     }catch{
         return url;
     }
-};
-
-// Site favicon in a small bordered tile; falls back to Firecrawl's orange diamond.
-const Favicon = ({ url }: { url: string }) => {
-    const [failed, setFailed] = useState(false);
-
-    return (
-        <span className='grid size-9 shrink-0 place-items-center rounded-lg border border-hairline bg-surface'>
-            {failed ? (
-                <span className='size-2.5 rotate-45 rounded-[2px] bg-accent' aria-hidden='true' />
-            ) : (
-                <img
-                    src={`https://icons.duckduckgo.com/ip3/${hostOf(url)}.ico`}
-                    onError={() => setFailed(true)}
-                    alt=''
-                    loading='lazy'
-                    className='size-4'
-                />
-            )}
-        </span>
-    );
 };
 
 /**

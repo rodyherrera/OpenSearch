@@ -1,6 +1,9 @@
 import { useCrawlLive } from '@/shared/hooks/live/useCrawlLive';
 import MetricCard from '@/modules/overview/components/MetricCard';
 import RecentFeed from '@/modules/overview/components/RecentFeed';
+import QuickActions from '@/modules/overview/components/QuickActions';
+import WorkersPanel from '@/modules/overview/components/WorkersPanel';
+import TopDomains from '@/modules/overview/components/TopDomains';
 import Crosshairs from '@/shared/components/ui/Crosshairs';
 import type { ChannelStatus } from '@/shared/contracts/channel';
 
@@ -12,7 +15,7 @@ const STATUS_LABEL: Record<ChannelStatus, string> = {
 };
 
 const Overview = () => {
-    const { metrics, history, recent, status } = useCrawlLive();
+    const { metrics, history, recent, workers, status } = useCrawlLive();
     const live = status === 'open';
 
     return (
@@ -88,16 +91,26 @@ const Overview = () => {
                 </div>
             </div>
 
-            <section className='relative border border-hairline'>
-                <Crosshairs />
-                <header className='flex items-center justify-between border-b border-hairline px-5 py-4'>
-                    <h2 className='text-sm font-medium text-foreground'>Recently indexed</h2>
-                    <span className='mono-label text-muted/70'>{recent.length} pages</span>
-                </header>
-                <div className='px-5 py-2'>
+            {/* Jump straight into an endpoint, Firecrawl-style tiles. */}
+            <QuickActions />
+
+            {/* Live activity: the feed carries the width; the fleet + leaderboard
+                stack on the right. */}
+            <div className='grid grid-cols-1 items-start gap-8 xl:grid-cols-3'>
+                <section className='relative border border-hairline xl:col-span-2'>
+                    <Crosshairs />
+                    <header className='flex items-center justify-between border-b border-hairline px-5 py-4'>
+                        <h2 className='text-sm font-medium text-foreground'>Recently indexed</h2>
+                        <span className='mono-label text-muted/70'>{recent.length} pages</span>
+                    </header>
                     <RecentFeed items={recent} />
+                </section>
+
+                <div className='flex flex-col gap-8'>
+                    <WorkersPanel workers={workers} />
+                    <TopDomains />
                 </div>
-            </section>
+            </div>
         </div>
     );
 };
