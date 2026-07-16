@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Trash2 } from 'lucide-react';
 import DataTable from '@/shared/components/DataTable';
+import ScopeToggle, { type Scope } from '@/shared/components/ui/ScopeToggle';
 import { useDomains } from '@/modules/domains/hooks/useDomains';
 import type { Column } from '@/shared/components/DataTable';
 import type { IndexedDomain } from '@/modules/domains/contracts/domain';
@@ -15,7 +16,8 @@ const messageFrom = (error: unknown): string =>
     error instanceof Error ? error.message : 'Something went wrong';
 
 const Domains = () => {
-    const { domains, loading, error, refresh, query, hasMore, loadMore, purging, purgeDomain } = useDomains();
+    const [scope, setScope] = useState<Scope>('workspace');
+    const { domains, loading, error, refresh, query, hasMore, loadMore, purging, purgeDomain } = useDomains(scope);
     const [, setSearchParams] = useSearchParams();
     const [notice, setNotice] = useState<Notice | null>(null);
 
@@ -73,6 +75,7 @@ const Domains = () => {
             title='Domains'
             subtitle='Registrable domains in the index, by page count.'
             search={{ value: query, onChange: setQuery, placeholder: 'Filter domains…' }}
+            filters={<ScopeToggle value={scope} onChange={setScope} />}
             columns={columns}
             rows={domains}
             rowKey={(row) => row.domain}

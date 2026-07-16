@@ -12,10 +12,11 @@ const MAX_LIMIT = 100;
 export default class SeedService{
     #frontier = new CrawlFrontier();
 
-    // Persist the seeds as documents (deduped by URL) and push them into the crawl
-    // frontier. Persistence and enqueueing are independent: a URL already seen by the
-    // frontier still lands in the listing, and a normalized dup is never re-saved.
-    async add(rawUrls: string[]): Promise<AddSeedsResult>{
+    // Persist the seeds as documents (deduped per workspace) and push them into the
+    // shared crawl frontier. Persistence and enqueueing are independent: a URL already
+    // seen by the frontier still lands in the listing, and a normalized dup within the
+    // same workspace is never re-saved.
+    async add(workspaceId: string, rawUrls: string[]): Promise<AddSeedsResult>{
         const normalized = [...new Set(
             (rawUrls ?? []).map(normalizeUrl).filter((url): url is string => url !== null)
         )];
@@ -23,8 +24,8 @@ export default class SeedService{
 
         const bulkOps = normalized.map((url) => ({
             updateOne: {
-                filter: { url },
-                update: { $setOnInsert: { url, domain: domainOf(url) } },
+                filter: { workspaceId, url },
+                update: { $setOnInsert: { workspaceId, url, domain: domainOf(url) } },
                 upsert: true
             }
         }));
@@ -34,13 +35,14 @@ export default class SeedService{
         return { saved: result.upsertedCount ?? 0, enqueued };
     }
 
-    async list(page: number, limit: number, q?: string): Promise<PublicSeed[]>{
+    async list(workspaceId: string, page: number, limit: number, q?: string): Promise<PublicSeed[]>{
         const safeLimit = Math.min(Math.max(limit || DEFAULT_LIMIT, 1), MAX_LIMIT);
         const safePage = Math.max(page || 1, 1);
         // Substring filter over URL and domain — seeds stay a small collection.
         const term = q?.trim();
         const pattern = term ? new RegExp(_.escapeRegExp(term), 'i') : null;
-        const filter = pattern ? { $or: [{ url: pattern }, { domain: pattern }] } : {};
+        const filter: Record<string, unknown> = { workspaceId };
+        if(pattern) filter.$or = [{ url: pattern }, { domain: pattern }];
         const records = await Seed
             .find(filter)
             .sort({ createdAt: -1 })
@@ -49,11 +51,11 @@ export default class SeedService{
         return records.map((record) => record.toJSON() as PublicSeed);
     }
 
-    async deleteById(id: string): Promise<boolean>{
+    async deleteById(workspaceId: string, id: string): Promise<boolean>{
         if(!mongoose.isValidObjectId(id)){
             throw new RuntimeError(RequestError.InvalidId ?? 'Request::InvalidId', 400);
         }
-        const doc = await Seed.findByIdAndDelete(id);
+        const doc = await Seed.findOneAndDelete({ _id: id, workspaceId });
         return !!doc;
     }
 }

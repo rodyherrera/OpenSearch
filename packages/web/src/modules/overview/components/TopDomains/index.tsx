@@ -10,7 +10,8 @@ const TOP_COUNT = 6;
 // Leaderboard of the biggest domains in the index as flat band content: #N in the
 // accent hue, favicon, domain, page count. No card wrapper — the Row frames it.
 const TopDomains = () => {
-    const { data, loading } = useRequest(domainsApi.list);
+    // The Overview is the global dashboard, so its leaderboard spans the whole index.
+    const { data, loading } = useRequest(() => domainsApi.list('global'));
 
     const top = useMemo(
         () => [...(data?.domains ?? [])].sort((a, b) => b.pages - a.pages).slice(0, TOP_COUNT),

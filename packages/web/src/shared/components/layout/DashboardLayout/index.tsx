@@ -16,10 +16,10 @@ import {
     Moon,
     LogOut,
     ChevronsLeft,
-    ChevronsRight,
-    ChevronDown
+    ChevronsRight
 } from 'lucide-react';
 import GlobalSearch from '@/shared/components/layout/GlobalSearch';
+import WorkspaceSwitcher from '@/modules/workspaces/components/WorkspaceSwitcher';
 import { useAuthStore } from '@/modules/auth/store/auth';
 import { applyTheme } from '@/shared/utils/theme';
 import type { ComponentType } from 'react';
@@ -186,13 +186,7 @@ const DashboardLayout = () => {
 
             <div className='flex min-h-0 min-w-0 flex-1 flex-col'>
                 <header className='flex h-14 shrink-0 items-center gap-2 border-b border-hairline px-4'>
-                    <span className='inline-flex items-center gap-2 rounded-lg border border-hairline px-2.5 py-1.5 text-[13px] text-foreground'>
-                        <span className='grid size-[18px] shrink-0 place-items-center rounded bg-accent font-mono text-[10px] font-bold text-accent-foreground'>
-                            P
-                        </span>
-                        Personal
-                        <ChevronDown className='size-3.5 text-muted' />
-                    </span>
+                    <WorkspaceSwitcher />
                     <div className='min-w-0 flex-1' />
                     <GlobalSearch />
                     <button type='button' onClick={toggleTheme} aria-label='Toggle theme' className={iconButton}>

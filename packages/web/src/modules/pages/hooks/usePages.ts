@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useRequest } from 'alova/client';
 import { pagesApi } from '@/modules/pages/api/api';
+import { useWorkspaceStore } from '@/modules/workspaces/store/workspace';
 import type { PublicWebsite } from '@/modules/pages/contracts/page';
+import type { Scope } from '@/shared/components/ui/ScopeToggle';
 
 const LIMIT = 40;
 
@@ -17,23 +19,25 @@ export interface UsePages{
     remove: (id: string) => Promise<void>;
 }
 
-export const usePages = (): UsePages => {
+export const usePages = (scope: Scope): UsePages => {
     // The query lives in the URL (?q=), written by the layout-level search bar,
     // so results are deep-linkable and survive navigation.
     const [searchParams] = useSearchParams();
     const query = (searchParams.get('q') ?? '').trim();
+    // A workspace switch re-scopes the workspace view, so re-fetch on it too.
+    const activeWorkspace = useWorkspaceStore((state) => state.activeId);
 
     const [items, setItems] = useState<PublicWebsite[]>([]);
     const [page, setPage] = useState(1);
     const [loaded, setLoaded] = useState(false);
     const [hasMore, setHasMore] = useState(true);
 
-    const fetcher = useRequest((next: number, q: string) => pagesApi.list(next, LIMIT, q), { immediate: false });
+    const fetcher = useRequest((next: number, q: string, s: Scope) => pagesApi.list(next, LIMIT, q, s), { immediate: false });
     const remover = useRequest((id: string) => pagesApi.remove(id), { immediate: false });
 
-    const fetchPage = async (next: number, q: string) => {
+    const fetchPage = async (next: number, q: string, s: Scope) => {
         try{
-            const data = (await fetcher.send(next, q)) ?? [];
+            const data = (await fetcher.send(next, q, s)) ?? [];
             setItems((prev) => (next === 1 ? data : [...prev, ...data]));
             setPage(next);
             setHasMore(data.length === LIMIT);
@@ -46,17 +50,17 @@ export const usePages = (): UsePages => {
         }
     };
 
-    // Re-fetch from page 1 whenever the URL query changes; also runs once on mount.
-    // The search bar already debounces its URL writes, so no debounce here.
+    // Re-fetch from page 1 whenever the URL query or the scope changes; also runs
+    // once on mount. The search bar already debounces its URL writes, so no debounce here.
     const fetchPageRef = useRef(fetchPage);
     fetchPageRef.current = fetchPage;
     useEffect(() => {
-        void fetchPageRef.current(1, query);
-    }, [query]);
+        void fetchPageRef.current(1, query, scope);
+    }, [query, scope, activeWorkspace]);
 
     const loadMore = async () => {
         if(fetcher.loading || !hasMore) return;
-        await fetchPage(page + 1, query);
+        await fetchPage(page + 1, query, scope);
     };
 
     const remove = async (id: string) => {

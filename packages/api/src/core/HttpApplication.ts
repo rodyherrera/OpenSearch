@@ -9,6 +9,7 @@ import Bootstrap from '@/core/Bootstrap';
 import ModuleDiscovery, { type MountedController } from '@/core/modules/discovery';
 import { logger } from '@/core/utils/Logger';
 import AuthService from '@/modules/auth/services/AuthService';
+import WorkspaceService from '@/modules/workspace/services/WorkspaceService';
 import WebsiteService from '@/modules/website/services/WebsiteService';
 import CrawlJobService from '@/modules/crawl/services/CrawlJobService';
 import RuntimeError from '@/shared/errors/RuntimeError';
@@ -44,6 +45,7 @@ export default class HttpApplication{
         this.#mountGateways(gateways);
 
         await new AuthService().bootstrapAdmin();
+        await new WorkspaceService().bootstrap();
         this.#backfillWebsiteDomains();
         await this.#failStaleCrawlJobs();
 

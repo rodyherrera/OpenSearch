@@ -19,8 +19,12 @@ interface QueryBuffer{
 }
 
 export default class WebsiteSearchService{
-    async search(query: SearchQuery): Promise<PublicWebsite[]>{
+    // `domains` scopes the result to a set of registrable domains — used to serve a
+    // workspace only the pages under the sites it seeded. An empty array means "no
+    // seeded domains yet", which correctly yields no results.
+    async search(query: SearchQuery, domains?: string[]): Promise<PublicWebsite[]>{
         const buffer: QueryBuffer = { find: {}, sort: {}, select: '', skip: 0, limit: 0 };
+        if(domains) buffer.find.domain = { $in: domains };
         this.#filter(query, buffer);
         this.#sort(query, buffer);
         this.#limitFields(query, buffer);

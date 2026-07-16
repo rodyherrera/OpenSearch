@@ -2,6 +2,7 @@ import { createAlova } from 'alova';
 import type { ApiResponse, ApiErrorResponse } from '@/shared/contracts/http';
 import { env } from '@/shared/config/env';
 import { useAuthStore } from '@/modules/auth/store/auth';
+import { useWorkspaceStore } from '@/modules/workspaces/store/workspace';
 import { ApiError } from '@/shared/services/ApiError';
 import adapterFetch from 'alova/fetch';
 import ReactHook from 'alova/react';
@@ -16,8 +17,12 @@ export const alova = createAlova({
 
     beforeRequest(method){
         const token = useAuthStore.getState().token;
+        const workspaceId = useWorkspaceStore.getState().activeId;
         method.config.headers['Content-Type'] = 'application/json';
         if(token) method.config.headers.Authorization = `Bearer ${token}`;
+        // Scopes every request to the active workspace; the API falls back to the
+        // user's default workspace when it's absent.
+        if(workspaceId) method.config.headers['X-Workspace-Id'] = workspaceId;
     },
 
     responded: {

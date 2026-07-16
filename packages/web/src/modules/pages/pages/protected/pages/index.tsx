@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Trash2 } from 'lucide-react';
 import DataTable from '@/shared/components/DataTable';
+import ScopeToggle, { type Scope } from '@/shared/components/ui/ScopeToggle';
 import { usePages } from '@/modules/pages/hooks/usePages';
 import type { Column } from '@/shared/components/DataTable';
 import type { PublicWebsite } from '@/modules/pages/contracts/page';
@@ -18,7 +19,8 @@ const messageFrom = (error: unknown): string =>
     error instanceof Error ? error.message : 'Something went wrong';
 
 const Pages = () => {
-    const { items, loading, loaded, hasMore, loadMore, query, removing, remove } = usePages();
+    const [scope, setScope] = useState<Scope>('workspace');
+    const { items, loading, loaded, hasMore, loadMore, query, removing, remove } = usePages(scope);
     const [, setSearchParams] = useSearchParams();
     const [error, setError] = useState<string | null>(null);
 
@@ -112,6 +114,7 @@ const Pages = () => {
             title='Pages'
             subtitle='Every page in the index, newest first.'
             search={{ value: query, onChange: setQuery, placeholder: 'Search pages…' }}
+            filters={<ScopeToggle value={scope} onChange={setScope} />}
             columns={columns}
             rows={items}
             rowKey={(row) => row.id}

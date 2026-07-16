@@ -74,9 +74,13 @@ export default class WebsiteService{
     // Registrable domains actually present in the index with their page counts,
     // busiest first. Documents that predate the domain field are excluded until
     // the boot-time backfill reaches them.
-    async listDomains(limit = 1000): Promise<{ domain: string; pages: number }[]>{
+    async listDomains(limit = 1000, domains?: string[]): Promise<{ domain: string; pages: number }[]>{
+        // `domains` scopes the aggregation to a workspace's seeded domains; omitted
+        // means the whole index (global scope).
+        const match: Record<string, unknown> = { domain: { $exists: true, $ne: '' } };
+        if(domains) match.domain = { $in: domains };
         return Website.aggregate<{ domain: string; pages: number }>([
-            { $match: { domain: { $exists: true, $ne: '' } } },
+            { $match: match },
             { $group: { _id: '$domain', pages: { $sum: 1 } } },
             { $sort: { pages: -1 } },
             { $limit: limit },

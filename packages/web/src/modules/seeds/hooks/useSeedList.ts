@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useRequest } from 'alova/client';
 import { seedsApi } from '@/modules/seeds/api/api';
+import { useWorkspaceStore } from '@/modules/workspaces/store/workspace';
 import type { PublicSeed } from '@/modules/seeds/contracts/seeds';
 
 const LIMIT = 40;
@@ -20,6 +21,8 @@ export const useSeedList = (): UseSeedList => {
     // The filter lives in the URL (?q=), written by the layout-level search bar.
     const [searchParams] = useSearchParams();
     const query = (searchParams.get('q') ?? '').trim();
+    // Seeds are workspace-scoped, so a workspace switch must re-fetch the list.
+    const activeWorkspace = useWorkspaceStore((state) => state.activeId);
 
     const [items, setItems] = useState<PublicSeed[]>([]);
     const [page, setPage] = useState(1);
@@ -43,7 +46,7 @@ export const useSeedList = (): UseSeedList => {
     fetchPageRef.current = fetchPage;
     useEffect(() => {
         void fetchPageRef.current(1, query);
-    }, [query]);
+    }, [query, activeWorkspace]);
 
     const loadMore = async () => {
         if(fetcher.loading || !hasMore) return;
