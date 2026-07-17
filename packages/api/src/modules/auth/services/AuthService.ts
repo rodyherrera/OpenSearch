@@ -38,6 +38,11 @@ export default class AuthService{
         return user.toJSON() as unknown as PublicAdmin;
     }
 
+    async isAdmin(userId: string): Promise<boolean>{
+        const user = await User.findById(userId).select('role');
+        return user?.role === 'admin';
+    }
+
     async register({ email, password }: RegisterInput): Promise<{ token: string }>{
         const normalized = email.toLowerCase().trim();
         await enforceRateLimit('register', normalized, 5, AuthError.RateLimited, 3600);

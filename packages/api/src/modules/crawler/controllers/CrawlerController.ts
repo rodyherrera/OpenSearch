@@ -7,6 +7,7 @@ import { AdminRoute } from '@/modules/auth/middlewares/AdminRoute';
 import { getRedis } from '@/shared/redis/RedisClient';
 import CrawlerControlService from '@/modules/crawler/services/CrawlerControlService';
 import CrawlFrontier from '@/modules/crawler/services/CrawlFrontier';
+import CrawlMetrics from '@/modules/crawler/services/CrawlMetrics';
 import type { Tuning, ControlState } from '@/modules/crawler/contracts/domain/control';
 
 // Frontier counter/state keys wiped on reset (queues aside).
@@ -30,6 +31,7 @@ const FRONTIER_KEY_PATTERNS = ['frontier:dompages:*', 'frontier:cooldown:*'];
 export default class CrawlerController extends BaseController{
     #control = new CrawlerControlService();
     #frontier = new CrawlFrontier();
+    #metrics = new CrawlMetrics();
 
     @Route('/status', 'GET')
     async status(){
@@ -39,8 +41,8 @@ export default class CrawlerController extends BaseController{
             this.#frontier.size(),
             this.#frontier.seenCount(),
             this.#frontier.domainCount(),
-            this.#frontier.storedCount(),
-            this.#frontier.storedPerMin(now)
+            this.#metrics.storedCount(),
+            this.#metrics.storedPerMin(now)
         ]);
         return { ...control, frontier: { size, seen, domains, stored, perMin } };
     }

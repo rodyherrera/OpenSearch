@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 import RuntimeError from '@/shared/errors/RuntimeError';
 import { logger } from '@/core/utils/Logger';
-import { normalizeUrl, domainOf } from '@/modules/crawler/services/CrawlFrontier';
+import UrlNormalizer from '@/modules/crawler/services/UrlNormalizer';
 import WebsiteService from '@/modules/website/services/WebsiteService';
 import CrawlJob, { type CrawlJobDocument } from '@/modules/crawl/models/CrawlJob';
 import CrawlRunner from '@/modules/crawl/services/CrawlRunner';
@@ -23,9 +23,9 @@ export default class CrawlJobService{
     // Create the job, then kick the runner off fire-and-forget so the HTTP response
     // returns immediately with a job id the caller can poll.
     async create(body: CreateCrawlBody, owner: string): Promise<CrawlJobStatusView>{
-        const url = normalizeUrl(body.url ?? '');
+        const url = UrlNormalizer.normalizeUrl(body.url ?? '');
         if(!url) throw new RuntimeError(CrawlError.InvalidUrl, 400);
-        const domain = domainOf(url);
+        const domain = UrlNormalizer.domainOf(url);
         if(!domain) throw new RuntimeError(CrawlError.InvalidUrl, 400);
 
         const limit = Math.min(Math.max(body.limit ?? DEFAULT_LIMIT, 1), MAX_LIMIT);

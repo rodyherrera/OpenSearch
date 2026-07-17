@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { create } from 'zustand';
 import { useChannel } from '@/shared/hooks/socket/useChannel';
 import type { ChannelStatus } from '@/shared/contracts/channel';
@@ -134,7 +135,11 @@ export const useCrawlLive = (): CrawlLive => {
     const recent = useCrawlStore((state) => state.recent);
     const workers = useCrawlStore((state) => state.workers);
 
-    const { status } = useChannel('/ws', { snapshot: applySnapshot, page: applyPage, batch: applyBatch });
+    const { send, status } = useChannel('/ws', { snapshot: applySnapshot, page: applyPage, batch: applyBatch });
+
+    useEffect(() => {
+        if(status === 'open') send('subscribe', { scope: 'ops' });
+    }, [status, send]);
 
     return { metrics, history, recent, workers, series: history.perMin, status };
 };

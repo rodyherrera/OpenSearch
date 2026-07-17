@@ -60,6 +60,11 @@ export default class ConnectionRegistry{
         if(members) this.#send(members, message);
     }
 
+    sendRawToRoom(room: string, message: string): void{
+        const members = this.#rooms.get(room);
+        if(members) for(const socket of members) socket.send(message);
+    }
+
     #send(sockets: Iterable<GatewaySocket>, message: OutboundMessage<unknown>): void{
         const raw = JSON.stringify(message);
         for(const socket of sockets) socket.send(raw);

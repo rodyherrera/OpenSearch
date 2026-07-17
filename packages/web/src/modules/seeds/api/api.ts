@@ -1,11 +1,9 @@
 import { alova } from '@/app/alova';
-import type { AddSeedsInput, AddSeedsResult, PublicSeed } from '@/modules/seeds/contracts/seeds';
+import type { AddSeedsInput, AddSeedsResult } from '@/modules/seeds/contracts/seeds';
 
 const BASE = '/seed';
 
 export const seedsApi = {
     add: (body: AddSeedsInput) => alova.Post<AddSeedsResult>(BASE, body),
-    list: (page: number, limit: number, q?: string) =>
-        alova.Get<PublicSeed[]>(BASE, { params: { page, limit, ...(q ? { q } : {}) } }),
     remove: (id: string) => alova.Delete<void>(`${BASE}/${id}`)
 };

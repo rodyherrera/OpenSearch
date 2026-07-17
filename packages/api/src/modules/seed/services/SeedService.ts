@@ -1,8 +1,11 @@
 import mongoose from 'mongoose';
 import _ from 'lodash';
 import Seed from '@/modules/seed/models/Seed';
-import CrawlFrontier, { normalizeUrl, domainOf } from '@/modules/crawler/services/CrawlFrontier';
+import CrawlFrontier from '@/modules/crawler/services/CrawlFrontier';
+import WorkspaceFrontier from '@/modules/crawler/services/WorkspaceFrontier';
+import UrlNormalizer from '@/modules/crawler/services/UrlNormalizer';
 import WebsiteService from '@/modules/website/services/WebsiteService';
+import CrawlEventPublisher from '@/modules/crawler/services/CrawlEventPublisher';
 import RuntimeError from '@/shared/errors/RuntimeError';
 import { RequestError } from '@/shared/errors/RequestError';
 import type { PublicSeed, AddSeedsResult } from '@/modules/seed/contracts/domain/seed';
@@ -12,28 +15,33 @@ const MAX_LIMIT = 100;
 
 export default class SeedService{
     #frontier = new CrawlFrontier();
+    #workspaceFrontier = new WorkspaceFrontier();
+    #publisher = new CrawlEventPublisher();
     #websites = new WebsiteService();
 
     async add(workspaceId: string, rawUrls: string[]): Promise<AddSeedsResult>{
         const normalized = [...new Set(
-            (rawUrls ?? []).map(normalizeUrl).filter((url): url is string => url !== null)
+            (rawUrls ?? []).map(UrlNormalizer.normalizeUrl).filter((url): url is string => url !== null)
         )];
         if(!normalized.length) return { saved: 0, enqueued: 0 };
 
         const bulkOps = normalized.map((url) => ({
             updateOne: {
                 filter: { workspaceId, url },
-                update: { $setOnInsert: { workspaceId, url, domain: domainOf(url) } },
+                update: { $setOnInsert: { workspaceId, url, domain: UrlNormalizer.domainOf(url) } },
                 upsert: true
             }
         }));
         const result = await Seed.bulkWrite(bulkOps, { ordered: false });
 
-        const domains = [...new Set(normalized.map(domainOf).filter(Boolean))];
-        await this.#frontier.registerWorkspaceDomains(workspaceId, domains);
+        const domains = [...new Set(normalized.map(UrlNormalizer.domainOf).filter(Boolean))];
+        await this.#workspaceFrontier.registerWorkspaceDomains(workspaceId, domains);
         void this.#websites.stampWorkspaceByDomains(domains, workspaceId);
 
         const enqueued = await this.#frontier.enqueueScoped(normalized, workspaceId);
+
+        const saved = await Seed.find({ workspaceId, url: { $in: normalized } }).sort({ createdAt: -1 });
+        void this.#publisher.publishSeedAdded(workspaceId, saved.map((doc) => doc.toJSON() as PublicSeed), Date.now());
 
         return { saved: result.upsertedCount ?? 0, enqueued };
     }
@@ -58,6 +66,7 @@ export default class SeedService{
             throw new RuntimeError(RequestError.InvalidId ?? 'Request::InvalidId', 400);
         }
         const doc = await Seed.findOneAndDelete({ _id: id, workspaceId });
+        if(doc) void this.#publisher.publishRemoved(workspaceId, 'seed', { id: doc.id, url: doc.url }, Date.now());
         return !!doc;
     }
 }

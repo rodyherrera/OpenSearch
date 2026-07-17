@@ -8,7 +8,7 @@ import { AdminRoute } from '@/modules/auth/middlewares/AdminRoute';
 import { CurrentWorkspace, CurrentWorkspaceId } from '@/modules/workspace/middlewares/CurrentWorkspace';
 import WebsiteSearchService from '@/modules/website/services/WebsiteSearchService';
 import WebsiteService from '@/modules/website/services/WebsiteService';
-import CrawlFrontier from '@/modules/crawler/services/CrawlFrontier';
+import WorkspaceFrontier from '@/modules/crawler/services/WorkspaceFrontier';
 import type { SearchQuery } from '@/modules/website/contracts/http/search';
 import type { PublicWebsite } from '@/modules/website/contracts/domain/website';
 
@@ -18,7 +18,7 @@ type Scope = 'workspace' | 'global';
 export default class WebsiteController extends BaseController{
     #search = new WebsiteSearchService();
     #service = new WebsiteService();
-    #frontier = new CrawlFrontier();
+    #workspaceFrontier = new WorkspaceFrontier();
 
     #scope(workspaceId: string, scope?: string): string | undefined{
         return (scope as Scope) === 'global' ? undefined : workspaceId;
@@ -36,7 +36,7 @@ export default class WebsiteController extends BaseController{
 
     @Route('/changes', 'GET')
     async changes(@CurrentWorkspaceId() workspaceId: string){
-        return { changes: await this.#frontier.getChanges(workspaceId) };
+        return { changes: await this.#workspaceFrontier.getChanges(workspaceId) };
     }
 
     @Route('/:id', 'DELETE')

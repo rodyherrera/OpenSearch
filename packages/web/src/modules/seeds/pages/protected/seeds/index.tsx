@@ -1,29 +1,34 @@
+import { useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useRequest } from 'alova/client';
 import { Trash2 } from 'lucide-react';
 import DataTable from '@/shared/components/DataTable';
 import AddSeedModal from '@/modules/seeds/components/AddSeedModal';
-import { useSeedList } from '@/modules/seeds/hooks/useSeedList';
+import { seedsApi } from '@/modules/seeds/api/api';
+import { useWorkspaceLive } from '@/shared/hooks/live/useWorkspaceLive';
+import { formatWhen } from '@/shared/utils/time';
 import type { Column } from '@/shared/components/DataTable';
-import type { PublicSeed } from '@/modules/seeds/contracts/seeds';
-
-const formatWhen = (iso: string): string =>
-    new Date(iso).toLocaleString(undefined, {
-        dateStyle: 'medium',
-        timeStyle: 'short'
-    });
+import type { LiveSeed } from '@/shared/contracts/live';
 
 const Seeds = () => {
-    const list = useSeedList();
-    const [, setSearchParams] = useSearchParams();
+    const { seeds, hydrated } = useWorkspaceLive();
+    const [searchParams, setSearchParams] = useSearchParams();
+    const remover = useRequest((id: string) => seedsApi.remove(id), { immediate: false });
 
+    const query = (searchParams.get('q') ?? '').trim().toLowerCase();
     const setQuery = (value: string) => setSearchParams(value ? { q: value } : {}, { replace: true });
 
-    const onDelete = async (row: PublicSeed) => {
+    const rows = useMemo(
+        () => (query ? seeds.filter((seed) => seed.url.toLowerCase().includes(query) || seed.domain.toLowerCase().includes(query)) : seeds),
+        [seeds, query]
+    );
+
+    const onDelete = async (row: LiveSeed) => {
         if(!window.confirm(`Remove seed “${row.url}”? Pages already crawled from it stay indexed.`)) return;
-        await list.remove(row.id);
+        await remover.send(row.id);
     };
 
-    const columns: Column<PublicSeed>[] = [
+    const columns: Column<LiveSeed>[] = [
         {
             key: 'url',
             header: 'URL',
@@ -54,7 +59,7 @@ const Seeds = () => {
                 <button
                     type='button'
                     onClick={() => void onDelete(row)}
-                    disabled={list.removing}
+                    disabled={remover.loading}
                     aria-label={`Remove ${row.url}`}
                     className='text-muted transition-colors hover:text-danger disabled:opacity-50'
                 >
@@ -68,17 +73,14 @@ const Seeds = () => {
         <DataTable
             title='Seeds'
             subtitle='Every seed URL saved to the index, newest first.'
-            search={{ value: list.query, onChange: setQuery, placeholder: 'Filter seeds…' }}
+            search={{ value: searchParams.get('q') ?? '', onChange: setQuery, placeholder: 'Filter seeds…' }}
             columns={columns}
-            rows={list.items}
+            rows={rows}
             rowKey={(row) => row.id}
-            loading={!list.loaded}
-            emptyLabel={list.query ? 'No seeds match your filter' : 'No seeds added yet'}
+            loading={!hydrated}
+            emptyLabel={query ? 'No seeds match your filter' : 'No seeds added yet'}
             initialSort={{ key: 'added', dir: 'desc' }}
-            hasMore={list.hasMore}
-            loadingMore={list.loading}
-            onLoadMore={() => void list.loadMore()}
-            actions={<AddSeedModal onAdded={() => void list.refresh()} />}
+            actions={<AddSeedModal />}
         />
     );
 };

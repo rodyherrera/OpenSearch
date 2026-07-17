@@ -1,11 +1,10 @@
 import { Switch } from '@heroui/react';
 import { Globe, FileText, Activity } from 'lucide-react';
 import { Canvas, Row } from '@/shared/components/ui/Blueprint';
-import { useWorkspaceCrawler } from '@/modules/crawler/hooks/useWorkspaceCrawler';
+import { useWorkspaceLive } from '@/shared/hooks/live/useWorkspaceLive';
+import { useWorkspaces } from '@/modules/workspaces/hooks/useWorkspaces';
+import { formatWhen } from '@/shared/utils/time';
 import type { ComponentType, ReactNode } from 'react';
-
-const formatWhen = (ts: number): string =>
-    new Date(ts).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 
 interface StatProps{
     icon: ComponentType<{ className?: string }>;
@@ -34,8 +33,8 @@ const Block = ({ title, subtitle, children }: { title: string; subtitle?: string
 );
 
 const Crawler = () => {
-    const { active, setFollowExternal, domains, changes } = useWorkspaceCrawler();
-    const pages = domains.reduce((sum, entry) => sum + entry.pages, 0);
+    const { active, setFollowExternal } = useWorkspaces();
+    const { counts, domains, changes } = useWorkspaceLive();
 
     return (
         <Canvas>
@@ -70,11 +69,11 @@ const Crawler = () => {
             </Row>
 
             <Row className='px-6 py-8'>
-                <Block title='This workspace’s corpus' subtitle='What your seeds have discovered so far.'>
+                <Block title='This workspace’s corpus' subtitle='What your seeds have discovered so far — live.'>
                     <div className='grid gap-4 sm:grid-cols-3'>
-                        <Stat icon={Globe} label='Domains' value={domains.length} />
-                        <Stat icon={FileText} label='Pages' value={pages} />
-                        <Stat icon={Activity} label='Recent changes' value={changes.length} />
+                        <Stat icon={Globe} label='Domains' value={counts.domains} />
+                        <Stat icon={FileText} label='Pages' value={counts.pages} />
+                        <Stat icon={Activity} label='Recent changes' value={counts.changes} />
                     </div>
 
                     {domains.length ? (

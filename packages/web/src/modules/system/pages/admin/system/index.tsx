@@ -3,16 +3,9 @@ import { Canvas, Row } from '@/shared/components/ui/Blueprint';
 import Favicon from '@/shared/components/ui/Favicon';
 import WorkersPanel from '@/modules/overview/components/WorkersPanel';
 import TopDomains from '@/modules/overview/components/TopDomains';
+import { ago } from '@/shared/utils/time';
 
 const fmt = (value: number): string => value.toLocaleString();
-
-const ago = (at: number): string => {
-    const seconds = Math.max(0, Math.round((Date.now() - at) / 1000));
-    if(seconds < 60) return `${seconds}s ago`;
-    const minutes = Math.round(seconds / 60);
-    if(minutes < 60) return `${minutes}m ago`;
-    return `${Math.round(minutes / 60)}h ago`;
-};
 
 const FEED_CAP = 10;
 

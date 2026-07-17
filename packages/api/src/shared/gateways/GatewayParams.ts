@@ -6,3 +6,6 @@ export const Payload = (): ParameterDecorator =>
 
 export const Socket = (): ParameterDecorator =>
     createParamDecorator((req) => (req as GatewayContext)[SOCKET]);
+
+export const Principal = (): ParameterDecorator =>
+    createParamDecorator((req) => (req as GatewayContext).principal);

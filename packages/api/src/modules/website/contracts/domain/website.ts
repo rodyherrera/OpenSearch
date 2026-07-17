@@ -27,3 +27,13 @@ export interface WebsiteFields{
 }
 
 export type PublicWebsite = WebsiteFields & BaseFields;
+
+export interface DomainPageCount{
+    domain: string;
+    pages: number;
+}
+
+export interface RefreshResult{
+    inserted: string[];
+    changed: string[];
+}

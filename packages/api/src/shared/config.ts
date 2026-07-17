@@ -83,6 +83,11 @@ export const config = {
         concurrency: toInt(optional('CRAWLER_CONCURRENCY', '64'), 64),
         batchSize: toInt(optional('CRAWLER_BATCH_SIZE', '128'), 128),
         domainDelayMs: toInt(optional('CRAWLER_DOMAIN_DELAY_MS', '1500'), 1500),
+        // A workspace's OWN seeded domains crawl faster than the global firehose: up to
+        // workspaceDomainConcurrency pages per domain per window (the user chose these
+        // sites and wants them indexed quickly). Rate ceiling ≈ concurrency / window.
+        workspaceDomainDelayMs: toInt(optional('CRAWLER_WORKSPACE_DOMAIN_DELAY_MS', '1000'), 1000),
+        workspaceDomainConcurrency: toInt(optional('CRAWLER_WORKSPACE_DOMAIN_CONCURRENCY', '20'), 20),
         maxLinksPerPage: toInt(optional('CRAWLER_MAX_LINKS_PER_PAGE', '40'), 40),
         maxFrontier: toInt(optional('CRAWLER_MAX_FRONTIER', '500000'), 500000),
         maxPages: toInt(optional('CRAWLER_MAX_PAGES', '0'), 0),
@@ -92,8 +97,11 @@ export const config = {
         // Stop chasing a site once this many of its pages are stored (starve deep
         // sinks so the crawl fans out across more domains). 0 = unlimited.
         maxPagesPerDomain: toInt(optional('CRAWLER_MAX_PAGES_PER_DOMAIN', '25'), 25),
-        // Cap same-domain links harvested per page; external links are always kept.
-        maxInternalLinks: toInt(optional('CRAWLER_MAX_INTERNAL_LINKS', '5'), 5)
+        // Cap same-domain links harvested per page for the global firehose (keeps it
+        // fanning across domains); workspace deep-crawls harvest many more so they
+        // cover the seeded site fully and fast.
+        maxInternalLinks: toInt(optional('CRAWLER_MAX_INTERNAL_LINKS', '5'), 5),
+        workspaceMaxInternalLinks: toInt(optional('CRAWLER_WORKSPACE_MAX_INTERNAL_LINKS', '60'), 60)
     },
 
     // Continuous re-crawl for freshness (run by the standalone `sources` process).

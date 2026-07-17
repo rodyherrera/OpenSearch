@@ -1,8 +1,6 @@
-import type CrawlFrontier from '@/modules/crawler/services/CrawlFrontier';
+import type { WorkerStat, RecentPage } from '@/modules/crawler/contracts/domain/crawl';
 
-export type WorkerStat = Awaited<ReturnType<CrawlFrontier['getWorkers']>>[number];
-
-export type RecentPage = Awaited<ReturnType<CrawlFrontier['getRecent']>>[number];
+export type { WorkerStat, RecentPage };
 
 export type SnapshotWorker = WorkerStat & { online: boolean };
 

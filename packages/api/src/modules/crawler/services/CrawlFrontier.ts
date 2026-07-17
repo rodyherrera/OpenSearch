@@ -1,69 +1,43 @@
-import { getDomain } from 'tldts';
 import { getRedis } from '@/shared/redis/RedisClient';
-import type { WorkerStat, RecentPage } from '@/modules/crawler/contracts/domain/crawl';
+import UrlNormalizer from '@/modules/crawler/services/UrlNormalizer';
+import type { FrontierItem } from '@/modules/crawler/contracts/domain/crawl';
 
-const QUEUE_KEY = 'frontier:queue';
-const PRIORITY_KEY = 'frontier:priority';
-const SEEN_KEY = 'frontier:seen';
-const DOMAINS_KEY = 'frontier:domains';
-const SATURATED_KEY = 'frontier:saturated';
-const STORED_KEY = 'frontier:stored';
-const RATE_KEY = 'frontier:rate';
-const DOMRATE_KEY = 'frontier:domrate';
-const RECENT_KEY = 'frontier:recent';
-const WORKERS_KEY = 'frontier:workers';
-const DOMAIN_KEY = (domain: string) => `frontier:cooldown:${domain}`;
-const DOMPAGES_KEY = (domain: string) => `frontier:dompages:${domain}`;
-const WS_DOMAINS_KEY = (workspaceId: string) => `frontier:ws:${workspaceId}:domains`;
-const WS_QUEUE_KEY = (workspaceId: string) => `frontier:ws:${workspaceId}:queue`;
-const WS_FOLLOWEXT_KEY = (workspaceId: string) => `frontier:ws:${workspaceId}:followext`;
-const WS_CHANGES_KEY = (workspaceId: string) => `frontier:ws:${workspaceId}:changes`;
-const WS_SEEN_KEY = (workspaceId: string) => `frontier:ws:${workspaceId}:seen`;
-const WS_ACTIVE_KEY = 'frontier:ws:active';
-const CHANGES_MAX = 100;
-
-export interface FrontierItem{
-    url: string;
-    workspaceId: string | null;
+interface CrawlFrontierOptions{
+    maxFrontier?: number;
+    domainDelayMs?: number;
+    workspaceDomainDelayMs?: number;
+    workspaceDomainConcurrency?: number;
 }
 
-const RECENT_MAX = 30;
-const MAX_PATH_SEGMENTS = 8;
-const MAX_QUERY_PARAMS = 4;
-
-const BINARY_EXT = /\.(png|jpe?g|gif|webp|svg|ico|bmp|tiff?|avif|mp4|webm|mkv|avi|mov|flv|wmv|mp3|wav|ogg|flac|aac|m4a|pdf|zip|rar|7z|tar|gz|bz2|xz|dmg|iso|exe|msi|deb|rpm|apk|woff2?|ttf|otf|eot|css|js|json|xml|rss|atom|doc|docx|xls|xlsx|ppt|pptx|psd|ai|epub|mobi)$/i;
-const TRACKING_PARAMS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'gclid', 'fbclid', 'ref'];
-
-export const normalizeUrl = (raw: string): string | null => {
-    try{
-        const url = new URL(raw);
-        if(url.protocol !== 'http:' && url.protocol !== 'https:') return null;
-        if(BINARY_EXT.test(url.pathname)) return null;
-        if(url.pathname.split('/').filter(Boolean).length > MAX_PATH_SEGMENTS) return null;
-        url.hash = '';
-        TRACKING_PARAMS.forEach((p) => url.searchParams.delete(p));
-        if(url.searchParams.size > MAX_QUERY_PARAMS) return null;
-        url.hostname = url.hostname.toLowerCase();
-        if(url.pathname.length > 1 && url.pathname.endsWith('/')){
-            url.pathname = url.pathname.slice(0, -1);
-        }
-        return url.toString();
-    }catch{
-        return null;
-    }
-};
-
-export const domainOf = (url: string): string => {
-    return getDomain(url) ?? '';
-};
+interface ClaimResult{
+    ready: string[];
+    blocked: string[];
+}
 
 export default class CrawlFrontier{
+    private static readonly QUEUE_KEY = 'frontier:queue';
+    private static readonly PRIORITY_KEY = 'frontier:priority';
+    private static readonly SEEN_KEY = 'frontier:seen';
+    private static readonly DOMAINS_KEY = 'frontier:domains';
+    private static readonly SATURATED_KEY = 'frontier:saturated';
+    private static readonly DOMRATE_KEY = 'frontier:domrate';
+    private static readonly WS_ACTIVE_KEY = 'frontier:ws:active';
+    private static readonly DOMAIN_KEY = (domain: string) => `frontier:cooldown:${domain}`;
+    private static readonly WS_COOLDOWN_KEY = (domain: string) => `frontier:wscooldown:${domain}`;
+    private static readonly DOMPAGES_KEY = (domain: string) => `frontier:dompages:${domain}`;
+    private static readonly WS_QUEUE_KEY = (workspaceId: string) => `frontier:ws:${workspaceId}:queue`;
+    private static readonly WS_SEEN_KEY = (workspaceId: string) => `frontier:ws:${workspaceId}:seen`;
+
     #maxFrontier: number;
     #domainDelayMs: number;
+    #workspaceDomainDelayMs: number;
+    #workspaceDomainConcurrency: number;
 
-    constructor({ maxFrontier = 500000, domainDelayMs = 1500 }: { maxFrontier?: number; domainDelayMs?: number } = {}){
+    constructor({ maxFrontier = 500000, domainDelayMs = 1500, workspaceDomainDelayMs = 1000, workspaceDomainConcurrency = 8 }: CrawlFrontierOptions = {}){
         this.#maxFrontier = maxFrontier;
         this.#domainDelayMs = domainDelayMs;
+        this.#workspaceDomainDelayMs = workspaceDomainDelayMs;
+        this.#workspaceDomainConcurrency = workspaceDomainConcurrency;
     }
 
     setDomainDelay(ms: number): void{
@@ -72,25 +46,25 @@ export default class CrawlFrontier{
 
     async enqueue(urls: string[], workspaceId?: string | null): Promise<number>{
         const redis = await getRedis();
-        const queueSize = await redis.lLen(QUEUE_KEY);
+        const queueSize = await redis.lLen(CrawlFrontier.QUEUE_KEY);
         if(queueSize >= this.#maxFrontier) return 0;
 
         const normalized = [...new Set(
-            urls.map(normalizeUrl).filter((u): u is string => u !== null)
+            urls.map(UrlNormalizer.normalizeUrl).filter((u): u is string => u !== null)
         )];
         if(!normalized.length) return 0;
 
-        const membership = await redis.smIsMember(SEEN_KEY, normalized);
+        const membership = await redis.smIsMember(CrawlFrontier.SEEN_KEY, normalized);
         const fresh = normalized.filter((_, i) => !membership[i]);
         if(!fresh.length) return 0;
 
-        const freshDomains = fresh.map(domainOf);
+        const freshDomains = fresh.map(UrlNormalizer.domainOf);
         const distinctDomains = [...new Set(freshDomains.filter(Boolean))];
 
         const [domainMembership, saturatedMembership] = distinctDomains.length
             ? await Promise.all([
-                redis.smIsMember(DOMAINS_KEY, distinctDomains),
-                redis.smIsMember(SATURATED_KEY, distinctDomains)
+                redis.smIsMember(CrawlFrontier.DOMAINS_KEY, distinctDomains),
+                redis.smIsMember(CrawlFrontier.SATURATED_KEY, distinctDomains)
             ])
             : [[] as boolean[], [] as boolean[]];
         const knownDomain = new Map<string, boolean>();
@@ -118,136 +92,92 @@ export default class CrawlFrontier{
         const newDomains = distinctDomains.filter((d) => !knownDomain.get(d) && !saturatedDomain.has(d));
         const now = Date.now();
         const multi = redis.multi();
-        multi.sAdd(SEEN_KEY, seenToAdd);
+        multi.sAdd(CrawlFrontier.SEEN_KEY, seenToAdd);
         if(newDomains.length){
-            multi.sAdd(DOMAINS_KEY, newDomains);
-            multi.zAdd(DOMRATE_KEY, { score: now, value: `${now}:${newDomains.length}:${Math.round(now % 100000)}` });
-            multi.zRemRangeByScore(DOMRATE_KEY, 0, now - 120000);
+            multi.sAdd(CrawlFrontier.DOMAINS_KEY, newDomains);
+            multi.zAdd(CrawlFrontier.DOMRATE_KEY, { score: now, value: `${now}:${newDomains.length}:${Math.round(now % 100000)}` });
+            multi.zRemRangeByScore(CrawlFrontier.DOMRATE_KEY, 0, now - 120000);
         }
         if(workspaceId){
-            multi.rPush(WS_QUEUE_KEY(workspaceId), seenToAdd);
-            multi.sAdd(WS_ACTIVE_KEY, workspaceId);
+            multi.rPush(CrawlFrontier.WS_QUEUE_KEY(workspaceId), seenToAdd);
+            multi.sAdd(CrawlFrontier.WS_ACTIVE_KEY, workspaceId);
         }else{
-            if(priorityUrls.length) multi.rPush(PRIORITY_KEY, priorityUrls);
-            if(normalUrls.length) multi.rPush(QUEUE_KEY, normalUrls);
+            if(priorityUrls.length) multi.rPush(CrawlFrontier.PRIORITY_KEY, priorityUrls);
+            if(normalUrls.length) multi.rPush(CrawlFrontier.QUEUE_KEY, normalUrls);
         }
         await multi.exec();
 
         return seenToAdd.length;
     }
 
-    // Deep-crawl a workspace's own domains: dedup against a per-workspace seen-set
-    // (not the global one) so a seeded site is fully explored into the workspace
-    // even when its pages were already globally discovered. Loop-safe via the
-    // workspace seen-set; also marks URLs globally seen so the global crawler
-    // doesn't redundantly re-fetch them. Bypasses global saturation caps.
     async enqueueScoped(urls: string[], workspaceId: string): Promise<number>{
         const normalized = [...new Set(
-            urls.map(normalizeUrl).filter((u): u is string => u !== null)
+            urls.map(UrlNormalizer.normalizeUrl).filter((u): u is string => u !== null)
         )];
         if(!normalized.length) return 0;
 
         const redis = await getRedis();
-        if((await redis.lLen(WS_QUEUE_KEY(workspaceId))) >= this.#maxFrontier) return 0;
+        if((await redis.lLen(CrawlFrontier.WS_QUEUE_KEY(workspaceId))) >= this.#maxFrontier) return 0;
 
-        const membership = await redis.smIsMember(WS_SEEN_KEY(workspaceId), normalized);
+        const membership = await redis.smIsMember(CrawlFrontier.WS_SEEN_KEY(workspaceId), normalized);
         const fresh = normalized.filter((_, i) => !membership[i]);
         if(!fresh.length) return 0;
 
         const multi = redis.multi();
-        multi.sAdd(WS_SEEN_KEY(workspaceId), fresh);
-        multi.sAdd(SEEN_KEY, fresh);
-        multi.rPush(WS_QUEUE_KEY(workspaceId), fresh);
-        multi.sAdd(WS_ACTIVE_KEY, workspaceId);
+        multi.sAdd(CrawlFrontier.WS_SEEN_KEY(workspaceId), fresh);
+        multi.sAdd(CrawlFrontier.SEEN_KEY, fresh);
+        multi.rPush(CrawlFrontier.WS_QUEUE_KEY(workspaceId), fresh);
+        multi.sAdd(CrawlFrontier.WS_ACTIVE_KEY, workspaceId);
         await multi.exec();
         return fresh.length;
     }
 
-    // Push URLs straight onto a workspace lane, skipping the global seen-set and
-    // saturation caps. Used by the refresh scheduler to re-crawl a workspace's own
-    // seeds and pages for freshness even after they've been globally discovered.
     async forceEnqueue(urls: string[], workspaceId: string): Promise<number>{
         const normalized = [...new Set(
-            urls.map(normalizeUrl).filter((u): u is string => u !== null)
+            urls.map(UrlNormalizer.normalizeUrl).filter((u): u is string => u !== null)
         )];
         if(!normalized.length) return 0;
         const redis = await getRedis();
         const multi = redis.multi();
-        multi.rPush(WS_QUEUE_KEY(workspaceId), normalized);
-        multi.sAdd(WS_ACTIVE_KEY, workspaceId);
+        multi.rPush(CrawlFrontier.WS_QUEUE_KEY(workspaceId), normalized);
+        multi.sAdd(CrawlFrontier.WS_ACTIVE_KEY, workspaceId);
         await multi.exec();
         return normalized.length;
     }
 
     async workspaceQueueLength(workspaceId: string): Promise<number>{
         const redis = await getRedis();
-        return redis.lLen(WS_QUEUE_KEY(workspaceId));
+        return redis.lLen(CrawlFrontier.WS_QUEUE_KEY(workspaceId));
     }
 
-    async recordChanges(workspaceId: string, urls: string[], now: number): Promise<void>{
-        if(!urls.length) return;
+    async #claimByDomain(urls: string[], delayMs: number, keyFn: (domain: string) => string, concurrency: number): Promise<ClaimResult>{
+        if(delayMs <= 0) return { ready: urls, blocked: [] };
         const redis = await getRedis();
-        const multi = redis.multi();
-        multi.lPush(WS_CHANGES_KEY(workspaceId), urls.map((url) => JSON.stringify({ url, at: now })));
-        multi.lTrim(WS_CHANGES_KEY(workspaceId), 0, CHANGES_MAX - 1);
-        await multi.exec();
-    }
+        const keys = urls.map((url) => keyFn(UrlNormalizer.domainOf(url) || '_'));
+        const incr = redis.multi();
+        for(const key of keys) incr.incr(key);
+        const counts = await incr.exec();
 
-    async getChanges(workspaceId: string, limit = CHANGES_MAX): Promise<Array<{ url: string; at: number }>>{
-        const redis = await getRedis();
-        const raw = await redis.lRange(WS_CHANGES_KEY(workspaceId), 0, limit - 1);
-        const changes: Array<{ url: string; at: number }> = [];
-        for(const value of raw){
-            try{ changes.push(JSON.parse(value) as { url: string; at: number }); }catch{ }
-        }
-        return changes;
-    }
-
-    async registerWorkspaceDomains(workspaceId: string, domains: string[]): Promise<void>{
-        const clean = [...new Set(domains.filter(Boolean))];
-        if(!clean.length) return;
-        const redis = await getRedis();
-        await redis.sAdd(WS_DOMAINS_KEY(workspaceId), clean);
-    }
-
-    async getWorkspaceDomains(workspaceId: string): Promise<Set<string>>{
-        const redis = await getRedis();
-        return new Set(await redis.sMembers(WS_DOMAINS_KEY(workspaceId)));
-    }
-
-    async setWorkspaceFollowExternal(workspaceId: string, on: boolean): Promise<void>{
-        const redis = await getRedis();
-        if(on) await redis.set(WS_FOLLOWEXT_KEY(workspaceId), '1');
-        else await redis.del(WS_FOLLOWEXT_KEY(workspaceId));
-    }
-
-    async getWorkspaceFollowExternal(workspaceId: string): Promise<boolean>{
-        const redis = await getRedis();
-        return (await redis.exists(WS_FOLLOWEXT_KEY(workspaceId))) === 1;
-    }
-
-    async #claimByDomain(urls: string[]): Promise<{ ready: string[]; blocked: string[] }>{
-        if(this.#domainDelayMs <= 0) return { ready: urls, blocked: [] };
-        const redis = await getRedis();
-        const multi = redis.multi();
-        for(const url of urls) multi.set(DOMAIN_KEY(domainOf(url) || '_'), '1', { NX: true, PX: this.#domainDelayMs });
-        const claims = await multi.exec();
+        const expire = redis.multi();
+        let hasExpire = false;
         const ready: string[] = [];
         const blocked: string[] = [];
         for(let i = 0; i < urls.length; i++){
-            const claim = claims[i] as unknown;
-            (claim === 'OK' || claim === true ? ready : blocked).push(urls[i]);
+            const count = Number(counts[i]) || 0;
+            if(count === 1){
+                expire.pExpire(keys[i], delayMs);
+                hasExpire = true;
+            }
+            (count >= 1 && count <= concurrency ? ready : blocked).push(urls[i]);
         }
+        if(hasExpire) await expire.exec();
         return { ready, blocked };
     }
 
-    // Fair share for active workspace crawls: round-robin a slice of the batch across
-    // their lanes so a large global backlog can't starve a freshly-seeded workspace,
-    // and no single workspace can monopolise the reserved slice.
     async #drainWorkspaces(budget: number): Promise<FrontierItem[]>{
         if(budget <= 0) return [];
         const redis = await getRedis();
-        const active = await redis.sMembers(WS_ACTIVE_KEY);
+        const active = await redis.sMembers(CrawlFrontier.WS_ACTIVE_KEY);
         if(!active.length) return [];
 
         const perLane = Math.max(1, Math.ceil(budget / active.length));
@@ -257,23 +187,23 @@ export default class CrawlFrontier{
         for(const workspaceId of active){
             if(total >= budget) break;
             const take = Math.min(perLane, budget - total);
-            const urls = (await redis.lPopCount(WS_QUEUE_KEY(workspaceId), take)) || [];
+            const urls = (await redis.lPopCount(CrawlFrontier.WS_QUEUE_KEY(workspaceId), take)) || [];
             if(urls.length) pickedByLane.set(workspaceId, urls);
             total += urls.length;
-            if(urls.length < take && (await redis.lLen(WS_QUEUE_KEY(workspaceId))) === 0) emptied.push(workspaceId);
+            if(urls.length < take && (await redis.lLen(CrawlFrontier.WS_QUEUE_KEY(workspaceId))) === 0) emptied.push(workspaceId);
         }
-        if(emptied.length) await redis.sRem(WS_ACTIVE_KEY, emptied);
+        if(emptied.length) await redis.sRem(CrawlFrontier.WS_ACTIVE_KEY, emptied);
         if(!pickedByLane.size) return [];
 
         const ready: FrontierItem[] = [];
         const requeue = redis.multi();
         let hasRequeue = false;
         for(const [workspaceId, urls] of pickedByLane){
-            const { ready: claimed, blocked } = await this.#claimByDomain(urls);
+            const { ready: claimed, blocked } = await this.#claimByDomain(urls, this.#workspaceDomainDelayMs, CrawlFrontier.WS_COOLDOWN_KEY, this.#workspaceDomainConcurrency);
             for(const url of claimed) ready.push({ url, workspaceId });
             if(blocked.length){
-                requeue.rPush(WS_QUEUE_KEY(workspaceId), blocked);
-                requeue.sAdd(WS_ACTIVE_KEY, workspaceId);
+                requeue.rPush(CrawlFrontier.WS_QUEUE_KEY(workspaceId), blocked);
+                requeue.sAdd(CrawlFrontier.WS_ACTIVE_KEY, workspaceId);
                 hasRequeue = true;
             }
         }
@@ -286,9 +216,9 @@ export default class CrawlFrontier{
         const redis = await getRedis();
 
         const popFromBoth = async (n: number): Promise<string[]> => {
-            const pri = await redis.lPopCount(PRIORITY_KEY, n) || [];
+            const pri = await redis.lPopCount(CrawlFrontier.PRIORITY_KEY, n) || [];
             if(pri.length >= n) return pri;
-            const rest = await redis.lPopCount(QUEUE_KEY, n - pri.length) || [];
+            const rest = await redis.lPopCount(CrawlFrontier.QUEUE_KEY, n - pri.length) || [];
             return pri.concat(rest);
         };
 
@@ -304,7 +234,7 @@ export default class CrawlFrontier{
         const leftovers: string[] = [];
         const pickedDomains = new Set<string>();
         for(const url of popped){
-            const domain = domainOf(url) || '_';
+            const domain = UrlNormalizer.domainOf(url) || '_';
             if(!pickedDomains.has(domain) && candidates.length < count){
                 pickedDomains.add(domain);
                 candidates.push(url);
@@ -313,14 +243,14 @@ export default class CrawlFrontier{
             }
         }
 
-        const { ready, blocked } = await this.#claimByDomain(candidates);
+        const { ready, blocked } = await this.#claimByDomain(candidates, this.#domainDelayMs, CrawlFrontier.DOMAIN_KEY, 1);
         const back = leftovers.concat(blocked);
-        if(back.length) await redis.rPush(QUEUE_KEY, back);
+        if(back.length) await redis.rPush(CrawlFrontier.QUEUE_KEY, back);
         return ready;
     }
 
     async dequeue(count: number): Promise<FrontierItem[]>{
-        const workspaceItems = await this.#drainWorkspaces(Math.ceil(count / 2));
+        const workspaceItems = await this.#drainWorkspaces(count);
         const globalUrls = await this.#pickGlobal(count - workspaceItems.length);
         return [...workspaceItems, ...globalUrls.map((url) => ({ url, workspaceId: null }))];
     }
@@ -328,15 +258,15 @@ export default class CrawlFrontier{
     async size(): Promise<number>{
         const redis = await getRedis();
         const multi = redis.multi();
-        multi.lLen(PRIORITY_KEY);
-        multi.lLen(QUEUE_KEY);
+        multi.lLen(CrawlFrontier.PRIORITY_KEY);
+        multi.lLen(CrawlFrontier.QUEUE_KEY);
         const [pri, normal] = await multi.exec();
         let total = (Number(pri) || 0) + (Number(normal) || 0);
 
-        const active = await redis.sMembers(WS_ACTIVE_KEY);
+        const active = await redis.sMembers(CrawlFrontier.WS_ACTIVE_KEY);
         if(active.length){
             const laneMulti = redis.multi();
-            for(const workspaceId of active) laneMulti.lLen(WS_QUEUE_KEY(workspaceId));
+            for(const workspaceId of active) laneMulti.lLen(CrawlFrontier.WS_QUEUE_KEY(workspaceId));
             const lengths = await laneMulti.exec();
             for(const length of lengths) total += Number(length) || 0;
         }
@@ -345,34 +275,12 @@ export default class CrawlFrontier{
 
     async domainCount(): Promise<number>{
         const redis = await getRedis();
-        return redis.sCard(DOMAINS_KEY);
+        return redis.sCard(CrawlFrontier.DOMAINS_KEY);
     }
 
     async seenCount(): Promise<number>{
         const redis = await getRedis();
-        return redis.sCard(SEEN_KEY);
-    }
-
-    async addStored(by: number, now: number): Promise<number>{
-        const redis = await getRedis();
-        const multi = redis.multi();
-        multi.incrBy(STORED_KEY, by);
-        multi.zAdd(RATE_KEY, { score: now, value: `${now}:${by}:${Math.round(now % 100000)}` });
-        multi.zRemRangeByScore(RATE_KEY, 0, now - 120000);
-        const results = await multi.exec();
-        return Number(results[0]) || 0;
-    }
-
-    async storedPerMin(now: number): Promise<number>{
-        const redis = await getRedis();
-        const events = await redis.zRangeByScore(RATE_KEY, now - 60000, now);
-        let total = 0;
-        for(const member of events){
-            const parts = String(member).split(':');
-            const count = parseInt(parts[1], 10);
-            if(!Number.isNaN(count)) total += count;
-        }
-        return total;
+        return redis.sCard(CrawlFrontier.SEEN_KEY);
     }
 
     async recordDomainPages(domains: string[], cap: number): Promise<void>{
@@ -385,7 +293,7 @@ export default class CrawlFrontier{
 
         const redis = await getRedis();
         const multi = redis.multi();
-        for(const [domain, by] of counts) multi.incrBy(DOMPAGES_KEY(domain), by);
+        for(const [domain, by] of counts) multi.incrBy(CrawlFrontier.DOMPAGES_KEY(domain), by);
         const results = await multi.exec();
 
         const saturated: string[] = [];
@@ -394,78 +302,17 @@ export default class CrawlFrontier{
             if((Number(results[i]) || 0) >= cap) saturated.push(domain);
             i++;
         }
-        if(saturated.length) await redis.sAdd(SATURATED_KEY, saturated);
+        if(saturated.length) await redis.sAdd(CrawlFrontier.SATURATED_KEY, saturated);
     }
 
     async domainsPerMin(now: number): Promise<number>{
         const redis = await getRedis();
-        const events = await redis.zRangeByScore(DOMRATE_KEY, now - 60000, now);
+        const events = await redis.zRangeByScore(CrawlFrontier.DOMRATE_KEY, now - 60000, now);
         let total = 0;
         for(const member of events){
             const count = parseInt(String(member).split(':')[1], 10);
             if(!Number.isNaN(count)) total += count;
         }
         return total;
-    }
-
-    async storedCount(): Promise<number>{
-        const redis = await getRedis();
-        const value = await redis.get(STORED_KEY);
-        return value ? parseInt(value, 10) : 0;
-    }
-
-    async recordWorker(workerId: string, lastBatch: number, now: number): Promise<WorkerStat>{
-        const redis = await getRedis();
-        const raw = await redis.hGet(WORKERS_KEY, workerId);
-        let stored = 0;
-        if(raw){
-            try{ stored = (JSON.parse(raw).stored as number) || 0; }catch{ }
-        }
-        const stat: WorkerStat = {
-            id: workerId,
-            stored: stored + lastBatch,
-            lastBatch,
-            lastSeen: now
-        };
-        await redis.hSet(WORKERS_KEY, workerId, JSON.stringify(stat));
-        return stat;
-    }
-
-    async getWorkers(now = 0, staleMs = 120000): Promise<WorkerStat[]>{
-        const redis = await getRedis();
-        const all = await redis.hGetAll(WORKERS_KEY);
-        const workers: WorkerStat[] = [];
-        const stale: string[] = [];
-        for(const [id, value] of Object.entries(all)){
-            try{
-                const stat = JSON.parse(value) as WorkerStat;
-                if(now && (now - stat.lastSeen) > staleMs){
-                    stale.push(id);
-                }else{
-                    workers.push(stat);
-                }
-            }catch{ stale.push(id); }
-        }
-        if(stale.length) await redis.hDel(WORKERS_KEY, stale);
-        return workers.sort((a, b) => b.lastSeen - a.lastSeen);
-    }
-
-    async pushRecent(pages: RecentPage[]): Promise<void>{
-        if(!pages.length) return;
-        const redis = await getRedis();
-        const multi = redis.multi();
-        multi.lPush(RECENT_KEY, pages.map((p) => JSON.stringify(p)));
-        multi.lTrim(RECENT_KEY, 0, RECENT_MAX - 1);
-        await multi.exec();
-    }
-
-    async getRecent(limit = RECENT_MAX): Promise<RecentPage[]>{
-        const redis = await getRedis();
-        const raw = await redis.lRange(RECENT_KEY, 0, limit - 1);
-        const pages: RecentPage[] = [];
-        for(const value of raw){
-            try{ pages.push(JSON.parse(value) as RecentPage); }catch{ }
-        }
-        return pages;
     }
 }

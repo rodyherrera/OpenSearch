@@ -3,27 +3,20 @@ import { Sprout } from 'lucide-react';
 import { Canvas, Row } from '@/shared/components/ui/Blueprint';
 import Favicon from '@/shared/components/ui/Favicon';
 import QuickActions from '@/modules/overview/components/QuickActions';
-import { useWorkspaceOverview } from '@/modules/overview/hooks/useWorkspaceOverview';
+import { useWorkspaceLive } from '@/shared/hooks/live/useWorkspaceLive';
+import { useWorkspaces } from '@/modules/workspaces/hooks/useWorkspaces';
+import { ago } from '@/shared/utils/time';
 
 const fmt = (value: number): string => value.toLocaleString();
 
-const ago = (iso: string): string => {
-    const seconds = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
-    if(seconds < 60) return `${seconds}s ago`;
-    const minutes = Math.round(seconds / 60);
-    if(minutes < 60) return `${minutes}m ago`;
-    const hours = Math.round(minutes / 60);
-    if(hours < 24) return `${hours}h ago`;
-    return `${Math.round(hours / 24)}d ago`;
-};
-
 const Overview = () => {
-    const { active, domains, pages, changes, pageCount } = useWorkspaceOverview();
+    const { active } = useWorkspaces();
+    const { counts, recentPages, domains } = useWorkspaceLive();
 
     const stats = [
-        { label: 'Pages', value: fmt(pageCount), context: 'indexed in this workspace' },
-        { label: 'Domains', value: fmt(domains.length), context: 'discovered from your seeds' },
-        { label: 'Recent changes', value: fmt(changes.length), context: 'pages updated on re-crawl' }
+        { label: 'Pages', value: fmt(counts.pages), context: 'indexed in this workspace' },
+        { label: 'Domains', value: fmt(counts.domains), context: 'discovered from your seeds' },
+        { label: 'Recent changes', value: fmt(counts.changes), context: 'pages updated on re-crawl' }
     ];
 
     return (
@@ -54,10 +47,10 @@ const Overview = () => {
             <Row>
                 <header className='flex items-center justify-between px-8 py-4'>
                     <h2 className='text-sm font-medium text-foreground'>Recently indexed</h2>
-                    <span className='mono-label text-muted/70'>this workspace</span>
+                    <span className='mono-label text-muted/70'>live</span>
                 </header>
                 <div className='border-t border-hairline'>
-                    {pages.length === 0 ? (
+                    {recentPages.length === 0 ? (
                         <div className='flex flex-col items-center gap-4 px-8 py-14 text-center'>
                             <span className='grid size-12 place-items-center rounded-xl bg-accent/10'>
                                 <Sprout className='size-6 text-accent' />
@@ -74,9 +67,9 @@ const Overview = () => {
                             </Link>
                         </div>
                     ) : (
-                        pages.map((page) => (
+                        recentPages.map((page) => (
                             <a
-                                key={page.id}
+                                key={`${page.url}-${page.at}`}
                                 href={page.url}
                                 target='_blank'
                                 rel='noopener noreferrer'
@@ -87,7 +80,7 @@ const Overview = () => {
                                     <span className='truncate text-sm text-foreground'>{page.title || page.url}</span>
                                     <span className='truncate text-xs text-muted'>{page.url}</span>
                                 </div>
-                                <span className='shrink-0 font-mono text-[11px] text-muted/70'>{ago(page.createdAt)}</span>
+                                <span className='shrink-0 font-mono text-[11px] text-muted/70'>{ago(page.at)}</span>
                             </a>
                         ))
                     )}

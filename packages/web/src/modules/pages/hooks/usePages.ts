@@ -14,6 +14,7 @@ export interface UsePages{
     loaded: boolean;
     hasMore: boolean;
     loadMore: () => Promise<void>;
+    refresh: () => Promise<void>;
     query: string;
     removing: boolean;
     remove: (id: string) => Promise<void>;
@@ -62,12 +63,15 @@ export const usePages = (scope: Scope): UsePages => {
         setItems((prev) => prev.filter((item) => item.id !== id));
     };
 
+    const refresh = () => fetchPage(1, query, scope);
+
     return {
         items,
         loading: fetcher.loading,
         loaded,
         hasMore,
         loadMore,
+        refresh,
         query,
         removing: remover.loading,
         remove

@@ -1,5 +1,5 @@
 import Bootstrap from '@/core/Bootstrap';
-import MassiveCrawler from '@/modules/crawler/services/MassiveCrawler';
+import CrawlEngine from '@/modules/crawler/services/CrawlEngine';
 import { scrapingTargetsList } from '@/modules/crawler/data/scrapingTargets';
 import WebsiteService from '@/modules/website/services/WebsiteService';
 import { config } from '@/shared/config';
@@ -7,13 +7,13 @@ import { logger } from '@/core/utils/Logger';
 
 export default class CrawlerApplication{
     #bootstrap = new Bootstrap();
-    #crawler?: MassiveCrawler;
+    #crawler?: CrawlEngine;
 
     async start(): Promise<void>{
         await this.#bootstrap.initInfra();
 
         const workerId = process.env.HOSTNAME || `worker-${process.pid}`;
-        this.#crawler = new MassiveCrawler({ workerId, ...config.crawler });
+        this.#crawler = new CrawlEngine({ workerId, ...config.crawler });
 
         await this.#seedFrontier();
 

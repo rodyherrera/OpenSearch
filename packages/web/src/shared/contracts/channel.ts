@@ -1,4 +1,13 @@
-import type { SnapshotFrame, PageFrame, BatchFrame, ControlFrame } from '@/shared/contracts/live';
+import type {
+    SnapshotFrame,
+    PageFrame,
+    BatchFrame,
+    WsSnapshotFrame,
+    WsPageFrame,
+    WsSeedFrame,
+    WsRemovedFrame,
+    ChangeFrame
+} from '@/shared/contracts/live';
 
 export type ChannelStatus = 'connecting' | 'open' | 'reconnecting' | 'closed';
 
@@ -19,7 +28,11 @@ export interface ChannelMap{
         snapshot: SnapshotFrame;
         page: PageFrame;
         batch: BatchFrame;
-        control: ControlFrame;
+        'ws:snapshot': WsSnapshotFrame;
+        'ws:page': WsPageFrame;
+        'ws:seed': WsSeedFrame;
+        'ws:removed': WsRemovedFrame;
+        change: ChangeFrame;
     };
 }
 

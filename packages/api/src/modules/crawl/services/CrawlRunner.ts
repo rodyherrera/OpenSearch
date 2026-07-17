@@ -1,6 +1,6 @@
 import pLimit from 'p-limit';
 import { logger } from '@/core/utils/Logger';
-import { normalizeUrl, domainOf } from '@/modules/crawler/services/CrawlFrontier';
+import UrlNormalizer from '@/modules/crawler/services/UrlNormalizer';
 import PageFetcher from '@/modules/extraction/services/PageFetcher';
 import PageParser from '@/modules/extraction/services/PageParser';
 import WebsiteService from '@/modules/website/services/WebsiteService';
@@ -51,7 +51,7 @@ export default class CrawlRunner{
     // Returns true if the job was cancelled mid-walk.
     async #walk(job: CrawlJobDocument, scraped: string[]): Promise<boolean>{
         const limit = pLimit(CONCURRENCY);
-        const start = normalizeUrl(job.url);
+        const start = UrlNormalizer.normalizeUrl(job.url);
         if(!start) return false;
 
         const visited = new Set<string>([start]);
@@ -71,7 +71,7 @@ export default class CrawlRunner{
                 scraped.push(node.url);
                 if(scraped.length >= job.limit) break;
                 for(const link of node.links){
-                    if(visited.has(link) || domainOf(link) !== job.domain) continue;
+                    if(visited.has(link) || UrlNormalizer.domainOf(link) !== job.domain) continue;
                     visited.add(link);
                     nextQueue.push(link);
                 }

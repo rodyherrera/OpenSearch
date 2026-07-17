@@ -1,4 +1,4 @@
-export interface MassiveCrawlerOptions{
+export interface CrawlEngineOptions{
     workerId?: string;
     concurrency?: number;
     batchSize?: number;
@@ -8,6 +8,11 @@ export interface MassiveCrawlerOptions{
     maxPages?: number;
     respectRobots?: boolean;
     timeoutMs?: number;
+}
+
+export interface FrontierItem{
+    url: string;
+    workspaceId: string | null;
 }
 
 export interface WorkerStat{

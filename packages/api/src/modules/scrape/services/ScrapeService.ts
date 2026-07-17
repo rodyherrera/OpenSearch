@@ -1,6 +1,6 @@
 import { config } from '@/shared/config';
 import RuntimeError from '@/shared/errors/RuntimeError';
-import { normalizeUrl } from '@/modules/crawler/services/CrawlFrontier';
+import UrlNormalizer from '@/modules/crawler/services/UrlNormalizer';
 import PageFetcher from '@/modules/extraction/services/PageFetcher';
 import PageParser from '@/modules/extraction/services/PageParser';
 import WebsiteService from '@/modules/website/services/WebsiteService';
@@ -17,7 +17,7 @@ export default class ScrapeService{
     #websites = new WebsiteService();
 
     async scrape(body: ScrapeBody): Promise<ScrapeResult>{
-        const url = normalizeUrl(body.url ?? '');
+        const url = UrlNormalizer.normalizeUrl(body.url ?? '');
         if(!url) throw new RuntimeError(ScrapeError.InvalidUrl, 400);
 
         const maxAge = body.maxAge ?? config.publicApi.scrapeCacheMaxAgeMs;

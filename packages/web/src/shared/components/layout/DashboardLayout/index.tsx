@@ -23,6 +23,7 @@ import GlobalSearch from '@/shared/components/layout/GlobalSearch';
 import WorkspaceSwitcher from '@/modules/workspaces/components/WorkspaceSwitcher';
 import { useAuthStore } from '@/modules/auth/store/auth';
 import { useSession } from '@/shared/hooks/routing/useSession';
+import { useWorkspaceLiveSync } from '@/shared/hooks/live/useWorkspaceLive';
 import { applyTheme } from '@/shared/utils/theme';
 import type { ComponentType } from 'react';
 import type { Theme } from '@/shared/utils/theme';
@@ -92,6 +93,7 @@ const DashboardLayout = () => {
     const navigate = useNavigate();
     const { isAdmin, user } = useSession();
     const initials = (user?.email ?? '?').slice(0, 2).toUpperCase();
+    useWorkspaceLiveSync();
     const { pathname, search } = useLocation();
     const sections = SECTIONS.filter((section) => !section.admin || isAdmin);
     const [theme, setTheme] = useState<Theme>(() =>

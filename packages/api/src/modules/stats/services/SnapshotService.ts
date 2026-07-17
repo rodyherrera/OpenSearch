@@ -1,4 +1,5 @@
 import CrawlFrontier from '@/modules/crawler/services/CrawlFrontier';
+import CrawlMetrics from '@/modules/crawler/services/CrawlMetrics';
 import WebsiteService from '@/modules/website/services/WebsiteService';
 import type { Snapshot, WorkerStat, RecentPage } from '@/modules/stats/contracts/domain/snapshot';
 
@@ -6,6 +7,7 @@ const WORKER_ONLINE_MS = 15000;
 
 export default class SnapshotService{
     #frontier = new CrawlFrontier();
+    #metrics = new CrawlMetrics();
     #websites = new WebsiteService();
 
     async build(now: number): Promise<Snapshot>{
@@ -13,10 +15,10 @@ export default class SnapshotService{
             this.#websites.estimatedCount(),
             this.#frontier.size().catch(() => 0),
             this.#frontier.seenCount().catch(() => 0),
-            this.#frontier.storedCount().catch(() => 0),
-            this.#frontier.storedPerMin(now).catch(() => 0),
-            this.#frontier.getWorkers(now).catch(() => [] as WorkerStat[]),
-            this.#frontier.getRecent(15).catch(() => [] as RecentPage[]),
+            this.#metrics.storedCount().catch(() => 0),
+            this.#metrics.storedPerMin(now).catch(() => 0),
+            this.#metrics.getWorkers(now).catch(() => [] as WorkerStat[]),
+            this.#metrics.getRecent(15).catch(() => [] as RecentPage[]),
             this.#frontier.domainCount().catch(() => 0),
             this.#frontier.domainsPerMin(now).catch(() => 0)
         ]);

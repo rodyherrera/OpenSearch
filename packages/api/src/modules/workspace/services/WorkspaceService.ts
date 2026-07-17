@@ -4,7 +4,7 @@ import RuntimeError from '@/shared/errors/RuntimeError';
 import User from '@/modules/auth/models/User';
 import Seed from '@/modules/seed/models/Seed';
 import WebsiteService from '@/modules/website/services/WebsiteService';
-import CrawlFrontier from '@/modules/crawler/services/CrawlFrontier';
+import WorkspaceFrontier from '@/modules/crawler/services/WorkspaceFrontier';
 import Workspace, { type WorkspaceDocument } from '@/modules/workspace/models/Workspace';
 import { PublicWorkspace, WorkspaceError } from '@/modules/workspace/contracts/domain/workspace';
 
@@ -21,7 +21,7 @@ const toPublic = (doc: WorkspaceDocument, userId: string): PublicWorkspace => {
 };
 
 export default class WorkspaceService{
-    #frontier = new CrawlFrontier();
+    #workspaceFrontier = new WorkspaceFrontier();
 
     async listForUser(userId: string): Promise<PublicWorkspace[]>{
         const docs = await Workspace.find({ 'members.userId': userId }).sort({ createdAt: 1 });
@@ -33,7 +33,7 @@ export default class WorkspaceService{
         if(!doc) throw new RuntimeError(WorkspaceError.NotFound, 404);
         doc.crawl = { followExternal };
         await doc.save();
-        await this.#frontier.setWorkspaceFollowExternal(workspaceId, followExternal);
+        await this.#workspaceFrontier.setWorkspaceFollowExternal(workspaceId, followExternal);
         return toPublic(doc, userId);
     }
 
@@ -88,7 +88,7 @@ export default class WorkspaceService{
 
         const followers = await Workspace.find({ 'crawl.followExternal': true });
         for(const workspace of followers){
-            await this.#frontier.setWorkspaceFollowExternal(workspace.id, true);
+            await this.#workspaceFrontier.setWorkspaceFollowExternal(workspace.id, true);
         }
     }
 }
