@@ -1,6 +1,6 @@
 import pLimit from 'p-limit';
 import { logger } from '@/core/utils/Logger';
-import UrlNormalizer from '@/modules/crawler/services/UrlNormalizer';
+import UrlNormalizer from '@/modules/fleet/services/UrlNormalizer';
 import PageFetcher from '@/modules/extraction/services/PageFetcher';
 import PageParser from '@/modules/extraction/services/PageParser';
 import WebsiteService from '@/modules/website/services/WebsiteService';
@@ -8,8 +8,6 @@ import CrawlJob, { type CrawlJobDocument } from '@/modules/crawl/models/CrawlJob
 import WebhookNotifier from '@/modules/crawl/services/WebhookNotifier';
 
 const CONCURRENCY = 4;
-// Re-read the job's status from Mongo every this many pages to honour cancellation
-// without querying on every single fetch.
 const CANCEL_CHECK_EVERY = CONCURRENCY;
 
 interface ScrapedNode{
@@ -17,18 +15,12 @@ interface ScrapedNode{
     links: string[];
 }
 
-// Runs one bounded, single-domain crawl in-process: a breadth-first walk from the
-// start URL that scrapes each page (storing markdown in the shared index) and follows
-// only same-domain links until the page cap is hit. Isolated from the global massive
-// crawl frontier so job crawls stay independent and predictable.
 export default class CrawlRunner{
     #fetcher = new PageFetcher();
     #parser = new PageParser();
     #websites = new WebsiteService();
     #webhook = new WebhookNotifier();
 
-    // Kicked off fire-and-forget by the controller; owns the job's lifecycle from
-    // 'running' to a terminal state and never throws to its caller.
     async run(jobId: string): Promise<void>{
         const job = await CrawlJob.findById(jobId);
         if(!job) return;
@@ -48,7 +40,6 @@ export default class CrawlRunner{
         }
     }
 
-    // Returns true if the job was cancelled mid-walk.
     async #walk(job: CrawlJobDocument, scraped: string[]): Promise<boolean>{
         const limit = pLimit(CONCURRENCY);
         const start = UrlNormalizer.normalizeUrl(job.url);

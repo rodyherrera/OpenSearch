@@ -12,8 +12,6 @@ export default class WebsiteSearchService{
     #index = new SearchIndexService();
     #websites = new WebsiteService();
 
-    // Text queries hit the search engine (relevance); plain browse/list falls to
-    // Mongo, the source of truth, so listings never lag behind the indexer.
     async search(query: SearchQuery, workspaceId?: string): Promise<PublicWebsite[]>{
         if((query.q ?? '').trim()) return this.#searchMeili(query, workspaceId);
         return this.#listMongo(query, workspaceId);

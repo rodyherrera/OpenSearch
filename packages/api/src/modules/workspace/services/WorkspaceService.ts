@@ -4,9 +4,12 @@ import RuntimeError from '@/shared/errors/RuntimeError';
 import User from '@/modules/auth/models/User';
 import Seed from '@/modules/seed/models/Seed';
 import WebsiteService from '@/modules/website/services/WebsiteService';
-import WorkspaceFrontier from '@/modules/crawler/services/WorkspaceFrontier';
+import WorkspaceFrontier from '@/modules/fleet/services/WorkspaceFrontier';
+import SeedService from '@/modules/seed/services/SeedService';
+import StarterPackService from '@/modules/workspace/services/StarterPackService';
 import Workspace, { type WorkspaceDocument } from '@/modules/workspace/models/Workspace';
 import { PublicWorkspace, WorkspaceError } from '@/modules/workspace/contracts/domain/workspace';
+import type { StarterPack, UpdateWorkspaceBody } from '@/modules/workspace/contracts/domain/workspace';
 
 const DEFAULT_NAME = 'Personal';
 
@@ -16,25 +19,40 @@ const toPublic = (doc: WorkspaceDocument, userId: string): PublicWorkspace => {
         id: doc.id,
         name: doc.name,
         role: membership?.role ?? 'member',
-        followExternal: doc.crawl?.followExternal ?? false
+        followExternal: doc.crawl?.followExternal ?? false,
+        starterPacks: doc.crawl?.starterPacks ?? []
     };
 };
 
 export default class WorkspaceService{
     #workspaceFrontier = new WorkspaceFrontier();
+    #starterPacks = new StarterPackService();
 
     async listForUser(userId: string): Promise<PublicWorkspace[]>{
         const docs = await Workspace.find({ 'members.userId': userId }).sort({ createdAt: 1 });
         return docs.map((doc) => toPublic(doc, userId));
     }
 
-    async update(userId: string, workspaceId: string, followExternal: boolean): Promise<PublicWorkspace>{
+    async update(userId: string, workspaceId: string, patch: UpdateWorkspaceBody): Promise<PublicWorkspace>{
         const doc = await this.getIfMember(workspaceId, userId);
         if(!doc) throw new RuntimeError(WorkspaceError.NotFound, 404);
-        doc.crawl = { followExternal };
+
+        const followExternal = patch.followExternal ?? doc.crawl?.followExternal ?? false;
+        const currentPacks = doc.crawl?.starterPacks ?? [];
+        const nextPacks = patch.starterPacks ? this.#starterPacks.select(patch.starterPacks) : currentPacks;
+
+        doc.crawl = { followExternal, starterPacks: nextPacks };
         await doc.save();
         await this.#workspaceFrontier.setWorkspaceFollowExternal(workspaceId, followExternal);
+
+        const addedUrls = this.#starterPacks.urlsFor(nextPacks.filter((name) => !currentPacks.includes(name)));
+        if(addedUrls.length) await new SeedService().add(workspaceId, addedUrls);
+
         return toPublic(doc, userId);
+    }
+
+    availablePacks(): StarterPack[]{
+        return this.#starterPacks.list();
     }
 
     async create(userId: string, name?: string): Promise<PublicWorkspace>{

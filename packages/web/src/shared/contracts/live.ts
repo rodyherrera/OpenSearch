@@ -51,8 +51,6 @@ export interface BatchFrame{
 export type RecentItem = SnapshotFrame['recent'][number];
 export type WorkerInfo = SnapshotFrame['workers'][number];
 
-// --- Workspace-scoped live frames (tenant view) ---
-
 export interface WsPageRow{
     url: string;
     title: string;

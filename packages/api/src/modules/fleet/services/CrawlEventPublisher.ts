@@ -1,7 +1,7 @@
 import { getRedis } from '@/shared/redis/RedisClient';
 import { logger } from '@/core/utils/Logger';
-import { CRAWL_CHANNEL } from '@/modules/crawler/contracts/domain/events';
-import type { CrawlEvent, WorkspacePageRow, RemovedRef } from '@/modules/crawler/contracts/domain/events';
+import { CRAWL_CHANNEL } from '@/modules/fleet/contracts/domain/events';
+import type { CrawlEvent, WorkspacePageRow, RemovedRef, RemovedKind } from '@/modules/fleet/contracts/domain/events';
 import type { PublicSeed } from '@/modules/seed/contracts/domain/seed';
 
 export default class CrawlEventPublisher{
@@ -36,7 +36,7 @@ export default class CrawlEventPublisher{
         await this.publishCrawlEvent({ type: 'ws:seed', workspaceId, seeds, at });
     }
 
-    publishRemoved(workspaceId: string, kind: 'page' | 'seed' | 'domain', payload: RemovedRef, at: number): Promise<void>{
+    publishRemoved(workspaceId: string, kind: RemovedKind, payload: RemovedRef, at: number): Promise<void>{
         return this.publishCrawlEvent({ type: 'ws:removed', workspaceId, kind, ...payload, at });
     }
 }

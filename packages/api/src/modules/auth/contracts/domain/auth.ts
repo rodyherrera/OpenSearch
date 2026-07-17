@@ -1,6 +1,5 @@
 export interface Principal{
     userId: string;
-    // Set when the request authenticated with an API key rather than a JWT.
     apiKeyId?: string;
 }
 

@@ -15,6 +15,8 @@ export interface FrontierItem{
     workspaceId: string | null;
 }
 
+export type WorkspaceByUrl = Map<string, string | null>;
+
 export interface WorkerStat{
     id: string;
     stored: number;

@@ -5,12 +5,11 @@ import { Body } from '@/shared/controllers/RequestParams';
 import { AuthenticatedRoute } from '@/modules/auth/middlewares/AuthenticatedRoute';
 import { AdminRoute } from '@/modules/auth/middlewares/AdminRoute';
 import { getRedis } from '@/shared/redis/RedisClient';
-import CrawlerControlService from '@/modules/crawler/services/CrawlerControlService';
-import CrawlFrontier from '@/modules/crawler/services/CrawlFrontier';
-import CrawlMetrics from '@/modules/crawler/services/CrawlMetrics';
-import type { Tuning, ControlState } from '@/modules/crawler/contracts/domain/control';
+import FleetControlService from '@/modules/fleet/services/FleetControlService';
+import CrawlFrontier from '@/modules/fleet/services/CrawlFrontier';
+import CrawlMetrics from '@/modules/fleet/services/CrawlMetrics';
+import type { Tuning, ControlState } from '@/modules/fleet/contracts/domain/control';
 
-// Frontier counter/state keys wiped on reset (queues aside).
 const FRONTIER_COUNTER_KEYS = [
     'frontier:stored',
     'frontier:seen',
@@ -22,14 +21,11 @@ const FRONTIER_COUNTER_KEYS = [
     'frontier:workers'
 ];
 
-// Per-domain keys (one per domain) cleared by pattern on reset.
 const FRONTIER_KEY_PATTERNS = ['frontier:dompages:*', 'frontier:cooldown:*'];
 
-// Global crawl engine — operator-only. Tenants manage their workspace crawler,
-// not the shared fleet.
 @Middleware(AuthenticatedRoute, AdminRoute)
-export default class CrawlerController extends BaseController{
-    #control = new CrawlerControlService();
+export default class FleetController extends BaseController{
+    #control = new FleetControlService();
     #frontier = new CrawlFrontier();
     #metrics = new CrawlMetrics();
 

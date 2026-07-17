@@ -1,5 +1,5 @@
-import CrawlFrontier from '@/modules/crawler/services/CrawlFrontier';
-import CrawlMetrics from '@/modules/crawler/services/CrawlMetrics';
+import CrawlFrontier from '@/modules/fleet/services/CrawlFrontier';
+import CrawlMetrics from '@/modules/fleet/services/CrawlMetrics';
 import WebsiteService from '@/modules/website/services/WebsiteService';
 import type { Snapshot, WorkerStat, RecentPage } from '@/modules/stats/contracts/domain/snapshot';
 

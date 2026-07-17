@@ -1,6 +1,6 @@
 import { getRedis } from '@/shared/redis/RedisClient';
-import UrlNormalizer from '@/modules/crawler/services/UrlNormalizer';
-import type { FrontierItem } from '@/modules/crawler/contracts/domain/crawl';
+import UrlNormalizer from '@/modules/fleet/services/UrlNormalizer';
+import type { FrontierItem } from '@/modules/fleet/contracts/domain/crawl';
 
 interface CrawlFrontierOptions{
     maxFrontier?: number;

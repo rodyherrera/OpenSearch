@@ -7,9 +7,6 @@ import ApiKeyService from '@/modules/apikey/services/ApiKeyService';
 const jwt = new JWTService();
 const keys = new ApiKeyService();
 
-// Guards the public developer API. Accepts either an `os-` API key (rate-limited and
-// metered) or a dashboard JWT (so the playground can call the same endpoints while
-// logged in). Sets req.principal so downstream code knows who is calling.
 export const PublicApiRoute: MiddlewareFn = async (req) => {
     const header = req.headers.authorization;
     if(!header?.startsWith('Bearer ')){

@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 import RuntimeError from '@/shared/errors/RuntimeError';
 import { logger } from '@/core/utils/Logger';
-import UrlNormalizer from '@/modules/crawler/services/UrlNormalizer';
+import UrlNormalizer from '@/modules/fleet/services/UrlNormalizer';
 import WebsiteService from '@/modules/website/services/WebsiteService';
 import CrawlJob, { type CrawlJobDocument } from '@/modules/crawl/models/CrawlJob';
 import CrawlRunner from '@/modules/crawl/services/CrawlRunner';
@@ -20,8 +20,6 @@ const RESULTS_PAGE_SIZE = 50;
 export default class CrawlJobService{
     #websites = new WebsiteService();
 
-    // Create the job, then kick the runner off fire-and-forget so the HTTP response
-    // returns immediately with a job id the caller can poll.
     async create(body: CreateCrawlBody, owner: string): Promise<CrawlJobStatusView>{
         const url = UrlNormalizer.normalizeUrl(body.url ?? '');
         if(!url) throw new RuntimeError(CrawlError.InvalidUrl, 400);
@@ -69,7 +67,6 @@ export default class CrawlJobService{
 
     async cancel(id: string): Promise<CrawlJobStatusView>{
         const job = await this.#findOrThrow(id);
-        // Only in-flight jobs can be cancelled; the runner sees the flag and stops.
         if(job.status === 'pending' || job.status === 'running'){
             job.status = 'cancelled';
             await job.save();
@@ -77,8 +74,6 @@ export default class CrawlJobService{
         return this.#toStatus(job);
     }
 
-    // Any job left 'running' when the process died can never resume — mark it failed
-    // at boot so it doesn't sit forever in a running state.
     async failStaleJobs(): Promise<number>{
         const result = await CrawlJob.updateMany(
             { status: { $in: ['pending', 'running'] } },

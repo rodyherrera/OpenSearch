@@ -19,7 +19,6 @@ const getTransport = (): Transporter | null => {
 const send = async (to: string, subject: string, text: string, html: string): Promise<void> => {
     const transport = getTransport();
     if(!transport){
-        // No SMTP configured: log the message so the flow still works in dev/self-host.
         logger.info(`mail (not sent, SMTP unset) -> ${to}: ${subject} | ${text}`, { scope: 'mail' });
         return;
     }

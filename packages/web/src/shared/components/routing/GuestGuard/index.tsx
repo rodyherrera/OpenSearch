@@ -9,7 +9,6 @@ const GuestGuard = () => {
     if(isLoading) return <RouteLoader />;
     if(isAuthenticated){
         const next = params.get('next');
-        // Only allow site-relative targets — reject protocol-relative '//host' open redirects.
         const to = next && next.startsWith('/') && !next.startsWith('//') ? next : '/';
         return <Navigate to={to} replace />;
     }

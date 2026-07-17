@@ -67,6 +67,8 @@ export interface WorkspaceSeedEvent{
     at: number;
 }
 
+export type RemovedKind = 'page' | 'seed' | 'domain';
+
 export interface RemovedRef{
     id?: string;
     url?: string;
@@ -76,7 +78,7 @@ export interface RemovedRef{
 export interface WorkspaceRemovedEvent extends RemovedRef{
     type: 'ws:removed';
     workspaceId: string;
-    kind: 'page' | 'seed' | 'domain';
+    kind: RemovedKind;
     at: number;
 }
 

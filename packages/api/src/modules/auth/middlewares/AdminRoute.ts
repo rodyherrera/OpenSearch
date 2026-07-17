@@ -5,8 +5,6 @@ import AuthService from '../services/AuthService';
 
 const auth = new AuthService();
 
-// Runs after AuthenticatedRoute (class-level middleware executes first), so
-// req.principal is already set. Gates the route to admin operators only.
 export const AdminRoute: MiddlewareFn = async (req) => {
     const userId = req.principal?.userId;
     if(!userId) throw new RuntimeError(AuthError.Unauthorized, 401);

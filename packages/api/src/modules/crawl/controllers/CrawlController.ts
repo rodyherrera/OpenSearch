@@ -8,8 +8,6 @@ import CrawlJobService from '@/modules/crawl/services/CrawlJobService';
 import type { Principal } from '@/modules/auth/contracts/domain/auth';
 import type { CreateCrawlBody } from '@/modules/crawl/contracts/domain/crawl';
 
-// Public developer API: POST /crawl starts a bounded single-site crawl job; the
-// remaining routes poll its status, page through its results, and cancel it.
 @Middleware(PublicApiRoute)
 export default class CrawlController extends BaseController{
     #service = new CrawlJobService();

@@ -8,7 +8,7 @@ import { AdminRoute } from '@/modules/auth/middlewares/AdminRoute';
 import { CurrentWorkspace, CurrentWorkspaceId } from '@/modules/workspace/middlewares/CurrentWorkspace';
 import WebsiteSearchService from '@/modules/website/services/WebsiteSearchService';
 import WebsiteService from '@/modules/website/services/WebsiteService';
-import WorkspaceFrontier from '@/modules/crawler/services/WorkspaceFrontier';
+import WorkspaceFrontier from '@/modules/fleet/services/WorkspaceFrontier';
 import type { SearchQuery } from '@/modules/website/contracts/http/search';
 import type { PublicWebsite } from '@/modules/website/contracts/domain/website';
 

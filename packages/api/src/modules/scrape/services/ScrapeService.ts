@@ -1,6 +1,6 @@
 import { config } from '@/shared/config';
 import RuntimeError from '@/shared/errors/RuntimeError';
-import UrlNormalizer from '@/modules/crawler/services/UrlNormalizer';
+import UrlNormalizer from '@/modules/fleet/services/UrlNormalizer';
 import PageFetcher from '@/modules/extraction/services/PageFetcher';
 import PageParser from '@/modules/extraction/services/PageParser';
 import WebsiteService from '@/modules/website/services/WebsiteService';
@@ -8,9 +8,6 @@ import { ScrapeError } from '@/modules/scrape/contracts/domain/errors';
 import type { WebsiteDocument } from '@/modules/website/models/Website';
 import type { ScrapeBody, ScrapeResult, ScrapeMetadata } from '@/modules/scrape/contracts/domain/scrape';
 
-// On-demand single-page scrape. The crawled index doubles as a cache: a fresh copy
-// with markdown is served without touching the network; otherwise we fetch live,
-// render markdown, and write it back so the next scrape (and search) benefit.
 export default class ScrapeService{
     #fetcher = new PageFetcher();
     #parser = new PageParser();
@@ -69,8 +66,6 @@ export default class ScrapeService{
                 doc.keywords ?? '',
                 (doc.metaData as Record<string, string>) ?? {}
             ),
-            // The index stores harvested links only during discovery crawling, not
-            // per scrape, so cache hits can't reconstruct them.
             ...(includeLinks ? { links: [] } : {}),
             cached: true
         };

@@ -1,4 +1,4 @@
-import WorkspaceFrontier from '@/modules/crawler/services/WorkspaceFrontier';
+import WorkspaceFrontier from '@/modules/fleet/services/WorkspaceFrontier';
 import WebsiteService from '@/modules/website/services/WebsiteService';
 import SeedService from '@/modules/seed/services/SeedService';
 import type { WorkspaceSnapshot } from '@/modules/realtime/contracts/domain/snapshot';

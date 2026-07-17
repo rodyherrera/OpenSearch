@@ -1,4 +1,4 @@
-import type { WorkerStat, RecentPage } from '@/modules/crawler/contracts/domain/crawl';
+import type { WorkerStat, RecentPage } from '@/modules/fleet/contracts/domain/crawl';
 
 export type { WorkerStat, RecentPage };
 

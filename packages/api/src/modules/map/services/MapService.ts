@@ -1,5 +1,5 @@
 import RuntimeError from '@/shared/errors/RuntimeError';
-import UrlNormalizer from '@/modules/crawler/services/UrlNormalizer';
+import UrlNormalizer from '@/modules/fleet/services/UrlNormalizer';
 import PageFetcher from '@/modules/extraction/services/PageFetcher';
 import PageParser from '@/modules/extraction/services/PageParser';
 import WebsiteService from '@/modules/website/services/WebsiteService';
@@ -10,9 +10,6 @@ import type { MapBody, MapResponse } from '@/modules/map/contracts/domain/map';
 const DEFAULT_LIMIT = 1000;
 const MAX_LIMIT = 5000;
 
-// Discovers the URLs of a site by merging three sources: its sitemap.xml, the links
-// on its homepage, and everything we've already indexed for that domain. The index
-// contribution is the edge a stateless scraper lacks — instant known-URL coverage.
 export default class MapService{
     #fetcher = new PageFetcher();
     #parser = new PageParser();
@@ -35,7 +32,6 @@ export default class MapService{
             includeIndex && domain ? this.#websites.listUrlsByDomain(domain, MAX_LIMIT) : Promise.resolve([])
         ]);
 
-        // Same-site only, deduped, deterministic order (sitemap → homepage → index).
         const term = body.search?.trim().toLowerCase();
         const seen = new Set<string>();
         const links: string[] = [];
@@ -55,8 +51,6 @@ export default class MapService{
     async #homepageLinks(url: string): Promise<string[]>{
         const html = await this.#fetcher.fetch(url);
         if(!html) return [];
-        // Harvest generously here — for mapping we want breadth, not the crawler's
-        // external-first bias, so lift both caps well above the discovery defaults.
         return this.#parser.parse(html, url, { maxExternalLinks: 2000, maxInternalLinks: 2000 }).links;
     }
 }

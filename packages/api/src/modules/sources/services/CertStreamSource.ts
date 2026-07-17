@@ -1,6 +1,6 @@
 import { WebSocket } from 'ws';
-import CrawlFrontier from '@/modules/crawler/services/CrawlFrontier';
-import UrlNormalizer from '@/modules/crawler/services/UrlNormalizer';
+import CrawlFrontier from '@/modules/fleet/services/CrawlFrontier';
+import UrlNormalizer from '@/modules/fleet/services/UrlNormalizer';
 import { config } from '@/shared/config';
 import { logger } from '@/core/utils/Logger';
 import type { RawData } from 'ws';

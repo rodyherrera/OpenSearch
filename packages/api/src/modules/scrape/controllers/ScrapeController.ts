@@ -6,8 +6,6 @@ import { PublicApiRoute } from '@/modules/apikey/middlewares/PublicApiRoute';
 import ScrapeService from '@/modules/scrape/services/ScrapeService';
 import type { ScrapeBody } from '@/modules/scrape/contracts/domain/scrape';
 
-// Public developer API: POST /scrape — fetch one URL as clean markdown + metadata,
-// served from the crawled index when a fresh copy exists.
 @Middleware(PublicApiRoute)
 export default class ScrapeController extends BaseController{
     #service = new ScrapeService();

@@ -1,5 +1,5 @@
 import { getRedisSubscriber } from '@/shared/redis/RedisClient';
-import { CRAWL_CHANNEL } from '@/modules/crawler/contracts/domain/events';
+import { CRAWL_CHANNEL } from '@/modules/fleet/contracts/domain/events';
 import { logger } from '@/core/utils/Logger';
 
 export default class CrawlRelayService{

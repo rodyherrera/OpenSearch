@@ -105,8 +105,6 @@ export interface WorkspaceLive{
     hydrated: boolean;
 }
 
-// Mount once (in the dashboard layout): keeps the store subscribed to the active
-// workspace's live stream and re-subscribes on reconnect / workspace switch.
 export const useWorkspaceLiveSync = (): void => {
     const activeId = useWorkspaceStore((state) => state.activeId);
     const reset = useStore((state) => state.reset);

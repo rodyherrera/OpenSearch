@@ -4,7 +4,7 @@ import _ from 'lodash';
 import { getDomain } from 'tldts';
 import Website, { type WebsiteDocument } from '@/modules/website/models/Website';
 import SearchIndexService from '@/modules/search/services/SearchIndexService';
-import CrawlEventPublisher from '@/modules/crawler/services/CrawlEventPublisher';
+import CrawlEventPublisher from '@/modules/fleet/services/CrawlEventPublisher';
 import RuntimeError from '@/shared/errors/RuntimeError';
 import { RequestError } from '@/shared/errors/RequestError';
 import type { MeiliWebsiteDoc, MeiliContentPatch } from '@/modules/search/contracts/domain/searchIndex';
@@ -49,10 +49,6 @@ export default class WebsiteService{
         return bulkOps.length;
     }
 
-    // Re-crawl store path: refresh content only when it actually changed (compared
-    // by content hash), always bump lastCheckedAt for freshness rotation, and stamp
-    // workspace membership. Returns URLs newly inserted and URLs whose content
-    // changed so the crawler can emit live workspace events.
     async refreshUpsert(records: WebsitePageRecord[], workspaceByUrl: Map<string, string | null | undefined>): Promise<RefreshResult>{
         if(!records.length) return { inserted: [], changed: [] };
         const urls = records.map((record) => record.url);

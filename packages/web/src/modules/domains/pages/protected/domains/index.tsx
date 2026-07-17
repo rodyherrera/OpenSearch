@@ -21,7 +21,6 @@ const baseColumns: Column<IndexedDomain>[] = [
     { key: 'pages', header: 'Pages', width: 'w-40', align: 'right', sortable: true, value: (row) => row.pages, cell: (row) => row.pages.toLocaleString() }
 ];
 
-// Workspace scope streams from the shared live store (always in sync with the crawler).
 const WorkspaceDomains = ({ filters }: { filters: ReactNode }) => {
     const { domains, hydrated } = useWorkspaceLive();
     const [searchParams, setSearchParams] = useSearchParams();
@@ -46,7 +45,6 @@ const WorkspaceDomains = ({ filters }: { filters: ReactNode }) => {
     );
 };
 
-// Global scope is the whole shared corpus — REST + admin purge.
 const GlobalDomains = ({ filters }: { filters: ReactNode }) => {
     const { domains, loading, error, refresh, query, hasMore, loadMore, purging, purgeDomain } = useDomains('global');
     const [, setSearchParams] = useSearchParams();

@@ -6,9 +6,6 @@ import type { Session } from '@/shared/contracts/routing/session';
 export const useSession = (): Session => {
     const token = useAuthStore((state) => state.token);
 
-    // Fires only on mount (alova useRequest is not watching-state driven). The sign-in flow
-    // navigates into the app, which remounts the guard subtree and refetches with the new token;
-    // sign-out never fires a stray tokenless /me.
     const { data: user, loading } = useRequest(authApi.me, { immediate: !!token });
 
     const isAuthenticated = !!token;

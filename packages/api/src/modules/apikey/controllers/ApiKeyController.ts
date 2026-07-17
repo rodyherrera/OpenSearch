@@ -6,8 +6,6 @@ import { Body, Param } from '@/shared/controllers/RequestParams';
 import { AuthenticatedRoute } from '@/modules/auth/middlewares/AuthenticatedRoute';
 import ApiKeyService from '@/modules/apikey/services/ApiKeyService';
 
-// Dashboard-only management of developer API keys — always behind the admin JWT.
-// The keys minted here authenticate the public /search, /scrape, /map, /crawl API.
 @Middleware(AuthenticatedRoute)
 export default class ApiKeyController extends BaseController{
     #service = new ApiKeyService();

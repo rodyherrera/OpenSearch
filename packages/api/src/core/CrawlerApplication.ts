@@ -1,6 +1,5 @@
 import Bootstrap from '@/core/Bootstrap';
-import CrawlEngine from '@/modules/crawler/services/CrawlEngine';
-import { scrapingTargetsList } from '@/modules/crawler/data/scrapingTargets';
+import CrawlEngine from '@/modules/fleet/services/CrawlEngine';
 import WebsiteService from '@/modules/website/services/WebsiteService';
 import { config } from '@/shared/config';
 import { logger } from '@/core/utils/Logger';
@@ -36,12 +35,13 @@ export default class CrawlerApplication{
         }
 
         const knownUrls = await new WebsiteService().recentUrls(5000);
-        const seeds = [...new Set([...knownUrls, ...scrapingTargetsList])];
+        const seeds = [...new Set(knownUrls)];
+        if(!seeds.length){
+            logger.info('Crawler -> no known URLs to seed; relying on discovery sources.', { scope: 'crawler' });
+            return;
+        }
 
         await frontier.enqueue(seeds);
-        logger.info(
-            `Crawler -> seeded frontier with ${seeds.length} URLs (${knownUrls.length} from DB, ${scrapingTargetsList.length} curated).`,
-            { scope: 'crawler' }
-        );
+        logger.info(`Crawler -> seeded frontier with ${seeds.length} URLs from the index.`, { scope: 'crawler' });
     }
 }

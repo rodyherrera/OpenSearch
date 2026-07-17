@@ -10,11 +10,9 @@ export interface CrawlJobDocument extends Document{
     limit: number;
     respectRobots: boolean;
     webhookUrl?: string;
-    // URLs successfully scraped by this job; their content lives in the Website index.
     pages: string[];
     total: number;
     error?: string;
-    // Who created the job — an API key id, or 'dashboard' for JWT callers.
     owner: string;
     startedAt?: Date;
     completedAt?: Date;

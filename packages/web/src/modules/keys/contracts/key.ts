@@ -9,7 +9,6 @@ export interface ApiKey{
     updatedAt: string;
 }
 
-// Returned only at creation — the one time the plaintext key is available.
 export interface CreatedApiKey extends ApiKey{
     key: string;
 }

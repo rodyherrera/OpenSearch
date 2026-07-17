@@ -8,8 +8,6 @@ import type { SearchParams, SearchResponse, SearchResult } from '@/modules/searc
 const DEFAULT_LIMIT = 10;
 const MAX_LIMIT = 100;
 
-// Firecrawl-compatible search: url/title/description/position. Text queries use the
-// search engine; plain listing (optionally filtered by freshness) reads Mongo.
 export default class PublicSearchService{
     #index = new SearchIndexService();
     #websites = new WebsiteService();

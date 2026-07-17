@@ -1,8 +1,6 @@
 import { getRedis } from '@/shared/redis/RedisClient';
 import RuntimeError from '@/shared/errors/RuntimeError';
 
-// Fixed-window limiter: one counter per (scope, id) per window. First hit sets the
-// expiry; going over the ceiling throws with the given error message.
 export const enforceRateLimit = async (
     scope: string,
     id: string,

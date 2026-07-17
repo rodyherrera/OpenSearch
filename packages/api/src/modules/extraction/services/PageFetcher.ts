@@ -1,6 +1,6 @@
 import { config } from '@/shared/config';
 import { fetchHtml } from '@/shared/http/HttpClient';
-import RobotsGuard from '@/modules/crawler/services/RobotsGuard';
+import RobotsGuard from '@/modules/fleet/services/RobotsGuard';
 
 export interface FetchPageOptions{
     timeoutMs?: number;

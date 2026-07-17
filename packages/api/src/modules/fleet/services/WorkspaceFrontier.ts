@@ -1,5 +1,5 @@
 import { getRedis } from '@/shared/redis/RedisClient';
-import type { WorkspaceChange } from '@/modules/crawler/contracts/domain/events';
+import type { WorkspaceChange } from '@/modules/fleet/contracts/domain/events';
 
 export default class WorkspaceFrontier{
     private static readonly CHANGES_MAX = 100;

@@ -1,5 +1,5 @@
 import { getRedis } from '@/shared/redis/RedisClient';
-import type { WorkerStat, RecentPage } from '@/modules/crawler/contracts/domain/crawl';
+import type { WorkerStat, RecentPage } from '@/modules/fleet/contracts/domain/crawl';
 
 export default class CrawlMetrics{
     private static readonly STORED_KEY = 'frontier:stored';

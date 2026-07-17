@@ -13,7 +13,7 @@ import SnapshotService from '@/modules/stats/services/SnapshotService';
 import WorkspaceSnapshotService from '@/modules/realtime/services/WorkspaceSnapshotService';
 import CrawlRelayService from '@/modules/realtime/services/CrawlRelayService';
 import type { GatewaySocket, InboundFrame } from '@/shared/contracts/gateway';
-import type { RoutableEvent } from '@/modules/crawler/contracts/domain/events';
+import type { RoutableEvent } from '@/modules/fleet/contracts/domain/events';
 import type { Principal as PrincipalType } from '@/modules/auth/contracts/domain/auth';
 
 @Channel('/ws')
@@ -30,8 +30,6 @@ export default class DashboardGateway extends BaseGateway{
         void this.#relay.start((raw) => this.#route(raw));
     }
 
-    // Fan each crawl event to its audience: workspace events to that workspace's
-    // room, global fleet events to the operator room.
     #route(raw: string): void{
         try{
             const event = JSON.parse(raw) as RoutableEvent;

@@ -7,7 +7,6 @@ interface AuthState{
     clear: () => void;
 }
 
-// Persisted to localStorage: the single bootstrapped operator must survive reloads.
 export const useAuthStore = create<AuthState>()(
     persist(
         (set) => ({

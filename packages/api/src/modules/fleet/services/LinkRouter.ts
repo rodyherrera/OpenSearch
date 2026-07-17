@@ -1,8 +1,9 @@
-import CrawlFrontier from '@/modules/crawler/services/CrawlFrontier';
-import WorkspaceFrontier from '@/modules/crawler/services/WorkspaceFrontier';
-import UrlNormalizer from '@/modules/crawler/services/UrlNormalizer';
+import CrawlFrontier from '@/modules/fleet/services/CrawlFrontier';
+import WorkspaceFrontier from '@/modules/fleet/services/WorkspaceFrontier';
+import UrlNormalizer from '@/modules/fleet/services/UrlNormalizer';
 import WebsiteService from '@/modules/website/services/WebsiteService';
 import type { ParsedPage } from '@/modules/extraction/contracts/domain/extraction';
+import type { WorkspaceByUrl } from '@/modules/fleet/contracts/domain/crawl';
 
 export default class LinkRouter{
     #frontier: CrawlFrontier;
@@ -15,7 +16,7 @@ export default class LinkRouter{
         this.#websites = websites;
     }
 
-    async route(records: ParsedPage[], workspaceByUrl: Map<string, string | null>): Promise<number>{
+    async route(records: ParsedPage[], workspaceByUrl: WorkspaceByUrl): Promise<number>{
         const origins = [...new Set([...workspaceByUrl.values()].filter((id): id is string => Boolean(id)))];
         const domainsByWorkspace = new Map<string, Set<string>>();
         const followExternalByWorkspace = new Map<string, boolean>();

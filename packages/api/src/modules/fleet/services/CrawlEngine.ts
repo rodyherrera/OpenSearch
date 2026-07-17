@@ -2,21 +2,21 @@ import { EventEmitter } from 'events';
 import pLimit from 'p-limit';
 import { config } from '@/shared/config';
 import { logger } from '@/core/utils/Logger';
-import CrawlFrontier from '@/modules/crawler/services/CrawlFrontier';
-import WorkspaceFrontier from '@/modules/crawler/services/WorkspaceFrontier';
-import CrawlMetrics from '@/modules/crawler/services/CrawlMetrics';
-import UrlNormalizer from '@/modules/crawler/services/UrlNormalizer';
-import LinkRouter from '@/modules/crawler/services/LinkRouter';
-import WorkspaceNotifier from '@/modules/crawler/services/WorkspaceNotifier';
-import CrawlEventPublisher from '@/modules/crawler/services/CrawlEventPublisher';
-import CrawlerControlService from '@/modules/crawler/services/CrawlerControlService';
+import CrawlFrontier from '@/modules/fleet/services/CrawlFrontier';
+import WorkspaceFrontier from '@/modules/fleet/services/WorkspaceFrontier';
+import CrawlMetrics from '@/modules/fleet/services/CrawlMetrics';
+import UrlNormalizer from '@/modules/fleet/services/UrlNormalizer';
+import LinkRouter from '@/modules/fleet/services/LinkRouter';
+import WorkspaceNotifier from '@/modules/fleet/services/WorkspaceNotifier';
+import CrawlEventPublisher from '@/modules/fleet/services/CrawlEventPublisher';
+import FleetControlService from '@/modules/fleet/services/FleetControlService';
 import WebsiteService from '@/modules/website/services/WebsiteService';
 import PageFetcher from '@/modules/extraction/services/PageFetcher';
 import PageParser from '@/modules/extraction/services/PageParser';
 import type { ParsedPage } from '@/modules/extraction/contracts/domain/extraction';
 import type { WebsitePageRecord, RefreshResult } from '@/modules/website/contracts/domain/website';
-import type { CrawlEngineOptions } from '@/modules/crawler/contracts/domain/crawl';
-import type { Tuning } from '@/modules/crawler/contracts/domain/control';
+import type { CrawlEngineOptions, WorkspaceByUrl } from '@/modules/fleet/contracts/domain/crawl';
+import type { Tuning } from '@/modules/fleet/contracts/domain/control';
 
 interface StoreResult extends RefreshResult{
     stored: number;
@@ -27,7 +27,7 @@ export default class CrawlEngine extends EventEmitter{
     #workspaceFrontier = new WorkspaceFrontier();
     #metrics = new CrawlMetrics();
     #publisher = new CrawlEventPublisher();
-    #control = new CrawlerControlService();
+    #control = new FleetControlService();
     #websites = new WebsiteService();
     #fetcher = new PageFetcher();
     #parser = new PageParser();
@@ -92,7 +92,7 @@ export default class CrawlEngine extends EventEmitter{
         return record;
     }
 
-    async #store(records: ParsedPage[], workspaceByUrl: Map<string, string | null>): Promise<StoreResult>{
+    async #store(records: ParsedPage[], workspaceByUrl: WorkspaceByUrl): Promise<StoreResult>{
         if(!records.length) return { stored: 0, inserted: [], changed: [] };
         const toRecord = ({ url, title, description, keywords, content, metaData }: ParsedPage): WebsitePageRecord => ({
             url,
@@ -120,7 +120,7 @@ export default class CrawlEngine extends EventEmitter{
             return -1;
         }
 
-        const workspaceByUrl = new Map<string, string | null>(items.map((item) => [item.url, item.workspaceId]));
+        const workspaceByUrl: WorkspaceByUrl = new Map(items.map((item) => [item.url, item.workspaceId]));
         const results = await Promise.all(
             items.map((item) => this.#limit(() => this.#crawlOne(item.url, Boolean(item.workspaceId))))
         );

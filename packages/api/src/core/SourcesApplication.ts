@@ -1,15 +1,9 @@
 import Bootstrap from '@/core/Bootstrap';
 import CertStreamSource from '@/modules/sources/services/CertStreamSource';
-import RefreshScheduler from '@/modules/crawler/services/RefreshScheduler';
+import RefreshScheduler from '@/modules/fleet/services/RefreshScheduler';
 import { config } from '@/shared/config';
 import { logger } from '@/core/utils/Logger';
 
-/**
- * Standalone orchestrator for external domain-discovery feeds and continuous re-crawl.
- * Runs as its own single process (src/sources.ts) so the firehose consumers and the
- * freshness scheduler stay separate from the crawler workers; everything they queue
- * lands in the shared Redis frontier.
- */
 export default class SourcesApplication{
     #bootstrap = new Bootstrap();
     #certstream: CertStreamSource | null = null;

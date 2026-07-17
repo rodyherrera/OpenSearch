@@ -8,11 +8,6 @@ type ErrorHandler = (message: string) => void;
 const INITIAL_BACKOFF_MS = 500;
 const MAX_BACKOFF_MS = 10_000;
 
-/**
- * One reconnecting WebSocket bound to a single channel path. Framework-agnostic:
- * no React, no globals. Listeners live on the channel (not the socket), so they
- * survive reconnects. The pool owns the lifecycle via the constructor and close().
- */
 export default class SocketChannel{
     readonly #path: string;
     #socket: WebSocket | null = null;
@@ -77,8 +72,6 @@ export default class SocketChannel{
 
         const url = wsUrl(this.#path);
         const token = useAuthStore.getState().token;
-        // Browsers can't set an Authorization header on the WS upgrade, so the JWT
-        // rides as the sole subprotocol — the server reads it as the first protocol.
         const socket = token ? new WebSocket(url, token) : new WebSocket(url);
         this.#socket = socket;
 
@@ -103,7 +96,6 @@ export default class SocketChannel{
         this.#reconnectTimer = setTimeout(() => this.#connect(), delay);
     }
 
-    // Equal jitter: half the capped exponential ceiling plus a random point in the other half.
     #backoffDelay(): number{
         const ceiling = Math.min(MAX_BACKOFF_MS, INITIAL_BACKOFF_MS * 2 ** this.#attempts);
         return ceiling / 2 + Math.random() * (ceiling / 2);
@@ -130,8 +122,6 @@ export default class SocketChannel{
             return;
         }
         if(typeof frame.type === 'string'){
-            // Crawlm sends flat frames ({ type, ...fields }) with no `data` wrapper. Fall back
-            // to the whole frame so live handlers receive the payload instead of undefined.
             const payload = ('data' in frame) ? frame.data : frame;
             this.#listeners.get(frame.type)?.forEach((handler) => handler(payload));
         }

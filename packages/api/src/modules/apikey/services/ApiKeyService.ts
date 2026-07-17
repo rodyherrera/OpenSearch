@@ -11,14 +11,11 @@ import type { PublicApiKey, CreatedApiKey, VerifiedKey } from '@/modules/apikey/
 const KEY_PREFIX = 'os-';
 const KEY_BYTES = 24;
 const PREFIX_DISPLAY_CHARS = 6;
-// lastUsedAt is flushed to Mongo at most once per this window (per key), so hot
-// keys don't write on every request.
 const TOUCH_TTL_S = 60;
 
 const hashKey = (key: string): string => createHash('sha256').update(key).digest('hex');
 
 export default class ApiKeyService{
-    // Generate a fresh key. The plaintext is returned once and never persisted.
     async create(name: string): Promise<CreatedApiKey>{
         const label = name?.trim() || 'Default';
         const secret = randomBytes(KEY_BYTES).toString('hex');
@@ -45,16 +42,12 @@ export default class ApiKeyService{
         return !!doc;
     }
 
-    // Resolve a plaintext key to its owning record, or reject. Constant-ish work:
-    // a single indexed lookup on the hash.
     async verify(key: string): Promise<VerifiedKey>{
         const doc = await ApiKey.findOne({ keyHash: hashKey(key) }).select('_id');
         if(!doc) throw new RuntimeError(ApiKeyError.Invalid, 401);
         return { id: String(doc._id) };
     }
 
-    // Fixed-window limiter: one counter per key per calendar minute. First hit in a
-    // window sets the 60s expiry; over the ceiling throws 429.
     async enforceRateLimit(keyId: string): Promise<void>{
         const redis = await getRedis();
         const windowKey = `ratelimit:apikey:${keyId}:${Math.floor(Date.now() / 60000)}`;
@@ -65,8 +58,6 @@ export default class ApiKeyService{
         }
     }
 
-    // Fire-and-forget accounting: bump fast Redis counters on every call, and flush
-    // lastUsedAt/requestCount to Mongo at most once per TOUCH_TTL_S per key.
     async recordUsage(keyId: string): Promise<void>{
         const redis = await getRedis();
         const day = new Date().toISOString().slice(0, 10);

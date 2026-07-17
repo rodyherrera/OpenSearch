@@ -3,6 +3,12 @@ export interface PublicWorkspace{
     name: string;
     role: 'owner' | 'member';
     followExternal: boolean;
+    starterPacks: string[];
+}
+
+export interface StarterPack{
+    name: string;
+    urlCount: number;
 }
 
 export interface CreateWorkspaceBody{
@@ -11,6 +17,7 @@ export interface CreateWorkspaceBody{
 
 export interface UpdateWorkspaceBody{
     followExternal?: boolean;
+    starterPacks?: string[];
 }
 
 export enum WorkspaceError{

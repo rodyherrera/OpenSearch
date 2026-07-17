@@ -10,6 +10,7 @@ export interface WorkspaceMember{
 
 export interface WorkspaceCrawlConfig{
     followExternal: boolean;
+    starterPacks: string[];
 }
 
 export interface WorkspaceDocument extends Document{
@@ -32,6 +33,7 @@ export default defineModel<WorkspaceDocument>('Workspace', {
         role: { type: String, enum: ['owner', 'member'], default: 'member' }
     }],
     crawl: {
-        followExternal: { type: Boolean, default: false }
+        followExternal: { type: Boolean, default: false },
+        starterPacks: { type: [String], default: [] }
     }
 }, configure);

@@ -1,7 +1,7 @@
 import { load, type CheerioAPI } from 'cheerio';
 import TurndownService from 'turndown';
 import { config } from '@/shared/config';
-import UrlNormalizer from '@/modules/crawler/services/UrlNormalizer';
+import UrlNormalizer from '@/modules/fleet/services/UrlNormalizer';
 import type { ParsedPage, ParseOptions } from '@/modules/extraction/contracts/domain/extraction';
 
 export default class PageParser{
@@ -74,7 +74,7 @@ export default class PageParser{
 
         return [...externals, ...internals];
     }
-
+        
     #toMarkdown($: CheerioAPI): string{
         const region = $('main').first();
         const html = (region.length ? region : $('body')).html() ?? '';

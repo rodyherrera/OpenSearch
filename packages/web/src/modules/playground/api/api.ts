@@ -7,8 +7,6 @@ import type {
     CrawlResults
 } from '@/modules/playground/contracts/playground';
 
-// cacheFor: 0 on the polled crawl reads so status updates aren't served stale from
-// the shared 30s GET cache.
 export const playgroundApi = {
     search: (q: string, limit: number) =>
         alova.Get<SearchResponse>('/search', { params: { q, limit } }),

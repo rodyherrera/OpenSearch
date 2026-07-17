@@ -5,12 +5,8 @@ import CacheableLookup from 'cacheable-lookup';
 import { config } from '@/shared/config';
 import { logger } from '@/core/utils/Logger';
 
-const USER_AGENT = 'CrawlmBot/1.0 (+https://github.com/rodyherrera/Crawlm)';
+export const USER_AGENT = 'CrawlmBot/1.0 (+https://github.com/rodyherrera/Crawlm)';
 
-// At high concurrency the dominant cost per fetch is a fresh TCP + TLS handshake and
-// a DNS lookup. Keep-alive agents pool and reuse sockets; cacheable-lookup memoises
-// DNS so repeat hosts skip resolution. The socket ceiling scales with the worker's
-// fetch concurrency so it never becomes the bottleneck.
 const MAX_SOCKETS = Math.max(256, config.crawler.concurrency * 2);
 const dnsCache = new CacheableLookup();
 
@@ -65,8 +61,6 @@ export const fetchHtml = async (url: string, options: FetchHtmlOptions = {}): Pr
     }
 };
 
-// Like fetchHtml but content-type agnostic — for XML sitemaps, robots.txt, plain
-// text. Returns '' on any failure so callers can treat "missing" and "errored" alike.
 export const fetchText = async (url: string, options: FetchHtmlOptions = {}): Promise<string> => {
     const { timeoutMs = config.crawler.timeoutMs, maxBytes = DEFAULT_MAX_BYTES } = options;
     try{

@@ -1,11 +1,11 @@
 import mongoose from 'mongoose';
 import _ from 'lodash';
 import Seed from '@/modules/seed/models/Seed';
-import CrawlFrontier from '@/modules/crawler/services/CrawlFrontier';
-import WorkspaceFrontier from '@/modules/crawler/services/WorkspaceFrontier';
-import UrlNormalizer from '@/modules/crawler/services/UrlNormalizer';
+import CrawlFrontier from '@/modules/fleet/services/CrawlFrontier';
+import WorkspaceFrontier from '@/modules/fleet/services/WorkspaceFrontier';
+import UrlNormalizer from '@/modules/fleet/services/UrlNormalizer';
 import WebsiteService from '@/modules/website/services/WebsiteService';
-import CrawlEventPublisher from '@/modules/crawler/services/CrawlEventPublisher';
+import CrawlEventPublisher from '@/modules/fleet/services/CrawlEventPublisher';
 import RuntimeError from '@/shared/errors/RuntimeError';
 import { RequestError } from '@/shared/errors/RequestError';
 import type { PublicSeed, AddSeedsResult } from '@/modules/seed/contracts/domain/seed';

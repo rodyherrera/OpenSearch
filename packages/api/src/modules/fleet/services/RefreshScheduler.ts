@@ -1,7 +1,7 @@
 import { type Types } from 'mongoose';
 import { config } from '@/shared/config';
 import { logger } from '@/core/utils/Logger';
-import CrawlFrontier from '@/modules/crawler/services/CrawlFrontier';
+import CrawlFrontier from '@/modules/fleet/services/CrawlFrontier';
 import Workspace from '@/modules/workspace/models/Workspace';
 import Seed from '@/modules/seed/models/Seed';
 import Website from '@/modules/website/models/Website';
@@ -51,8 +51,6 @@ export default class RefreshScheduler{
         let total = 0;
         for(const workspace of workspaces){
             const workspaceId = String(workspace._id);
-            // Skip lanes still draining a prior refresh so re-queues can't pile up
-            // faster than the crawler works them off.
             if((await this.#frontier.workspaceQueueLength(workspaceId)) > config.refresh.batchPerWorkspace) continue;
 
             const [seeds, owned] = await Promise.all([

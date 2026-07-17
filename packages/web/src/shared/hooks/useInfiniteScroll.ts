@@ -8,10 +8,6 @@ export interface InfiniteScrollOptions{
     rootMargin?: string;
 }
 
-// Fires onLoadMore when the given sentinel element scrolls into view. The observer
-// is only active while there is more to load and nothing is in flight, so it never
-// double-fires. onLoadMore is read through a ref, so the observer is not recreated
-// on every render just because the callback identity changed.
 export const useInfiniteScroll = (
     sentinel: RefObject<HTMLElement | null>,
     { hasMore, loading, onLoadMore, rootMargin = '300px' }: InfiniteScrollOptions

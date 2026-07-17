@@ -30,13 +30,10 @@ export const config = {
     apiPrefix: optional('API_PREFIX', '/api/v1'),
     corsOrigin: optional('CORS_ORIGIN', '*'),
 
-    // Public web origin, used to build links in emails (e.g. password reset).
     app: {
         url: optional('APP_URL', optional('CORS_ORIGIN', 'http://localhost:8090'))
     },
 
-    // Outbound email. When smtpHost is empty, mail is logged instead of sent, so the
-    // flows still work without an SMTP server configured.
     mail: {
         smtpHost: optional('SMTP_HOST', ''),
         smtpPort: toInt(optional('SMTP_PORT', '587'), 587),
@@ -55,8 +52,6 @@ export const config = {
         uri: required('REDIS_URI')
     },
 
-    // Search backend — Meilisearch is the sole engine (Mongo stays the source of
-    // truth that results are hydrated from).
     search: {
         meili: {
             host: optional('MEILI_URL', 'http://meilisearch:7700'),
@@ -83,9 +78,6 @@ export const config = {
         concurrency: toInt(optional('CRAWLER_CONCURRENCY', '64'), 64),
         batchSize: toInt(optional('CRAWLER_BATCH_SIZE', '128'), 128),
         domainDelayMs: toInt(optional('CRAWLER_DOMAIN_DELAY_MS', '1500'), 1500),
-        // A workspace's OWN seeded domains crawl faster than the global firehose: up to
-        // workspaceDomainConcurrency pages per domain per window (the user chose these
-        // sites and wants them indexed quickly). Rate ceiling ≈ concurrency / window.
         workspaceDomainDelayMs: toInt(optional('CRAWLER_WORKSPACE_DOMAIN_DELAY_MS', '1000'), 1000),
         workspaceDomainConcurrency: toInt(optional('CRAWLER_WORKSPACE_DOMAIN_CONCURRENCY', '20'), 20),
         maxLinksPerPage: toInt(optional('CRAWLER_MAX_LINKS_PER_PAGE', '40'), 40),
@@ -94,20 +86,11 @@ export const config = {
         respectRobots: toBool(optional('CRAWLER_RESPECT_ROBOTS', 'true'), true),
         timeoutMs: toInt(optional('CRAWLER_TIMEOUT_MS', '15000'), 15000),
         replicas: toInt(optional('CRAWLER_REPLICAS', '3'), 3),
-        // Stop chasing a site once this many of its pages are stored (starve deep
-        // sinks so the crawl fans out across more domains). 0 = unlimited.
         maxPagesPerDomain: toInt(optional('CRAWLER_MAX_PAGES_PER_DOMAIN', '25'), 25),
-        // Cap same-domain links harvested per page for the global firehose (keeps it
-        // fanning across domains); workspace deep-crawls harvest many more so they
-        // cover the seeded site fully and fast.
         maxInternalLinks: toInt(optional('CRAWLER_MAX_INTERNAL_LINKS', '5'), 5),
         workspaceMaxInternalLinks: toInt(optional('CRAWLER_WORKSPACE_MAX_INTERNAL_LINKS', '60'), 60)
     },
 
-    // Continuous re-crawl for freshness (run by the standalone `sources` process).
-    // Periodically re-queues each workspace's seeds and owned pages into their
-    // Redis lane, bypassing the global seen-set so already-discovered pages get
-    // re-fetched and refreshed when their content changes.
     refresh: {
         enabled: toBool(optional('REFRESH_ENABLED', 'true'), true),
         intervalMs: toInt(optional('REFRESH_INTERVAL_MS', '300000'), 300000),
@@ -115,20 +98,13 @@ export const config = {
         maxSeedsPerWorkspace: toInt(optional('REFRESH_MAX_SEEDS_PER_WORKSPACE', '200'), 200)
     },
 
-    // Public developer API (search/scrape/map/crawl authenticated by API key).
     publicApi: {
-        // Requests per minute per API key. Fixed-window, enforced in Redis.
         rateLimitPerMin: toInt(optional('PUBLIC_API_RATE_LIMIT_PER_MIN', '120'), 120),
-        // How fresh an indexed page must be to serve a scrape from cache without
-        // re-fetching, in milliseconds. Callers can request a stricter maxAge.
         scrapeCacheMaxAgeMs: toInt(optional('PUBLIC_API_SCRAPE_CACHE_MS', '86400000'), 86400000)
     },
 
-    // External domain-discovery feeds (run by the standalone `sources` process).
     sources: {
         certstreamEnabled: toBool(optional('SOURCES_CERTSTREAM_ENABLED', 'true'), true),
-        // A CertStream-compatible WS feed of newly-issued TLS certs (self-hosted
-        // certstream-server-go by default; the public feed is dead).
         certstreamUrl: optional('SOURCES_CERTSTREAM_URL', 'ws://certstream:8080/full-stream'),
         maxPerFlush: toInt(optional('SOURCES_MAX_PER_FLUSH', '200'), 200),
         flushMs: toInt(optional('SOURCES_FLUSH_MS', '2000'), 2000)

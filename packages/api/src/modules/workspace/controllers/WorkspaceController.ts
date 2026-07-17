@@ -5,7 +5,7 @@ import { Middleware } from '@/shared/middlewares/Middleware';
 import { AuthenticatedRoute } from '@/modules/auth/middlewares/AuthenticatedRoute';
 import { CurrentUser } from '@/modules/auth/middlewares/CurrentUser';
 import WorkspaceService from '@/modules/workspace/services/WorkspaceService';
-import type { PublicWorkspace, CreateWorkspaceBody, UpdateWorkspaceBody } from '@/modules/workspace/contracts/domain/workspace';
+import type { PublicWorkspace, CreateWorkspaceBody, UpdateWorkspaceBody, StarterPack } from '@/modules/workspace/contracts/domain/workspace';
 
 @Middleware(AuthenticatedRoute)
 export default class WorkspaceController extends BaseController{
@@ -21,8 +21,13 @@ export default class WorkspaceController extends BaseController{
         return this.#service.create(userId, body?.name);
     }
 
+    @Route('/starter-packs', 'GET')
+    starterPacks(): StarterPack[]{
+        return this.#service.availablePacks();
+    }
+
     @Route('/:id', 'PATCH')
     update(@CurrentUser() userId: string, @Param('id') id: string, @Body() body: UpdateWorkspaceBody): Promise<PublicWorkspace>{
-        return this.#service.update(userId, id, Boolean(body?.followExternal));
+        return this.#service.update(userId, id, body ?? {});
     }
 }

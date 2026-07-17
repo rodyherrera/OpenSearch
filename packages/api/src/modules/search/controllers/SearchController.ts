@@ -6,8 +6,6 @@ import { PublicApiRoute } from '@/modules/apikey/middlewares/PublicApiRoute';
 import PublicSearchService from '@/modules/search/services/PublicSearchService';
 import type { SearchParams } from '@/modules/search/contracts/domain/search';
 
-// Public developer API: GET /search — query the crawled index. Authenticated by an
-// API key (or a dashboard JWT for the playground).
 @Middleware(PublicApiRoute)
 export default class SearchController extends BaseController{
     #service = new PublicSearchService();

@@ -1,5 +1,5 @@
 import type { DomainPageCount, PublicWebsite } from '@/modules/website/contracts/domain/website';
-import type { WorkspaceChange } from '@/modules/crawler/contracts/domain/events';
+import type { WorkspaceChange } from '@/modules/fleet/contracts/domain/events';
 import type { PublicSeed } from '@/modules/seed/contracts/domain/seed';
 
 export interface WorkspaceCounts{

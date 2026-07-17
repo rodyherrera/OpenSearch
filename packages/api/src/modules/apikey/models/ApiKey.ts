@@ -4,7 +4,6 @@ import type { Document, Schema } from 'mongoose';
 
 export interface ApiKeyDocument extends Document{
     name: string;
-    // sha256 of the plaintext key. The plaintext is never stored — only shown once.
     keyHash: string;
     prefix: string;
     last4: string;

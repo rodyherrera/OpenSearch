@@ -1,8 +1,9 @@
-import WorkspaceFrontier from '@/modules/crawler/services/WorkspaceFrontier';
-import CrawlEventPublisher from '@/modules/crawler/services/CrawlEventPublisher';
-import UrlNormalizer from '@/modules/crawler/services/UrlNormalizer';
+import WorkspaceFrontier from '@/modules/fleet/services/WorkspaceFrontier';
+import CrawlEventPublisher from '@/modules/fleet/services/CrawlEventPublisher';
+import UrlNormalizer from '@/modules/fleet/services/UrlNormalizer';
 import type { ParsedPage } from '@/modules/extraction/contracts/domain/extraction';
-import type { WorkspacePageRow } from '@/modules/crawler/contracts/domain/events';
+import type { WorkspacePageRow } from '@/modules/fleet/contracts/domain/events';
+import type { WorkspaceByUrl } from '@/modules/fleet/contracts/domain/crawl';
 
 export default class WorkspaceNotifier{
     #workspaces: WorkspaceFrontier;
@@ -12,7 +13,7 @@ export default class WorkspaceNotifier{
         this.#workspaces = workspaces;
     }
 
-    async notifyIndexed(inserted: string[], records: ParsedPage[], workspaceByUrl: Map<string, string | null>, now: number): Promise<void>{
+    async notifyIndexed(inserted: string[], records: ParsedPage[], workspaceByUrl: WorkspaceByUrl, now: number): Promise<void>{
         const recordByUrl = new Map(records.map((record) => [record.url, record]));
         const byWorkspace = new Map<string, WorkspacePageRow[]>();
         for(const url of inserted){
@@ -28,7 +29,7 @@ export default class WorkspaceNotifier{
         }
     }
 
-    async notifyChanges(changed: string[], workspaceByUrl: Map<string, string | null>, now: number): Promise<void>{
+    async notifyChanges(changed: string[], workspaceByUrl: WorkspaceByUrl, now: number): Promise<void>{
         const byWorkspace = new Map<string, string[]>();
         for(const url of changed){
             const workspaceId = workspaceByUrl.get(url);

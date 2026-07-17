@@ -9,8 +9,6 @@ export const Band = ({ children, className = '' }: { children?: ReactNode; class
     </div>
 );
 
-// Full-bleed blueprint frame: a centered column with vertical rails, content split
-// into horizontal bands over the grid — no floating card.
 export const AuthShell = ({ children }: { children: ReactNode }) => (
     <main className='flex min-h-dvh flex-col bg-background'>
         <div className='mx-auto flex min-h-dvh w-full max-w-md flex-1 flex-col border-x border-hairline'>

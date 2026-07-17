@@ -1,9 +1,9 @@
 import { getRedis } from '@/shared/redis/RedisClient';
 import { config } from '@/shared/config';
-import CrawlEventPublisher from '@/modules/crawler/services/CrawlEventPublisher';
-import type { Tuning, ControlState } from '@/modules/crawler/contracts/domain/control';
+import CrawlEventPublisher from '@/modules/fleet/services/CrawlEventPublisher';
+import type { Tuning, ControlState } from '@/modules/fleet/contracts/domain/control';
 
-export default class CrawlerControlService{
+export default class FleetControlService{
     private static readonly CONTROL_KEY = 'crawler:control';
     private static readonly MIN_CONCURRENCY = 1;
     private static readonly MIN_BATCH_SIZE = 1;
@@ -15,7 +15,7 @@ export default class CrawlerControlService{
 
     async getControl(): Promise<ControlState>{
         const redis = await getRedis();
-        const raw = await redis.hGetAll(CrawlerControlService.CONTROL_KEY);
+        const raw = await redis.hGetAll(FleetControlService.CONTROL_KEY);
         const tuning = this.#mergeTuning(raw);
         const paused = raw.paused === '1';
         return { paused, tuning };
@@ -23,30 +23,30 @@ export default class CrawlerControlService{
 
     async setPaused(paused: boolean, at: number): Promise<void>{
         const redis = await getRedis();
-        await redis.hSet(CrawlerControlService.CONTROL_KEY, 'paused', paused ? '1' : '0');
+        await redis.hSet(FleetControlService.CONTROL_KEY, 'paused', paused ? '1' : '0');
         await this.#publisher.publishControlEvent(paused, at);
     }
 
     async patchTuning(patch: Partial<Tuning>): Promise<ControlState>{
         const redis = await getRedis();
         const fields: Record<string, string> = {};
-        this.#applyNumber(fields, patch, 'concurrency', CrawlerControlService.MIN_CONCURRENCY);
-        this.#applyNumber(fields, patch, 'batchSize', CrawlerControlService.MIN_BATCH_SIZE);
-        this.#applyNumber(fields, patch, 'domainDelayMs', CrawlerControlService.MIN_DOMAIN_DELAY_MS);
-        this.#applyNumber(fields, patch, 'maxLinksPerPage', CrawlerControlService.MIN_MAX_LINKS_PER_PAGE);
-        this.#applyNumber(fields, patch, 'timeoutMs', CrawlerControlService.MIN_TIMEOUT_MS);
+        this.#applyNumber(fields, patch, 'concurrency', FleetControlService.MIN_CONCURRENCY);
+        this.#applyNumber(fields, patch, 'batchSize', FleetControlService.MIN_BATCH_SIZE);
+        this.#applyNumber(fields, patch, 'domainDelayMs', FleetControlService.MIN_DOMAIN_DELAY_MS);
+        this.#applyNumber(fields, patch, 'maxLinksPerPage', FleetControlService.MIN_MAX_LINKS_PER_PAGE);
+        this.#applyNumber(fields, patch, 'timeoutMs', FleetControlService.MIN_TIMEOUT_MS);
         if(patch.respectRobots !== undefined){
             fields.respectRobots = patch.respectRobots ? '1' : '0';
         }
         if(Object.keys(fields).length){
-            await redis.hSet(CrawlerControlService.CONTROL_KEY, fields);
+            await redis.hSet(FleetControlService.CONTROL_KEY, fields);
         }
         return this.getControl();
     }
 
     async isPaused(): Promise<boolean>{
         const redis = await getRedis();
-        const value = await redis.hGet(CrawlerControlService.CONTROL_KEY, 'paused');
+        const value = await redis.hGet(FleetControlService.CONTROL_KEY, 'paused');
         return value === '1';
     }
 
@@ -57,11 +57,11 @@ export default class CrawlerControlService{
 
     #mergeTuning(raw: Record<string, string>): Tuning{
         return {
-            concurrency: this.#num(raw.concurrency, config.crawler.concurrency, CrawlerControlService.MIN_CONCURRENCY),
-            batchSize: this.#num(raw.batchSize, config.crawler.batchSize, CrawlerControlService.MIN_BATCH_SIZE),
-            domainDelayMs: this.#num(raw.domainDelayMs, config.crawler.domainDelayMs, CrawlerControlService.MIN_DOMAIN_DELAY_MS),
-            maxLinksPerPage: this.#num(raw.maxLinksPerPage, config.crawler.maxLinksPerPage, CrawlerControlService.MIN_MAX_LINKS_PER_PAGE),
-            timeoutMs: this.#num(raw.timeoutMs, config.crawler.timeoutMs, CrawlerControlService.MIN_TIMEOUT_MS),
+            concurrency: this.#num(raw.concurrency, config.crawler.concurrency, FleetControlService.MIN_CONCURRENCY),
+            batchSize: this.#num(raw.batchSize, config.crawler.batchSize, FleetControlService.MIN_BATCH_SIZE),
+            domainDelayMs: this.#num(raw.domainDelayMs, config.crawler.domainDelayMs, FleetControlService.MIN_DOMAIN_DELAY_MS),
+            maxLinksPerPage: this.#num(raw.maxLinksPerPage, config.crawler.maxLinksPerPage, FleetControlService.MIN_MAX_LINKS_PER_PAGE),
+            timeoutMs: this.#num(raw.timeoutMs, config.crawler.timeoutMs, FleetControlService.MIN_TIMEOUT_MS),
             respectRobots: raw.respectRobots === undefined
                 ? config.crawler.respectRobots
                 : raw.respectRobots === '1'
